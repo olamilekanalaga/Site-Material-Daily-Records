@@ -29,3 +29,8 @@ Follow `source/AGENTS.md` for canonical Data builds, then export the completed b
 This is a static snapshot with interactive filtering; records do not refresh automatically. ChatGPT Sites authentication, shared edit persistence, and server-backed features are not supplied by static Vercel hosting. The original Site was private. Set appropriate Vercel access protection before sharing real records; a private GitHub repository alone does not make a deployed website private.
 
 The updated export passed compilation and data checks. Prior day filtering was verified in the original preview; this export still needs its Vercel browser/access verification, as specified in the Codex prompt.
+
+## Protected preview deployment
+
+Vercel Authentication is enabled for all previews. Automatic deployment from main is disabled in vercel.json to prevent an unprotected production-domain release. Use a preview branch or the Vercel CLI preview deployment command. Do not promote to production without first ensuring the production domain is access-protected. The static export does not inherit ChatGPT sign-in or hosted presentation editing.
+
