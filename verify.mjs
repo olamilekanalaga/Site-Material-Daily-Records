@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 const expected = [
  ['2026-09-17','Thursday','—','6F5 crushed concrete',7,'LIME LOGISTICS','Second Gate'],
  ['2026-09-17','Thursday','—','Type 1 / recycled Type 1',4,'LIME LOGISTICS','Second Gate'],
- ['2026-09-18','Friday','—','6F5 crushed concrete',17,'LIME LOGISTICS','Second Gate'],
+ ['2026-09-18','Friday','—','6F5 crushed concrete',19,'LIME LOGISTICS','Second Gate'],
  ['2026-09-18','Friday','—','Type 1',4,'LIME LOGISTICS','Second Gate']
 ];
 function verify(data) {
@@ -11,9 +11,9 @@ function verify(data) {
  assert.deepEqual(rows.map(r=>[r.date,r.day,r.time,r.material,r.deliveries,r.deliveryCompany,r.gate]),expected);
  const sum=rs=>rs.reduce((n,r)=>n+r.deliveries,0);
  assert.equal(sum(rows.filter(r=>r.date==='2026-09-17')),11);
- assert.equal(sum(rows.filter(r=>r.date==='2026-09-18')),21);
- assert.equal(sum(rows),32);
- assert.equal(sum(rows.filter(r=>r.materialGroup==='6F5 crushed concrete')),24);
+ assert.equal(sum(rows.filter(r=>r.date==='2026-09-18')),23);
+ assert.equal(sum(rows),34);
+ assert.equal(sum(rows.filter(r=>r.materialGroup==='6F5 crushed concrete')),26);
  assert.equal(sum(rows.filter(r=>r.materialGroup==='Type 1 / recycled Type 1')),8);
  assert.equal(new Set(rows.map(r=>r.materialGroup)).size,2);
  assert(rows.every(r=>!Object.keys(r).some(k=>/tonnes|tonnage|weight/i.test(k))));
@@ -32,4 +32,4 @@ assert.deepEqual(embedded,source,'Export must exactly match the reviewed source 
 const compiledText = html + [...html.matchAll(/data:text\/javascript;charset=utf-8;base64,([A-Za-z0-9+/=]+)/g)].map(m=>Buffer.from(m[1],'base64').toString('utf8')).join('\n');
 for(const oldNote of ['10:29am','10:38am','11:01am','12:56pm','Friday is pending.','Friday pending','Recorded time notes']) assert(!compiledText.includes(oldNote),`Stale content: ${oldNote}`);
 assert(compiledText.includes('Number of deliveries'));
-console.log('Verified source + compiled export: Thursday 11, Friday 21, total 32; material totals 24 + 8; four exact tally rows; no old time notes or weight fields.');
+console.log('Verified source + compiled export: Thursday 11, Friday 23, total 34; material totals 26 + 8; four exact tally rows; no old time notes or weight fields.');

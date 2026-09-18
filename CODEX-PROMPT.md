@@ -1,6 +1,6 @@
 Maintain this existing Second Gate Deliveries dashboard. Read README.md and source/AGENTS.md first. Preserve the light-mode design, day filters, cards, charts and mobile responsiveness.
 
-Use only the user's verified tallies: Thursday 17 September 2026 has 7 crushed concrete + 4 Type 1/recycled Type 1 = 11 visits. Friday 18 September has 17 crushed concrete + 4 Type 1 = 21. Combined totals are 32 visits, 24 crushed concrete and 8 Type 1/recycled Type 1 across two categories. LIME LOGISTICS, Second Gate. Both days are Recorded.
+Use only the user's verified tallies: Thursday 17 September 2026 has 7 crushed concrete + 4 Type 1/recycled Type 1 = 11 visits. Friday 18 September has 19 crushed concrete + 4 Type 1 = 23. Combined totals are 34 visits, 26 crushed concrete and 8 Type 1/recycled Type 1 across two categories. LIME LOGISTICS, Second Gate. Both days are Recorded.
 
 The operational table columns are Date | Day | Time | Material | Number of deliveries | Supplier | Gate. Keep four aggregate tally rows with Time —. Date and Day remain separate. Do not reintroduce the old partial arrival-note examples, estimate missing times, invent individual deliveries or infer tonnes. User tally counts always override incomplete time notes.
 

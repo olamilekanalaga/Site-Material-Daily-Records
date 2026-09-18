@@ -10,10 +10,10 @@ Public dashboard: https://site-material-daily-records.vercel.app
 | --- | --- | --- | --- | ---: | --- | --- |
 | 17 Sep 2026 | Thursday | — | 6F5 crushed concrete | 7 | LIME LOGISTICS | Second Gate |
 | 17 Sep 2026 | Thursday | — | Type 1 / recycled Type 1 | 4 | LIME LOGISTICS | Second Gate |
-| 18 Sep 2026 | Friday | — | 6F5 crushed concrete | 17 | LIME LOGISTICS | Second Gate |
+| 18 Sep 2026 | Friday | — | 6F5 crushed concrete | 19 | LIME LOGISTICS | Second Gate |
 | 18 Sep 2026 | Friday | — | Type 1 | 4 | LIME LOGISTICS | Second Gate |
 
-Thursday: 11; Friday: 21; combined: 32. Material categories: 24 crushed concrete + 8 Type 1/recycled Type 1. Friday's original Type 1 label is retained in the register and grouped with Type 1/recycled Type 1 in charts.
+Thursday: 11; Friday: 23; combined: 34. Material categories: 26 crushed concrete + 8 Type 1/recycled Type 1. Friday's original Type 1 label is retained in the register and grouped with Type 1/recycled Type 1 in charts.
 
 Tally counts are authoritative. Incomplete handwritten arrival notes never recalculate or override them. All current row times are —; no individual arrivals or tonnage are inferred. Previously supplied Thursday site opening hours remain separate operating context; Friday site hours are unknown.
 
