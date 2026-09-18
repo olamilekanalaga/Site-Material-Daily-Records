@@ -1,3 +1,17 @@
+## Current local revision — Site Progress
+
+Navigation now contains Overview, Deliveries and Site Progress, with the supplied DJ Civils logo and proof-of-work disclaimer. All 29 progress posts are dated Thursday 17 September 2026, explicitly confirmed by the owner. Eight identifiable contributors document at least 52 photographs and five video posts. Cropped evidence is flagged; video posts do not add to the photograph count.
+
+The Time column is removed from both registers. Desktop and mobile retain actual tables; narrow screens use wrapped cells without horizontal scrolling. Thursday and Friday site hours are both 7:00 am–5:30 pm. Delivery counts remain 11 + 23 = 34.
+
+Photographic previews are pending the owner's image-processing choice; evidence dialogs currently show reviewed text and counts. The snapshot is explicitly paused for that unfinished work. Raw WhatsApp screenshots are stored outside this repository and are never packaged or served. No phone numbers are included in extracted data.
+
+Run `npm test` for source regression checks and `npm run build` to verify the compiled snapshot. The compiled package contains the current local review, including its pending-preview disclosure. Pushing this revision is not deployment approval. Automatic Vercel deployment from main remains disabled; do not deploy or change access without explicit authorization.
+
+The previous delivery handoff below is historical; its Time-column and unknown-Friday-hours instructions are superseded above.
+
+---
+
 # Second Gate Deliveries — LIME LOGISTICS
 
 An interactive dashboard of real, user-supplied delivery tallies for Second Gate. The GitHub repository is private; public viewing of the delivery records was explicitly authorised by the owner.

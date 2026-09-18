@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node verify.mjs"
+    "build": "node verify.mjs",
+    "test": "node --test tests/site-progress.test.mjs"
   }
 }

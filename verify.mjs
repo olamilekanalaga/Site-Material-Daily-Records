@@ -18,9 +18,15 @@ function verify(data) {
  assert.equal(new Set(rows.map(r=>r.materialGroup)).size,2);
  assert(rows.every(r=>!Object.keys(r).some(k=>/tonnes|tonnage|weight/i.test(k))));
  assert.equal(data.queries.delivery_notes,undefined);
- assert.deepEqual(Object.keys(data.queries).sort(),['day_register','material_deliveries']);
+ assert.deepEqual(Object.keys(data.queries).sort(),['day_register','material_deliveries','site_progress']);
  assert.deepEqual(data.queries.day_register.rows.map(r=>[r.date,r.status]),[['2026-09-17','Recorded'],['2026-09-18','Recorded']]);
- assert.equal(data.buildStatus,'complete');
+ assert(['complete','paused'].includes(data.buildStatus),'Only a completed build or an explicitly paused local review may be packaged');
+ const progress=data.queries.site_progress.rows;
+ assert.equal(progress.length,29);
+ assert(progress.every(r=>r.date==='2026-09-17'&&r.day==='Thursday'));
+ assert.equal(progress.reduce((n,r)=>n+r.photoCount,0),52);
+ assert(data.queries.day_register.rows.every(r=>r.siteHours==='7:00am–5:30pm'));
+ assert(!/(?:\+44|\b07\d{3})[\s\d-]{7,}/.test(JSON.stringify(data)),'No contact numbers in packaged data');
 }
 const source=JSON.parse(readFileSync('source/src/data.json','utf8'));
 const html=readFileSync('public/index.html','utf8');
