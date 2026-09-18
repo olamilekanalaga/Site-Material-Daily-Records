@@ -74,3 +74,13 @@
 .delivery-hours dt { color:var(--secondary); font-size:13px; }
 .delivery-hours dd { margin:0; font-weight:650; font-size:18px; }
 @media(max-width:640px) { .delivery-pending-value { font-size:20px; } .delivery-day-card { padding:12px 10px; } .delivery-card-value small,.delivery-card-date { font-size:11px; } }
+
+/* Compact operational register, retaining the dashboard's light theme. */
+.delivery-operational-table { border:1px solid var(--border); border-radius:8px; }
+.delivery-operational-table table { min-width:1030px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:12px; font-variant-numeric:tabular-nums; }
+.delivery-operational-table th,.delivery-operational-table td { white-space:nowrap; padding:13px 12px; border-right:1px solid var(--border); }
+.delivery-operational-table th { background:var(--surface-muted,var(--surface)); }
+.delivery-operational-table th:last-child,.delivery-operational-table td:last-child { border-right:0; }
+.delivery-operational-table th:nth-child(5),.delivery-operational-table td:nth-child(5) { text-align:right; }
+.delivery-hours { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
+@media(max-width:640px) { .delivery-operational-table table { font-size:12px; } .delivery-hours { grid-template-columns:1fr; } }

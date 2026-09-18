@@ -1,36 +1,31 @@
 # Second Gate Deliveries — LIME LOGISTICS
 
-Portable handoff of Ola’s dashboard, updated 18 September 2026. This archive contains real supplied records, not sample data. It does not update the existing ChatGPT-hosted Site.
+An interactive dashboard of real, user-supplied delivery tallies for Second Gate. The GitHub repository is private; public viewing of the delivery records was explicitly authorised by the owner.
 
-## Deploy to Vercel
+Public dashboard: https://site-material-daily-records.vercel.app
 
-Import this folder’s root from a private GitHub repository. Select framework **Other**, build command `npm run build`, output directory `public`. The top-level project has no dependencies: the dashboard is already compiled, and the build command checks its contents. No database or environment variables are required to view this static export.
+## Authoritative records
 
-For local HTTP preview: `python3 -m http.server 4173 --directory public`, then open http://localhost:4173.
+| Date | Day | Time | Material | Number of deliveries | Supplier | Gate |
+| --- | --- | --- | --- | ---: | --- | --- |
+| 17 Sep 2026 | Thursday | — | 6F5 crushed concrete | 7 | LIME LOGISTICS | Second Gate |
+| 17 Sep 2026 | Thursday | — | Type 1 / recycled Type 1 | 4 | LIME LOGISTICS | Second Gate |
+| 18 Sep 2026 | Friday | — | 6F5 crushed concrete | 17 | LIME LOGISTICS | Second Gate |
+| 18 Sep 2026 | Friday | — | Type 1 | 4 | LIME LOGISTICS | Second Gate |
 
-## Contents
+Thursday: 11; Friday: 21; combined: 32. Material categories: 24 crushed concrete + 8 Type 1/recycled Type 1. Friday's original Type 1 label is retained in the register and grouped with Type 1/recycled Type 1 in charts.
 
-- `public/index.html`: self-contained interactive dashboard with bundled data.
-- `source/`: original editable React project, full recorded data and runtime instructions.
-- `CODEX-PROMPT.md`: deployment handoff prompt.
-- `verify.mjs`: focused data/export verification.
-- `vercel.json`: static hosting configuration.
+Tally counts are authoritative. Incomplete handwritten arrival notes never recalculate or override them. All current row times are —; no individual arrivals or tonnage are inferred. Previously supplied Thursday site opening hours remain separate operating context; Friday site hours are unknown.
 
-## Records and scope
+## Build and deployment
 
-Second Gate (Gate 2) only; Thursday’s delivery company is LIME LOGISTICS. Thursday 17 September 2026: 7 crushed concrete 6F5 visits + 4 Type 1/recycled Type 1 visits = 11. Friday 18 September remains pending with no delivery rows. Counts are visits, not tonnes. Time notes are partial examples, not additional deliveries; the 12:56pm material remains unconfirmed.
-
-## Editing and rebuilding
-
-Follow `source/AGENTS.md` for canonical Data builds, then export the completed build to offline HTML and copy it to `public/index.html`. The top-level build verifies the current export; it does not compile React changes automatically. Keep source and export synchronized. Runtime dependencies and lockfile are included in source for maintainers; node_modules is excluded.
+- Framework: Other; build command: `npm run build`; output: `public`.
+- `public/index.html` is the self-contained compiled dashboard. Root build verifies its embedded records against `source/src/data.json`; it does not compile React automatically.
+- Follow `source/AGENTS.md` for canonical Data builds. Build with `--separate-data`, export offline under `source/.data-app-offline/exports/`, then copy the completed export to `public/index.html` and run `npm run build`.
+- Preview locally with `python -m http.server 4187 --bind 127.0.0.1 --directory public`.
+- Use the existing Vercel project `site-material-daily-records`. After verification, an authorised production update uses `vercel deploy --prod`. Automatic Git deployment from main remains disabled, so pushing alone does not publish changes.
+- Keep GitHub private. Never commit credentials, `.env*`, `.vercel`, `node_modules`, or intermediate offline build copies.
 
 ## Hosting boundaries
 
-This is a static snapshot with interactive filtering; records do not refresh automatically. ChatGPT Sites authentication, shared edit persistence, and server-backed features are not supplied by static Vercel hosting. The original Site was private. Set appropriate Vercel access protection before sharing real records; a private GitHub repository alone does not make a deployed website private.
-
-The updated export passed compilation and data checks. Prior day filtering was verified in the original preview; this export still needs its Vercel browser/access verification, as specified in the Codex prompt.
-
-## Protected preview deployment
-
-Vercel Authentication is enabled for all previews. Automatic deployment from main is disabled in vercel.json to prevent an unprotected production-domain release. Use a preview branch or the Vercel CLI preview deployment command. Do not promote to production without first ensuring the production domain is access-protected. The static export does not inherit ChatGPT sign-in or hosted presentation editing.
-
+The production URL is public; anyone can view and forward its delivery records. This static snapshot supports interactive filtering but does not refresh its records automatically or inherit ChatGPT authentication, shared presentation editing, or server-backed functions.

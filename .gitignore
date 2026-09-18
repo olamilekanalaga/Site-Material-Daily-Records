@@ -7,3 +7,4 @@ source/dist/
 
 .vercel
 .env*
+source/.data-app-offline/
