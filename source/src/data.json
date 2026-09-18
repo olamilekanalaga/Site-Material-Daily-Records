@@ -1,0 +1,162 @@
+{
+  "surface": "dashboard",
+  "title": "Second Gate Deliveries",
+  "status": "recorded",
+  "buildStatus": "complete",
+  "generatedAt": "2026-09-18T00:00:55.953701+00:00",
+  "filters": [
+    {
+      "id": "deliveryDay",
+      "label": "Day",
+      "field": "date",
+      "defaultValue": "all",
+      "queryIds": [
+        "material_deliveries",
+        "day_register",
+        "delivery_notes"
+      ]
+    }
+  ],
+  "queries": {
+    "material_deliveries": {
+      "rows": [
+        {
+          "date": "2026-09-17",
+          "day": "Thursday",
+          "dayLabel": "Thu 17 Sep",
+          "material": "Type 1 / recycled Type 1",
+          "deliveries": 4,
+          "gate": "Second Gate (Gate 2)",
+          "deliveryCompany": "LIME LOGISTICS"
+        },
+        {
+          "date": "2026-09-17",
+          "day": "Thursday",
+          "dayLabel": "Thu 17 Sep",
+          "material": "6F5 crushed concrete",
+          "deliveries": 7,
+          "gate": "Second Gate (Gate 2)",
+          "deliveryCompany": "LIME LOGISTICS"
+        }
+      ],
+      "source": {
+        "label": "Ola’s recorded Gate 2 delivery data — 17 September 2026",
+        "description": "Real site counts supplied by Ola in this conversation. Type 1 and recycled Type 1 are one combined category. No weights or individual vehicle records were supplied. Scope: Second Gate (Gate 2). Ola confirmed LIME LOGISTICS as the company that sent Thursday’s deliveries.",
+        "executedAt": "2026-09-18T00:00:55.953701+00:00",
+        "tables": [],
+        "metricDefinitions": [
+          {
+            "label": "Delivery visits",
+            "definition": "Sum of reported material counts: 4 Type 1 plus 7 crushed concrete 6F5 equals 11. Friday has no delivery rows; unknown is not zero."
+          }
+        ],
+        "filters": [
+          "Gate 2",
+          "Thursday 17 September 2026; Friday 18 September pending"
+        ]
+      },
+      "methods": [
+        {
+          "language": "text",
+          "code": "Use the user-supplied daily totals. Recorded time notes are partial examples and must not be added to the daily delivery totals. Pending coverage is not a confirmed zero."
+        }
+      ]
+    },
+    "day_register": {
+      "rows": [
+        {
+          "date": "2026-09-17",
+          "day": "Thursday",
+          "status": "Recorded",
+          "siteHours": "7:00am–5:30pm",
+          "deliveryStart": "Around 10:00am",
+          "lastDelivery": "4:30pm",
+          "note": "Daily totals recorded; individual timestamps are incomplete.",
+          "gate": "Second Gate (Gate 2)",
+          "deliveryCompany": "LIME LOGISTICS"
+        },
+        {
+          "date": "2026-09-18",
+          "day": "Friday",
+          "status": "Pending",
+          "siteHours": null,
+          "deliveryStart": null,
+          "lastDelivery": null,
+          "note": "Awaiting gate attendance confirmation and recorded deliveries.",
+          "gate": "Second Gate (Gate 2)"
+        }
+      ],
+      "source": {
+        "label": "Ola’s recorded Gate 2 delivery data — 17 September 2026",
+        "description": "Coverage and operating context supplied by Ola. Friday is pending; no zero-delivery claim is made. Scope: Second Gate (Gate 2). Ola confirmed LIME LOGISTICS as the company that sent Thursday’s deliveries.",
+        "executedAt": "2026-09-18T00:00:55.953701+00:00",
+        "tables": [],
+        "metricDefinitions": [],
+        "filters": [
+          "Gate 2",
+          "Thursday 17 September 2026; Friday 18 September pending"
+        ]
+      },
+      "methods": [
+        {
+          "language": "text",
+          "code": "Use the user-supplied daily totals. Recorded time notes are partial examples and must not be added to the daily delivery totals. Pending coverage is not a confirmed zero."
+        }
+      ]
+    },
+    "delivery_notes": {
+      "rows": [
+        {
+          "date": "2026-09-17",
+          "time": "10:29am",
+          "material": "Type 1",
+          "certainty": "Recorded",
+          "gate": "Second Gate (Gate 2)",
+          "deliveryCompany": "LIME LOGISTICS"
+        },
+        {
+          "date": "2026-09-17",
+          "time": "10:38am",
+          "material": "6F5 crushed concrete",
+          "certainty": "Recorded",
+          "gate": "Second Gate (Gate 2)",
+          "deliveryCompany": "LIME LOGISTICS"
+        },
+        {
+          "date": "2026-09-17",
+          "time": "11:01am",
+          "material": "Recycled Type 1",
+          "certainty": "Recorded",
+          "gate": "Second Gate (Gate 2)",
+          "deliveryCompany": "LIME LOGISTICS"
+        },
+        {
+          "date": "2026-09-17",
+          "time": "12:56pm",
+          "material": "Possibly 6F5 crushed concrete",
+          "certainty": "Material unconfirmed",
+          "gate": "Second Gate (Gate 2)",
+          "deliveryCompany": "LIME LOGISTICS"
+        }
+      ],
+      "source": {
+        "label": "Ola’s recorded Gate 2 delivery data — 17 September 2026",
+        "description": "Four time-note examples supplied by Ola, not a complete log of the 11 deliveries. The 12:56pm material is uncertain. These notes are never counted as additional deliveries. Scope: Second Gate (Gate 2). Ola confirmed LIME LOGISTICS as the company that sent Thursday’s deliveries.",
+        "executedAt": "2026-09-18T00:00:55.953701+00:00",
+        "tables": [],
+        "metricDefinitions": [],
+        "filters": [
+          "Gate 2",
+          "Thursday 17 September 2026; Friday 18 September pending"
+        ]
+      },
+      "methods": [
+        {
+          "language": "text",
+          "code": "Use the user-supplied daily totals. Recorded time notes are partial examples and must not be added to the daily delivery totals. Pending coverage is not a confirmed zero."
+        }
+      ]
+    }
+  },
+  "id": "dashboard:8868cad4-b9ac-4cf7-8b88-8482a83f38fa"
+}

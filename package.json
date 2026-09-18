@@ -1,0 +1,9 @@
+{
+  "name": "second-gate-deliveries",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node verify.mjs"
+  }
+}

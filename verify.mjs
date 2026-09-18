@@ -1,0 +1,12 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const data = JSON.parse(readFileSync('source/src/data.json','utf8'));
+const rows = data.queries.material_deliveries.rows;
+assert.equal(rows.length,2);
+assert.equal(rows.reduce((n,r)=>n+r.deliveries,0),11);
+assert(rows.every(r=>r.date==='2026-09-17' && r.deliveryCompany==='LIME LOGISTICS' && r.gate==='Second Gate (Gate 2)'));
+assert.equal(data.queries.day_register.rows.find(r=>r.date==='2026-09-18').status,'Pending');
+const html=readFileSync('public/index.html','utf8');
+assert(html.includes('LIME LOGISTICS'));
+assert(html.includes('SECOND GATE'));
+console.log('Static export and real delivery data checks passed.');

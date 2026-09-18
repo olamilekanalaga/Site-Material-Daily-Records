@@ -1,0 +1,49 @@
+:root {
+  color-scheme: light dark;
+  --adaptive-theme: 1;
+  --data-app-chrome-background: var(--background);
+  --data-app-chrome-text: var(--text);
+  --font-sans-default: -apple-system-body, ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-sans: var(--vscode-font-family, var(--font-sans-default));
+  --background: light-dark(#f3f5f7, #11151b);
+  --surface: light-dark(#ffffff, #1c232d);
+  --surface-raised: light-dark(#ffffff, #252f3b);
+  --muted: light-dark(#edf0f3, #202a35);
+  --control: light-dark(#ffffff, #1c232d);
+  --control-hover: light-dark(#e5eaf0, #2d3947);
+  --interaction-hover: var(--muted);
+  --interaction-active: var(--control-hover);
+  --text: light-dark(#172332, #f4f6f8);
+  --secondary: light-dark(#5d6c7e, #a9b5c5);
+  --border: light-dark(#e0e5eb, #303b49);
+  --border-strong: light-dark(#cfd7e1, #3b4757);
+  --accent: light-dark(#8a5800, #efb13c);
+  --positive: var(--color-text-success, light-dark(#00a240, #40c977));
+  --negative: var(--color-text-error, light-dark(#e02e2a, #ff6764));
+  --chart-1: light-dark(#eab03b, #efb13c);
+  --chart-2: light-dark(#218c8f, #39b3b3);
+  --chart-3: light-dark(#6689ad, #91b3d2);
+  --chart-4: light-dark(#fb6a22, #ff8549);
+  --chart-5: light-dark(#ff66ad, #ff8cc1);
+  --chart-6: light-dark(#ffc300, #ffd240);
+  --chart-7: light-dark(#fa423e, #ff6764);
+  --chart-8: light-dark(#8f8f8f, #afafaf);
+  --chart-neutral-fill: color-mix(in srgb, var(--text) 3%, var(--surface));
+  --ranked-list-fill: color-mix(in srgb, var(--chart-1) 16%, var(--surface));
+  --ranked-list-fill-hover: color-mix(in srgb, var(--chart-1) 24%, var(--surface));
+  --movement-positive: color-mix(in srgb, var(--positive) 75%, var(--text));
+  --movement-negative: color-mix(in srgb, var(--negative) 75%, var(--text));
+  --movement-total: var(--secondary);
+  --card-radius: 16px;
+  --data-card-radius: 18px;
+  --data-card-background: var(--surface);
+  --control-radius: 12px;
+  --mark-radius: 8;
+  --card-shadow: 0 6px 16px light-dark(rgb(21 40 64 / 6%), rgb(0 0 0 / 24%));
+  --shadow: 0 12px 32px light-dark(rgb(21 40 64 / 15%), rgb(0 0 0 / 40%));
+}
+
+:root:not([data-app-theme]),
+:root:is([data-app-theme="original"], [data-app-theme="codex-classic"]) {
+  --dashboard-background: light-dark(color-mix(in srgb, var(--background) 98.6%, var(--text)), var(--background));
+}
