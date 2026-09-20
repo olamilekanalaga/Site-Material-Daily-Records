@@ -1,30 +1,35 @@
 export const UNKNOWN_DATE = 'Date not confirmed';
-export function filterProgress(rows, {date='all', contributor='all', description='all', search=''} = {}) {
- const needle = search.trim().toLocaleLowerCase();
- return rows.filter(r => (date === 'all' || r.date === date)
-  && (contributor === 'all' || r.postedBy === contributor)
-  && (description === 'all' || (description === 'with' ? r.hasDescription : !r.hasDescription))
-  && (!needle || [r.caption,r.postedBy,r.time,r.date,r.day].join(' ').toLocaleLowerCase().includes(needle)));
+export function filterProgress(rows, {date='all', contributor='all', recordType='all', description='all', search=''} = {}) {
+ const needle=search.trim().toLocaleLowerCase();
+ return rows.filter(row=>(date==='all'||row.date===date)
+  && (contributor==='all'||row.postedBy===contributor)
+  && (recordType==='all'||row.recordType===recordType)
+  && (description==='all'||(description==='with'?row.descriptionStatus==='provided':row.descriptionStatus!=='provided'))
+  && (!needle||[row.captionRaw,row.postedBy,row.time,row.date,row.day,row.recordType].join(' ').toLocaleLowerCase().includes(needle)));
 }
 export function timeMinutes(value) {
- const m = /^(\d{1,2}):(\d{2}) (am|pm)$/.exec(value);
- return m ? (+m[1]%12)*60 + +m[2] + (m[3]==='pm'?720:0) : Infinity;
+ const match=/^(\d{2}):(\d{2})$/.exec(value);
+ return match?Number(match[1])*60+Number(match[2]):Infinity;
 }
 export function orderProgress(rows) {
- return [...rows].sort((a,b) => (a.date===UNKNOWN_DATE)-(b.date===UNKNOWN_DATE)
-  || a.date.localeCompare(b.date) || timeMinutes(a.time)-timeMinutes(b.time) || a.id.localeCompare(b.id));
+ return [...rows].sort((a,b)=>(a.date===UNKNOWN_DATE)-(b.date===UNKNOWN_DATE)
+  ||a.date.localeCompare(b.date)||timeMinutes(a.time)-timeMinutes(b.time)||a.id.localeCompare(b.id));
 }
 export function progressTotals(rows) {
- return {updates:rows.length, contributors:new Set(rows.filter(r=>r.contributorConfirmed).map(r=>r.postedBy)).size,
-  photos:rows.reduce((n,r)=>n+r.photoCount,0), withoutDescription:rows.filter(r=>!r.hasDescription).length,
-  videos:rows.filter(r=>r.mediaType==='video').length, minimum:rows.some(r=>r.photoCountStatus==='minimum visible'),
-  unknownContributors:rows.filter(r=>!r.contributorConfirmed).length};
+ return {
+  updates:rows.length,
+  contributors:new Set(rows.filter(row=>row.contributorStatus==='confirmed').map(row=>row.postedBy)).size,
+  photos:rows.filter(row=>row.mediaType==='photo').reduce((total,row)=>total+row.attachmentCount,0),
+  withoutDescription:rows.filter(row=>row.descriptionStatus!=='provided').length,
+  videos:rows.filter(row=>row.mediaType==='video').length,
+  minimum:rows.some(row=>row.attachmentCountStatus==='minimum_visible'),
+  unknownContributors:rows.filter(row=>row.contributorStatus!=='confirmed').length
+ };
 }
-export function contributorSummary(rows) {
- return [...new Set(rows.filter(r=>r.contributorConfirmed).map(r=>r.postedBy))].sort((a,b)=>a.localeCompare(b)).map(name=>{
-  const posts=rows.filter(r=>r.postedBy===name);
-  const datesConfirmed=posts.every(r=>r.date!==UNKNOWN_DATE);
-  const latest=datesConfirmed?orderProgress(posts).at(-1):null;
-  return {name,updates:posts.length,photos:posts.reduce((n,r)=>n+r.photoCount,0),photosLabel:`${posts.some(r=>r.photoCountStatus==='minimum visible')?'≥ ':''}${posts.reduce((n,r)=>n+r.photoCount,0)}`,latest:latest?new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(`${latest.date}T00:00:00Z`)).replace('Sept','Sep'):'Date not confirmed'};
- });
+export function displayTime(value) {
+ const match=/^(\d{2}):(\d{2})$/.exec(value);
+ if(!match) return '—';
+ const hour=Number(match[1]);
+ return `${hour%12||12}:${match[2]} ${hour>=12?'pm':'am'}`;
 }
+export const recordTypeLabel=value=>({progress_update:'Progress update',photo_update:'Photo update',query_or_clarification:'Query / clarification',video_update:'Video update'}[value]??value);

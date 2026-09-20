@@ -74,3 +74,20 @@
 @media(max-width:700px){
  .delivery-operational-table th button,.progress-summary-table th button{min-width:0!important;min-inline-size:0!important;width:100%;max-width:100%;display:block;box-sizing:border-box;min-height:44px}
 }
+
+.progress-friday-note{margin:-12px 0 20px;color:var(--secondary);font-size:12px;line-height:1.6}
+.progress-post-table td:first-child{width:90px;min-width:78px}
+.progress-post-table td:nth-child(2){width:180px}
+.progress-post-table th:nth-child(4),.progress-post-table td:nth-child(4){text-align:left}
+.progress-post-table th:nth-child(5),.progress-post-table td:nth-child(5){text-align:right}
+.progress-activity-table{table-layout:fixed}
+.progress-activity-table th,.progress-activity-table td{overflow-wrap:anywhere}
+.progress-activity-table th:nth-child(1){width:9%}.progress-activity-table th:nth-child(2){width:10%}.progress-activity-table th:nth-child(3){width:11%}.progress-activity-table th:nth-child(4){width:15%}.progress-activity-table th:nth-child(5){width:25%}.progress-activity-table th:nth-child(6){width:16%}.progress-activity-table th:nth-child(7){width:14%}
+@media(max-width:700px){
+ .progress-post-table th:nth-child(1){width:12%}.progress-post-table th:nth-child(2){width:19%}.progress-post-table th:nth-child(3){width:29%}.progress-post-table th:nth-child(4){width:11%}.progress-post-table th:nth-child(5){width:9%}.progress-post-table th:nth-child(6){width:20%}
+ .progress-post-table td:first-child,.progress-post-table td:nth-child(2){width:auto;min-width:0;max-width:none}
+ .progress-activity-table{font-size:9px}
+ .progress-activity-table th,.progress-activity-table td{font-size:9px;padding:9px 2px;line-height:1.4}
+ .progress-activity-table th{font-size:8px}
+ .progress-activity-table th:nth-child(1){width:10%}.progress-activity-table th:nth-child(2){width:11%}.progress-activity-table th:nth-child(3){width:11%}.progress-activity-table th:nth-child(4){width:15%}.progress-activity-table th:nth-child(5){width:24%}.progress-activity-table th:nth-child(6){width:16%}.progress-activity-table th:nth-child(7){width:13%}
+}

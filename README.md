@@ -1,10 +1,10 @@
 ## Current local revision — Site Progress
 
-Navigation now contains Overview, Deliveries and Site Progress, with the supplied DJ Civils logo and proof-of-work disclaimer. All 29 progress posts are dated Thursday 17 September 2026, explicitly confirmed by the owner. Eight identifiable contributors document at least 52 photographs and five video posts. Cropped evidence is flagged; video posts do not add to the photograph count.
+Navigation contains Overview, Deliveries and Site Progress, with the supplied DJ Civils logo and proof-of-work disclaimer. Site Progress now uses `progress_posts`: one row per reviewed WhatsApp post. All 29 posts are dated Thursday 17 September 2026, explicitly confirmed by the owner. Eight confirmed display names document at least 52 photographs and five video posts. A separate `activities` dataset contains 12 caption-backed activities and never infers work from photographs. Friday has delivery records but zero progress posts.
 
 The Time column is removed from both registers. Desktop and mobile retain actual tables; narrow screens use wrapped cells without horizontal scrolling. Thursday and Friday site hours are both 7:00 am–5:30 pm. Delivery counts remain 11 + 23 = 34.
 
-Photographic previews are pending the owner's image-processing choice; evidence dialogs currently show reviewed text and counts. The snapshot is explicitly paused for that unfinished work. Raw WhatsApp screenshots are stored outside this repository and are never packaged or served. No phone numbers are included in extracted data.
+Raw WhatsApp screenshots remain private. Evidence dialogs show the reviewed structured post and private evidence identifier; no raw screenshot or telephone number is publicly served. Raw WhatsApp screenshots are stored outside this repository and are never packaged or served. No phone numbers are included in extracted data.
 
 Run `npm test` for source regression checks and `npm run build` to verify the compiled snapshot. The compiled package contains the current local review, including its pending-preview disclosure. Pushing this revision is not deployment approval. Automatic Vercel deployment from main remains disabled; do not deploy or change access without explicit authorization.
 
@@ -43,3 +43,4 @@ Tally counts are authoritative. Incomplete handwritten arrival notes never recal
 ## Hosting boundaries
 
 The production URL is public; anyone can view and forward its delivery records. This static snapshot supports interactive filtering but does not refresh its records automatically or inherit ChatGPT authentication, shared presentation editing, or server-backed functions.
+

@@ -2,52 +2,72 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
-import {filterProgress,progressTotals,contributorSummary,orderProgress} from '../source/src/content/dashboard/progress-model.mjs';
+import {displayTime,filterProgress,orderProgress,progressTotals} from '../source/src/content/dashboard/progress-model.mjs';
 const data=JSON.parse(readFileSync(new URL('../source/src/data.json',import.meta.url),'utf8'));
-const rows=data.queries.site_progress.rows;
-test('delivery tallies remain unchanged and Friday hours match owner confirmation',()=>{
+const posts=data.queries.progress_posts.rows;
+const activities=data.queries.activities.rows;
+
+test('delivery datasets remain byte-for-byte equivalent to Git HEAD',()=>{
  const before=JSON.parse(execFileSync('git',['show','HEAD:source/src/data.json'],{encoding:'utf8'}));
  assert.deepEqual(data.queries.material_deliveries,before.queries.material_deliveries);
- const expectedDays=before.queries.day_register.rows.map(r=>({...r,siteHours:'7:00am–5:30pm'}));
- assert.deepEqual(data.queries.day_register.rows,expectedDays);
+ assert.deepEqual(data.queries.day_register,before.queries.day_register);
+ const deliveries=data.queries.material_deliveries.rows;
+ const total=rows=>rows.reduce((sum,row)=>sum+row.deliveries,0);
+ assert.equal(total(deliveries.filter(row=>row.date==='2026-09-17')),11);
+ assert.equal(total(deliveries.filter(row=>row.date==='2026-09-18')),23);
+ assert.equal(total(deliveries),34);
 });
-test('reviewed source counts and album arithmetic reconcile',()=>{
- assert.deepEqual(progressTotals(rows),{updates:29,contributors:8,photos:52,withoutDescription:12,videos:5,minimum:true,unknownContributors:3});
- assert.equal(new Set(rows.map(r=>r.id)).size,29);
- assert.equal(new Set(rows.map(r=>r.sourceScreenshot)).size,23);
- assert.equal(rows.find(r=>r.id==='progress-6038').photoCount,3+10);
- assert.equal(rows.find(r=>r.id==='progress-6042').photoCount,3+6);
- assert(rows.filter(r=>r.mediaType==='video').every(r=>r.photoCount===0));
+
+test('one row represents one WhatsApp post with normalized IDs and dates',()=>{
+ assert.equal(posts.length,29);
+ assert.deepEqual(posts.map(row=>row.id),Array.from({length:29},(_,index)=>`PROG-${String(index+1).padStart(3,'0')}`));
+ assert(posts.every(row=>row.date==='2026-09-17'&&row.day==='Thursday'&&row.dayLabel==='Thu 17 Sep'));
+ assert.equal(posts.filter(row=>row.date==='2026-09-18').length,0);
+ assert(posts.every(row=>typeof row.sourceEvidenceId==='string'&&row.sourceScreenshot.startsWith('private-site-progress-evidence/')));
 });
-test('filters intersect, search ignores case, and reset restores all records',()=>{
- assert.equal(filterProgress(rows,{contributor:'James Williams'}).length,3);
- assert.equal(progressTotals(filterProgress(rows,{contributor:'James Williams'})).photos,23);
- assert.equal(filterProgress(rows,{contributor:'James Williams',description:'without'}).length,1);
- assert.equal(filterProgress(rows,{description:'with'}).length,17);
- assert.equal(filterProgress(rows,{description:'without'}).length,12);
- assert.equal(filterProgress(rows,{search:' AIR TEST '}).length,5);
- assert.equal(filterProgress(rows,{date:'2026-09-18'}).length,0);
- assert.equal(filterProgress(rows,{date:'2026-09-17'}).length,29);
- assert.equal(filterProgress(rows).length,29);
+
+test('reviewed totals reconcile from the migrated posts',()=>{
+ assert.deepEqual(progressTotals(posts),{updates:29,contributors:8,photos:52,withoutDescription:12,videos:5,minimum:true,unknownContributors:3});
+ assert.equal(posts.filter(row=>row.mediaType==='video').reduce((sum,row)=>sum+row.attachmentCount,0),5);
+ assert.equal(posts.filter(row=>row.descriptionStatus==='provided').length,17);
+ assert.equal(posts.filter(row=>row.descriptionStatus==='not_provided').length,11);
+ assert.equal(posts.filter(row=>row.descriptionStatus==='not_confirmed').length,1);
+ assert.equal(posts.filter(row=>row.attachmentCountStatus==='minimum_visible').length,2);
+ assert.deepEqual(Object.fromEntries(['progress_update','photo_update','query_or_clarification','video_update'].map(type=>[type,posts.filter(row=>row.recordType===type).length])),{progress_update:9,photo_update:14,query_or_clarification:1,video_update:5});
 });
-test('owner-confirmed dates and latest documented dates are used',()=>{
- assert(rows.every(r=>r.date==='2026-09-17'&&r.day==='Thursday'));
- assert.equal(rows.filter(r=>r.time==='—').length,1);
- const summary=contributorSummary(rows);
- assert.equal(summary.length,8);
- assert(summary.every(r=>r.latest==='17 Sep 2026'));
- assert.equal(summary.reduce((n,r)=>n+r.updates,0),26);
- assert.equal(summary.reduce((n,r)=>n+r.photos,0),47);
- assert.equal(summary.find(r=>r.name==='Dave').photosLabel,'≥ 5');
- assert.equal(orderProgress(rows)[0].time,'8:36 am');
- assert.equal(orderProgress(rows).at(-1).time,'—');
+
+test('filters intersect and Friday produces a genuine empty population',()=>{
+ assert.equal(filterProgress(posts,{date:'2026-09-17'}).length,29);
+ assert.equal(filterProgress(posts,{date:'2026-09-18'}).length,0);
+ assert.equal(filterProgress(posts,{contributor:'James Williams'}).length,3);
+ assert.equal(filterProgress(posts,{recordType:'video_update'}).length,5);
+ assert.equal(filterProgress(posts,{description:'with'}).length,17);
+ assert.equal(filterProgress(posts,{description:'without'}).length,12);
+ assert.equal(filterProgress(posts,{contributor:'James Williams',recordType:'photo_update'}).length,2);
+ assert.equal(filterProgress(posts,{search:' AIR TEST '}).length,5);
+ assert.equal(filterProgress(posts).length,29);
 });
-test('public-facing records omit phone numbers, contacts and inferred work metrics',()=>{
+
+test('chronological order and human time formatting retain the unknown time',()=>{
+ const ordered=orderProgress(posts);
+ assert.equal(ordered[0].id,'PROG-001');
+ assert.equal(ordered[0].time,'08:36');
+ assert.equal(displayTime(ordered[0].time),'8:36 am');
+ assert.equal(ordered.at(-1).id,'PROG-029');
+ assert.equal(ordered.at(-1).time,'—');
+ assert.equal(displayTime(ordered.at(-1).time),'—');
+});
+
+test('activities are caption-only and link to reviewed progress posts',()=>{
+ assert.equal(activities.length,12);
+ const postIds=new Set(posts.map(row=>row.id));
+ assert(activities.every(row=>postIds.has(row.linkedPostId)));
+ assert(activities.every(row=>!['Description not provided','Description not confirmed'].includes(posts.find(post=>post.id===row.linkedPostId).captionRaw)));
+ assert.deepEqual(activities.find(row=>row.linkedPostId==='PROG-001'),{id:'ACT-001',linkedPostId:'PROG-001',date:'2026-09-17',dayLabel:'Thu 17 Sep',workArea:'Not stated',activity:'6F5 going in rolled and dipped',status:'Documented',evidence:'13 photos'});
+});
+
+test('public data has no phone numbers and raw evidence is not a public URL',()=>{
  assert(!/(?:\+44|\b07\d{3})[\s\d-]{7,}/.test(JSON.stringify(data)));
- for(const r of rows) assert(!Object.keys(r).some(k=>/phone|telephone|contact|productivity|tonnage|worker|completion/i.test(k)));
- assert(rows.filter(r=>!r.hasDescription).every(r=>r.caption==='Description not provided'));
-});
-test('same-minute but distinct messages are preserved',()=>{
- assert.equal(rows.filter(r=>r.postedBy==='ryancarnia'&&r.time==='10:20 am').length,2);
- assert.equal(rows.filter(r=>r.postedBy==='DHAN BABA DEEP SINGH JI'&&r.time==='4:56 pm').length,2);
+ assert(posts.every(row=>!/^https?:|^\//.test(row.sourceScreenshot)));
+ assert(posts.every(row=>!Object.keys(row).some(key=>/phone|telephone|contact|productivity|tonnage|worker|completion/i.test(key))));
 });

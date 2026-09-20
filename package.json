@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node verify.mjs",
+    "lint": "node --check scripts/migrate-progress-posts.mjs && node --check source/src/content/dashboard/progress-model.mjs && node --check verify.mjs",
     "test": "node --test tests/site-progress.test.mjs"
   }
 }
