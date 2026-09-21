@@ -1,52 +1,39 @@
-import React from "react";
-import { DataComponent, DataTable, EvidenceChart, SortableItem, SortableRegion, useDataApp } from "../../data-app-public.jsx";
-import "./dashboard.css";
-const QUERY = "material_deliveries";
-const MATERIALS = ["Type 1 / recycled Type 1", "6F5 crushed concrete"];
-const COLOURS = { "Type 1 / recycled Type 1": "var(--chart-1)", "6F5 crushed concrete": "var(--chart-2)" };
-const sum = rows => rows.reduce((n, r) => n + r.deliveries, 0);
-const formatDate = date => new Intl.DateTimeFormat("en-GB", {day:"numeric",month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(`${date}T00:00:00Z`)).replace("Sept", "Sep");
-const dailySpec = {type:"stackedBar",x:"dayLabel",y:"deliveries",series:"materialGroup",colors:COLOURS,showXAxisLabel:false,showYAxisLabel:false,valueDecimals:0};
-const materialSpec = {type:"horizontalBar",x:"material",y:"deliveries",colors:COLOURS,showXAxisLabel:false,showYAxisLabel:false,valueDecimals:0};
-const columns = [
- {field:"displayDate",label:"Date"}, {field:"day",label:"Day"},
- {field:"material",label:"Material"}, {field:"deliveries",label:"Number of deliveries"},
- {field:"deliveryCompany",label:"Supplier"}, {field:"gate",label:"Gate"}
-];
-export function DeliveriesContent() {
- const {queries,filters,setFilter,reviewedRows} = useDataApp();
- const selected = filters.deliveryDay ?? "all", allRows = queries[QUERY]?.rows ?? [];
- const calendar = queries.day_register?.rows ?? [];
- const rows = reviewedRows(QUERY,["date","day","dayLabel","material","materialGroup"]);
- const contexts = reviewedRows("day_register",["date"]);
- const total = sum(rows);
- const tableRows = rows.map(r => ({...r,displayDate:formatDate(r.date)}));
- const materialRows = MATERIALS.map(material => ({material,deliveries:sum(rows.filter(r=>r.materialGroup===material))})).filter(r=>r.deliveries>0);
- const leading = [...materialRows].sort((a,b)=>b.deliveries-a.deliveries)[0];
- const selectedDay = calendar.find(r=>r.date===selected);
- const scopeLabel = selected === "all" ? "Recorded deliveries" : `${selectedDay?.day ?? "Selected date"} ${formatDate(selected)}`;
- const canvasRows = [
-  {id:"delivery:summary",items:["delivery-highlights"],spacing:"content"},
-  {id:"delivery:details",items:["delivery-breakdown"],spacing:"content"},
-  {id:"delivery:notes",items:["delivery-hours"],spacing:"content"},
-  {id:"delivery:charts",items:["delivery-day-chart","delivery-material-chart"],spacing:"content"}
- ];
- return <div className="delivery-dashboard">
-  <div className="delivery-intro"><div><span className="delivery-eyebrow">SECOND GATE · MATERIAL ARRIVALS</span><p>LIME LOGISTICS · 17–18 September 2026</p></div><span className="delivery-recorded-badge">Recorded site data</span></div>
-  <div className="delivery-day-picker" role="group" aria-label="Choose delivery day" data-reviewed-rows>
-   {[{date:"all",day:"All days"},...calendar].map(({date,day})=>{
-    const count=sum(date==="all"?allRows:allRows.filter(r=>r.date===date));
-    return <button key={date} type="button" className="delivery-day-card" aria-label={`${day}, ${count} deliveries`} aria-pressed={selected===date} onClick={()=>setFilter("deliveryDay",date)}><span className="delivery-card-top"><span>{day}</span><span className="delivery-selection-dot" aria-hidden="true"/></span><span className="delivery-card-value">{count}<small>deliveries</small></span><span className="delivery-card-date">{date==="all"?"Recorded dates only":formatDate(date)}</span></button>;
-   })}
+import React,{useState} from 'react';
+import {DataComponent,EvidenceChart,useDataApp} from '../../data-app-public.jsx';
+import './dashboard.css';
+const QUERY='material_deliveries';
+const sum=rows=>rows.reduce((n,row)=>n+row.deliveries,0);
+const formatDate=date=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(`${date}T00:00:00Z`)).replace('Sept','Sep');
+const materialGroup=row=>row.materialGroup??(row.material.startsWith('6F5')?'6F5 crushed concrete':'Type 1 / recycled Type 1');
+const COLORS={'6F5 crushed concrete':'var(--chart-1)','Type 1 / recycled Type 1':'var(--chart-2)'};
+const dailySpec={type:'stackedBar',x:'dayLabel',y:'deliveries',series:'materialGroup',colors:COLORS,showXAxisLabel:false,showYAxisLabel:false,valueDecimals:0};
+function FilterSelect({label,value,onChange,children}){return <label className="site-filter"><span>{label}</span><select value={value} onChange={event=>onChange(event.target.value)}>{children}</select></label>}
+function Kpi({id,label,value,note,rows}){return <DataComponent id={id} queryId={QUERY} title={label} kind="metric" variant="card" sourceRows={rows} displayRows={[{label,value}]}><div className="site-kpi" data-reviewed-rows><span>{label}</span><strong>{value}</strong><small>{note}</small></div></DataComponent>}
+export function DeliveriesContent(){
+ const {queries,filters,setFilter,reviewedRows}=useDataApp();
+ const allRows=queries[QUERY]?.rows??[], calendar=queries.day_register?.rows??[];
+ const day=filters.deliveryDay??'all';
+ const [material,setMaterial]=useState('all'),[supplier,setSupplier]=useState('all');
+ const dayRows=reviewedRows(QUERY,['date','day','dayLabel','material','materialGroup','time','deliveryCompany','gate']);
+ const rows=dayRows.filter(row=>(material==='all'||materialGroup(row)===material)&&(supplier==='all'||row.deliveryCompany===supplier));
+ const total=sum(rows), sixF5=sum(rows.filter(row=>materialGroup(row)==='6F5 crushed concrete')), type1=sum(rows.filter(row=>materialGroup(row)==='Type 1 / recycled Type 1'));
+ const days=new Set(rows.map(row=>row.date)).size;
+ const materials=[...new Set(allRows.map(materialGroup))], suppliers=[...new Set(allRows.map(row=>row.deliveryCompany))];
+ const daily=calendar.map(entry=>{const scoped=rows.filter(row=>row.date===entry.date);return {...entry,total:sum(scoped),sixF5:sum(scoped.filter(row=>materialGroup(row)==='6F5 crushed concrete')),type1:sum(scoped.filter(row=>materialGroup(row)==='Type 1 / recycled Type 1'))};});
+ return <section className="dashboard-view delivery-dashboard">
+  <header className="view-heading"><div><h1>Second Gate · Delivery Overview</h1><p>Material arrival records · 17–18 September 2026</p></div><span className="status-chip">● Recorded site data</span></header>
+  <div className="filter-strip" aria-label="Delivery filters">
+   <FilterSelect label="DATE / DAY" value={day} onChange={value=>setFilter('deliveryDay',value)}><option value="all">All recorded days</option>{calendar.map(row=><option key={row.date} value={row.date}>{row.day} · {formatDate(row.date)}</option>)}</FilterSelect>
+   <FilterSelect label="MATERIAL" value={material} onChange={setMaterial}><option value="all">All materials</option>{materials.map(value=><option key={value} value={value}>{value}</option>)}</FilterSelect>
+   <FilterSelect label="SUPPLIER" value={supplier} onChange={setSupplier}><option value="all">All suppliers</option>{suppliers.map(value=><option key={value} value={value}>{value}</option>)}</FilterSelect>
   </div>
-  <div className="delivery-scope" aria-live="polite" data-reviewed-rows><p><strong>{scopeLabel}</strong><span>{` · ${total} delivery visits · ${materialRows.length} material types`}</span></p></div>
-  <SortableRegion id="delivery:canvas" authoredRevision={3} variant="canvas" spacing="standard" columns={12} rows={canvasRows} label="Delivery dashboard panels">
-   <SortableItem id="delivery-highlights" label="At a glance" kind="custom" span={12}><DataComponent id="delivery-highlights" queryId={QUERY} title="At a glance" kind="custom" variant="card" sourceRows={rows} displayRows={materialRows} description="Authoritative tally totals supplied by Ola. Type 1 includes recycled Type 1; counts are delivery visits, not tonnes."><div className="delivery-highlights" data-reviewed-rows><p className="delivery-highlight-lead"><strong>{total}</strong><span>recorded delivery visits</span></p><div className="delivery-insight"><span className="delivery-insight-label">Material types</span><strong>{materialRows.length}</strong><span>Type 1 includes recycled Type 1</span></div><div className="delivery-insight"><span className="delivery-insight-label">Most delivered material</span><strong>{leading?.material ?? "—"}</strong><span>{leading ? `${leading.deliveries} visits · ${Math.round(leading.deliveries/total*100)}% of selected deliveries` : "—"}</span></div></div></DataComponent></SortableItem>
-   <SortableItem id="delivery-breakdown" label="Delivery records" kind="table" span={12}><DataComponent id="delivery-breakdown" queryId={QUERY} title="Delivery records" kind="table" variant="card" sourceRows={rows} displayRows={tableRows} description="One row per date and material tally, not per vehicle. Supplied tally counts are authoritative; incomplete handwritten arrival notes never override totals. — means a time was not reliably recorded."><div className="delivery-table delivery-operational-table" data-reviewed-rows><DataTable rows={tableRows} columns={columns} rowKey="id" searchable={false} caption="Delivery records"/></div><p className="delivery-chart-note">Tally counts are authoritative. Counts represent delivery visits.</p><div className="delivery-total" data-reviewed-rows><span>Recorded total</span><strong>{total} <span>deliveries</span></strong></div></DataComponent></SortableItem>
-   <SortableItem id="delivery-hours" label="Site hours" kind="custom" span={12}><DataComponent id="delivery-hours" queryId="day_register" title="Site hours" kind="custom" variant="card" sourceRows={contexts} displayRows={contexts} description="Owner-confirmed site opening hours for Thursday and Friday, separate from delivery arrival times."><dl className="delivery-hours" data-reviewed-rows>{contexts.map(r=><div key={r.date}><dt>{r.day} · {formatDate(r.date)}</dt><dd>{r.siteHours ?? "—"}</dd></div>)}</dl></DataComponent></SortableItem>
-   <SortableItem id="delivery-day-chart" label="Deliveries by day" kind="chart" span={7}><EvidenceChart id="delivery-day-chart" queryId={QUERY} title="Deliveries by day" variant="card" spec={dailySpec} rows={rows} sourceRows={rows} height={245} description="Authoritative delivery visits by date and material category. Friday Type 1 belongs to the combined Type 1 / recycled Type 1 category."/></SortableItem>
-   <SortableItem id="delivery-material-chart" label="Material mix" kind="chart" span={5}><EvidenceChart id="delivery-material-chart" queryId={QUERY} title="Material mix" variant="card" spec={materialSpec} rows={materialRows} sourceRows={rows} height={245} description="Delivery visits by material category for the selected dates. Type 1 and recycled Type 1 are combined."><div className="delivery-material-counts" data-reviewed-rows>{materialRows.map(r=><span key={r.material}><i style={{background:COLOURS[r.material]}}/>{r.material} <strong>{r.deliveries}</strong></span>)}</div></EvidenceChart></SortableItem>
-  </SortableRegion>
-  <footer className="delivery-footer"><span>Prepared by Ola · Construction delivery analytics</span><span>Second Gate only · Delivery visits, not tonnes.</span></footer>
- </div>;
+  <div className="kpi-grid"><Kpi id="delivery-total" label="Total deliveries" value={total} note="Recorded delivery visits" rows={rows}/><Kpi id="delivery-6f5" label="6F5 crushed concrete" value={sixF5} note="Delivery visits" rows={rows}/><Kpi id="delivery-type1" label="Type 1 / recycled Type 1" value={type1} note="Delivery visits" rows={rows}/><Kpi id="delivery-days" label="Recorded days" value={days} note="Days in current selection" rows={rows}/></div>
+  <div className="daily-grid">{daily.map(item=><article className="daily-card" key={item.date}><div><span>{item.day}</span><strong>{formatDate(item.date)}</strong></div><b>{item.total}<small>deliveries</small></b><dl><div><dt>6F5 crushed concrete</dt><dd>{item.sixF5}</dd></div><div><dt>Type 1 / recycled Type 1</dt><dd>{item.type1}</dd></div><div><dt>Site hours</dt><dd>{item.siteHours??'—'}</dd></div></dl></article>)}</div>
+  <DataComponent id="delivery-register" queryId={QUERY} title="Delivery register" kind="table" variant="card" sourceRows={rows} displayRows={rows} description="Authoritative supplied tally totals. Counts are delivery visits, not tonnes; an em dash means arrival time was not reliably recorded.">
+   <div className="section-title"><div><h2>Delivery register</h2><p>Authoritative material tally · one row per date and material</p></div><strong>{total} visits</strong></div>
+   <div className="delivery-table-wrap"><table className="delivery-register" data-reviewed-rows><thead><tr>{['Date','Day','Time','Material','Deliveries','Supplier','Gate'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row=><tr key={row.id}><td>{formatDate(row.date)}</td><td>{row.day}</td><td>{row.time??'—'}</td><td>{row.material}</td><td>{row.deliveries}</td><td>{row.deliveryCompany}</td><td>{row.gate}</td></tr>)}</tbody></table></div>
+   {!rows.length&&<p className="empty-state">No delivery records match these filters.</p>}
+  </DataComponent>
+  <div className="secondary-chart"><EvidenceChart id="delivery-day-chart" queryId={QUERY} title="Deliveries by day" variant="card" spec={dailySpec} rows={rows} sourceRows={rows} height={220} description="Delivery visits by recorded date and material category."/></div>
+ </section>;
 }

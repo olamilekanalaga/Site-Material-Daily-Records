@@ -1,86 +1,12 @@
-.delivery-dashboard { --delivery-amber: var(--chart-1); }
-.delivery-intro { display:flex; justify-content:space-between; align-items:center; gap:16px; margin:8px 0 24px; }
-.delivery-eyebrow { color:var(--secondary); font-size:11px; font-weight:750; letter-spacing:1.6px; }
-.delivery-intro p { margin:8px 0 0; color:var(--text); font-size:14px; }
-.delivery-intro p span { padding:0 8px; color:var(--secondary); }
-.delivery-recorded-badge { color:var(--secondary); border:1px solid var(--border-strong); border-radius:30px; padding:7px 12px; font-size:11px; white-space:nowrap; }
-.delivery-day-picker { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; overflow-x:auto; padding:4px 4px 12px; margin:-4px -4px 0; scroll-snap-type:x proximity; }
-.delivery-day-card { appearance:none; text-align:left; font:inherit; cursor:pointer; color:var(--text); border:1px solid var(--border-strong); background:var(--surface); box-shadow:var(--card-shadow); border-radius:18px; padding:20px 24px; transition:background .16s,transform .16s,box-shadow .16s; min-width:0; }
-.delivery-day-card:hover { transform:translateY(-2px); border-color:var(--delivery-amber); }
-.delivery-day-card:focus-visible { outline:3px solid var(--accent); outline-offset:4px; }
-.delivery-day-card[aria-pressed="true"] { background:var(--delivery-amber); color:#211b0e; border-color:var(--delivery-amber); box-shadow:0 8px 24px color-mix(in srgb,var(--delivery-amber) 20%, transparent); }
-.delivery-card-top { display:flex; align-items:center; justify-content:space-between; font-weight:650; font-size:15px; }
-.delivery-selection-dot { width:8px;height:8px;border-radius:50%;background:transparent; }
-.delivery-day-card[aria-pressed="true"] .delivery-selection-dot { background:#211b0e; }
-.delivery-card-value { display:flex; gap:12px; align-items:baseline; font-size:46px;line-height:1.3;font-weight:750;letter-spacing:-1.7px;margin:8px 0 4px;font-variant-numeric:tabular-nums; }
-.delivery-card-value small { font-size:12px;font-weight:500;letter-spacing:0;opacity:.75; }
-.delivery-card-date { font-size:12px;opacity:.7; }
-.delivery-scope { display:flex; justify-content:space-between;align-items:center;gap:12px;margin:26px 0 16px;font-size:13px; }
-.delivery-scope p { margin:0; }
-.delivery-scope p span,.delivery-scope>span { color:var(--secondary); }
-.delivery-chart-note { font-size:11px;color:var(--secondary);margin:12px 0 0; }
-.delivery-material-counts { display:flex;flex-wrap:wrap;gap:8px 16px;font-size:11px;margin-top:12px; }
-.delivery-material-counts span { display:flex;align-items:center;gap:6px;color:var(--secondary); }
-.delivery-material-counts strong { color:var(--text); }
-.delivery-material-counts i { width:6px;height:6px;border-radius:2px; }
-.delivery-table { overflow-x:auto; }
-.delivery-total { display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:18px;margin-top:14px;font-size:13px; }
-.delivery-total strong { font-size:23px;font-variant-numeric:tabular-nums; }
-.delivery-total strong span { font-size:12px;color:var(--secondary);font-weight:400; }
-.delivery-highlights { display:grid;grid-template-columns:.8fr 1.3fr 1fr;gap:24px;align-items:center;min-height:96px; }
-.delivery-highlight-lead { display:flex;flex-direction:column;gap:5px;margin:0; }
-.delivery-highlight-lead strong { color:var(--chart-1);font-size:52px;line-height:1;letter-spacing:-2px; }
-.delivery-highlight-lead span { font-size:12px;color:var(--secondary);line-height:1.5; }
-.delivery-insight { border-left:1px solid var(--border);padding-left:20px;display:flex;flex-direction:column;gap:8px; }
-.delivery-insight-label { font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--secondary); }
-.delivery-insight strong { font-size:17px;line-height:1.35; }
-.delivery-insight>span:last-child { font-size:12px;color:var(--secondary);line-height:1.5; }
-.delivery-footer { margin-top:24px;padding-bottom:16px;display:flex;justify-content:space-between;gap:12px;color:var(--secondary);font-size:11px; }
-@media(max-width:640px) { .delivery-intro { align-items:flex-start; flex-direction:column; gap:10px; margin-bottom:18px; } .delivery-day-picker { gap:8px; } .delivery-day-card { padding:14px 12px;border-radius:14px; } .delivery-card-value { font-size:34px;gap:0;flex-direction:column;line-height:1.2; } .delivery-card-value small { font-size:10px;margin:5px 0; } .delivery-card-top { font-size:12px; } .delivery-card-date { font-size:10px; } .delivery-selection-dot { width:5px;height:5px; } .delivery-scope { align-items:flex-start;flex-direction:column;margin-top:22px;gap:5px; } .delivery-scope p span { display:block;margin-top:5px; } .delivery-scope>span { display:none; } .delivery-footer { flex-direction:column; } }
-@media(prefers-reduced-motion:reduce) { .delivery-day-card { transition:none; } }
-.delivery-day-card { padding:16px; border-radius:16px; scroll-snap-align:start; }
-.delivery-day-off:not([aria-pressed="true"]) { border-style:dashed; color:var(--secondary); }
-.delivery-card-top { font-size:14px; gap:5px; }
-.delivery-selection-dot { width:6px; height:6px; flex-shrink:0; }
-.delivery-card-value { flex-direction:column; gap:2px; font-size:36px; line-height:1.2; margin:10px 0 12px; letter-spacing:-1px; }
-.delivery-card-value small { font-size:14px; }
-.delivery-card-date,.delivery-eyebrow,.delivery-recorded-badge,.delivery-chart-note,.delivery-material-counts,.delivery-insight-label,.delivery-footer { font-size:12px; }
-.delivery-scope,.delivery-highlight-lead span,.delivery-insight>span:last-child,.delivery-total,.delivery-total strong span { font-size:14px; }
-.delivery-highlight-lead strong { font-size:44px; }
-.delivery-sand-summary strong { font-size:32px; font-variant-numeric:tabular-nums; }
-.delivery-sand-summary strong small { font-size:14px; font-weight:500; }
-.delivery-table-day,.delivery-table-tonnes { display:flex; flex-direction:column; gap:4px; }
-.delivery-table-day { white-space:nowrap; }
-.delivery-table-day small { color:var(--secondary); font-size:12px; }
-.delivery-table-tonnes { align-items:flex-end; }
-.delivery-table-tonnes small { font-size:12px; font-weight:650; white-space:nowrap; }
-.delivery-total { flex-wrap:wrap; gap:12px; }
-.delivery-footer { flex-wrap:wrap; }
-@media(max-width:640px) {
-  .delivery-day-picker { grid-template-columns:repeat(3,minmax(0,1fr)); }
-  .delivery-day-card { padding:14px; }
-  .delivery-intro p { line-height:1.6; }
-  .delivery-highlights { grid-template-columns:1fr; gap:16px; }
-  .delivery-insight { border-left:0; border-top:1px solid var(--border); padding:16px 0 0; }
-  .delivery-total { flex-direction:column; align-items:flex-start; }
+.delivery-dashboard{min-width:0}
+.delivery-table-wrap{width:100%;overflow-x:auto;border:1px solid var(--border);border-radius:12px}
+.delivery-register{width:100%;min-width:860px;border-collapse:collapse;font-size:12px}
+.delivery-register th{padding:11px 13px;text-align:left;color:var(--secondary);background:var(--muted);font-size:10px;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.delivery-register td{padding:13px;border-top:1px solid var(--border);vertical-align:top}
+.delivery-register th:nth-child(5),.delivery-register td:nth-child(5){text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.secondary-chart{margin-top:18px}
+@media(max-width:700px){
+ .delivery-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+ .delivery-register{min-width:720px;font-size:11px}
+ .delivery-register th,.delivery-register td{padding:10px 9px}
 }
-
-.delivery-pending-value { font-size:25px; letter-spacing:-.5px; }
-.delivery-day-pending:not([aria-pressed="true"]) { border-style:dashed; }
-.delivery-empty { padding:24px 0; color:var(--secondary); }
-.delivery-empty p:first-child { color:var(--text); font-weight:600; }
-.delivery-hours { margin:0; display:grid; gap:20px; }
-.delivery-hours div { display:grid; gap:6px; }
-.delivery-hours dt { color:var(--secondary); font-size:13px; }
-.delivery-hours dd { margin:0; font-weight:650; font-size:18px; }
-@media(max-width:640px) { .delivery-pending-value { font-size:20px; } .delivery-day-card { padding:12px 10px; } .delivery-card-value small,.delivery-card-date { font-size:11px; } }
-
-/* Compact operational register, retaining the dashboard's light theme. */
-.delivery-operational-table { border:1px solid var(--border); border-radius:8px; }
-.delivery-operational-table table { min-width:1030px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:12px; font-variant-numeric:tabular-nums; }
-.delivery-operational-table th,.delivery-operational-table td { white-space:nowrap; padding:13px 12px; border-right:1px solid var(--border); }
-.delivery-operational-table th { background:var(--surface-muted,var(--surface)); }
-.delivery-operational-table th:last-child,.delivery-operational-table td:last-child { border-right:0; }
-.delivery-operational-table th:nth-child(5),.delivery-operational-table td:nth-child(5) { text-align:right; }
-.delivery-hours { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
-@media(max-width:640px) { .delivery-operational-table table { font-size:12px; } .delivery-hours { grid-template-columns:1fr; } }
