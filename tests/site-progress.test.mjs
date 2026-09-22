@@ -31,6 +31,28 @@ test('delivery tallies preserve earlier records and reconcile Monday without dou
  assert.equal(total(deliveries.filter(row=>row.materialGroup==='Type 1 / recycled Type 1')),14);
 });
 
+test('every delivery date reconciles independently from one date scope',()=>{
+ const rows=data.queries.material_deliveries.rows;
+ const metrics=date=>{
+  const selected=rows.filter(row=>date==='all'||row.date===date);
+  return {
+   total:selected.reduce((n,row)=>n+row.quantity,0),
+   material:selected.filter(row=>row.category==='Material delivery').reduce((n,row)=>n+row.quantity,0),
+   sixF5:selected.filter(row=>row.arrival==='6F5').reduce((n,row)=>n+row.quantity,0),
+   type1:selected.filter(row=>row.arrival==='Type 1').reduce((n,row)=>n+row.quantity,0),
+   mill:selected.filter(row=>row.arrival==='20Mill').reduce((n,row)=>n+row.quantity,0),
+   welfare:selected.filter(row=>row.category==='Welfare service').reduce((n,row)=>n+row.quantity,0)
+  };
+ };
+ assert.deepEqual(metrics('2026-09-17'),{total:11,material:11,sixF5:7,type1:4,mill:0,welfare:0});
+ assert.deepEqual(metrics('2026-09-18'),{total:23,material:23,sixF5:19,type1:4,mill:0,welfare:0});
+ assert.deepEqual(metrics('2026-09-21'),{total:16,material:15,sixF5:6,type1:6,mill:3,welfare:1});
+ assert.deepEqual(metrics('all'),{total:50,material:49,sixF5:32,type1:14,mill:3,welfare:1});
+ assert.equal(data.queries.daily_records.rows.filter(row=>row.date==='2026-09-17').length,0);
+ assert.equal(data.queries.daily_records.rows.filter(row=>row.date==='2026-09-18').length,0);
+ assert.equal(data.queries.daily_records.rows.filter(row=>row.date==='2026-09-21').length,16);
+});
+
 test('Monday individual records reconcile and distinguish recorded from estimated times',()=>{
  const rows=data.queries.daily_records.rows;
  assert.equal(rows.length,16);
@@ -84,6 +106,7 @@ test('reviewed totals reconcile from the migrated posts',()=>{
 test('filters intersect and Friday produces a genuine empty population',()=>{
  assert.equal(filterProgress(posts,{date:'2026-09-17'}).length,29);
  assert.equal(filterProgress(posts,{date:'2026-09-18'}).length,0);
+ assert.equal(filterProgress(posts,{date:'2026-09-21'}).length,0);
  assert.equal(filterProgress(posts,{contributor:'James Williams'}).length,3);
  assert.equal(filterProgress(posts,{recordType:'video_update'}).length,5);
  assert.equal(filterProgress(posts,{description:'with'}).length,17);

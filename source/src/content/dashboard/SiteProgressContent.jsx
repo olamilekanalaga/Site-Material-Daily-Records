@@ -1,14 +1,15 @@
-import React,{useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useState} from 'react';
 import {DataComponent,Dialog,useDataApp} from '../../data-app-public.jsx';
 import {displayTime,filterProgress,orderProgress,progressTotals,recordTypeLabel} from './progress-model.mjs';
 import {evidencePreviews} from './evidence-previews.js';
 const QUERY='progress_posts', ACTIVITY_QUERY='activities';
+const formatDate=date=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(date+'T00:00:00Z')).replace('Sept','Sep');
 const mediaLabel=row=>row.mediaType==='video'?'Video':'Photos';
-function Kpi({id,label,value,note,rows}){return <DataComponent id={id} queryId={QUERY} title={label} kind="metric" variant="card" sourceRows={rows} displayRows={[{label,value}]}><div className="site-kpi" data-reviewed-rows><span>{label}</span><strong>{value}</strong><small>{note}</small></div></DataComponent>}
+function Kpi({id,label,value,note,rows,tone,icon}){return <DataComponent id={id} queryId={QUERY} title={label} kind="metric" variant="card" className={"super-kpi-card tone-"+tone} showHeading={false} sourceRows={rows} displayRows={[{label,value}]}><div className={"site-kpi super-kpi tone-"+tone} data-reviewed-rows><div className="kpi-symbol" aria-hidden="true">{icon}</div><span>{label}</span><strong>{value}</strong><small>{note}</small><span className="kpi-detail" aria-hidden="true">→</span></div></DataComponent>}
 function Select({label,value,onChange,children}){return <label className="site-filter"><span>{label}</span><select value={value} onChange={event=>onChange(event.target.value)}>{children}</select></label>}
 export function SiteProgressContent(){
  const {queries}=useDataApp();
- const allPosts=queries[QUERY]?.rows??[], allActivities=queries[ACTIVITY_QUERY]?.rows??[];
+ const allPosts=queries[QUERY]?.rows??[], allActivities=queries[ACTIVITY_QUERY]?.rows??[], calendar=queries.day_register?.rows??[];
  const [date,setDate]=useState('all'),[contributor,setContributor]=useState('all'),[recordType,setRecordType]=useState('all'),[description,setDescription]=useState('all'),[search,setSearch]=useState(''),[evidence,setEvidence]=useState(null),[filtersOpen,setFiltersOpen]=useState(()=>globalThis.matchMedia?.('(min-width: 621px)').matches??true);
  const posts=orderProgress(filterProgress(allPosts,{date,contributor,recordType,description,search}));
  const total=progressTotals(posts), names=[...new Set(allPosts.map(row=>row.postedBy))].sort((a,b)=>a.localeCompare(b)), types=[...new Set(allPosts.map(row=>row.recordType))];
@@ -16,13 +17,16 @@ export function SiteProgressContent(){
  const visiblePostIds=new Set(posts.map(row=>row.id));
  const activities=allActivities.filter(row=>visiblePostIds.has(row.linkedPostId));
  const preview=evidence?evidencePreviews[evidence.id]:null, activity=evidence?activityByPost[evidence.id]:null;
+ const selectedDay=date==='all'?null:calendar.find(row=>row.date===date);
+ const dateHasRecords=date==='all'||allPosts.some(row=>row.date===date);
+ useEffect(()=>setEvidence(null),[date,contributor,recordType,description,search]);
  const reset=()=>{setDate('all');setContributor('all');setRecordType('all');setDescription('all');setSearch('');};
- return <section className="dashboard-view progress-page">
-  <header className="view-heading"><div><h1>Site Progress</h1><p>Thursday · 17 September 2026</p></div><span className="status-chip">● Recorded site updates</span></header>
+ return <section className={"dashboard-view progress-page"+(dateHasRecords?"":" no-record-date")}>
+  <header className="view-heading"><div><h1>{selectedDay?'Site Progress · '+selectedDay.day:'Site Progress'}</h1><p>{selectedDay?formatDate(selectedDay.date):'All recorded progress dates'}</p></div><span className="status-chip">● Recorded site updates</span></header>
   <details className="mobile-filter-panel" open={filtersOpen} onToggle={event=>setFiltersOpen(event.currentTarget.open)}>
    <summary>Filters</summary>
    <div className="filter-strip progress-filter-strip">
-   <Select label="RECORDED DAY" value={date} onChange={setDate}><option value="all">All recorded days</option><option value="2026-09-17">Thursday · 17 September 2026</option><option value="2026-09-18">Friday · 18 September 2026</option></Select>
+   <Select label="RECORDED DAY" value={date} onChange={setDate}><option value="all">All recorded days</option>{calendar.map(row=><option key={row.date} value={row.date}>{row.day} · {formatDate(row.date)}</option>)}</Select>
    <Select label="POSTED BY" value={contributor} onChange={setContributor}><option value="all">All posters</option>{names.map(name=><option key={name}>{name}</option>)}</Select>
    <Select label="ACTIVITY / TYPE" value={recordType} onChange={setRecordType}><option value="all">All activities</option>{types.map(type=><option key={type} value={type}>{recordTypeLabel(type)}</option>)}</Select>
    <Select label="DESCRIPTION" value={description} onChange={setDescription}><option value="all">All descriptions</option><option value="with">With descriptions</option><option value="without">Without descriptions</option></Select>
@@ -30,11 +34,16 @@ export function SiteProgressContent(){
    <button className="reset-button" onClick={reset}>Reset</button>
   </div>
   </details>
-  <div className="kpi-grid"><Kpi id="progress-count" label="Progress updates" value={total.updates} note="One row per WhatsApp post" rows={posts}/><Kpi id="progress-contributors" label="Contributors" value={total.contributors} note="Confirmed display names" rows={posts}/><Kpi id="progress-photos" label="Photographs documented" value={`${total.minimum?'≥ ':''}${total.photos}`} note="Album counters produce minimum counts" rows={posts}/><Kpi id="progress-videos" label="Video posts" value={total.videos} note="Recorded separately from photographs" rows={posts}/></div>
+  <div className="kpi-grid progress-kpis">
+   <Kpi id="progress-count" label="Progress updates" value={total.updates} note="One row per WhatsApp post" rows={posts} tone="pink" icon="◇"/>
+   <Kpi id="progress-contributors" label="Contributors" value={total.contributors} note="Confirmed display names" rows={posts} tone="lavender" icon="◎"/>
+   <Kpi id="progress-photos" label="Photographs" value={(total.minimum?'≥':'')+total.photos} note="Minimum documented count" rows={posts} tone="mint" icon="▧"/>
+   <Kpi id="progress-videos" label="Video posts" value={total.videos} note="Recorded video updates" rows={posts} tone="yellow" icon="▷"/>
+  </div>
   <div className="progress-workspace">
    <DataComponent id="progress-register" queryId={QUERY} title="Progress register" kind="table" variant="card" sourceRows={posts} displayRows={posts} description="One row per reviewed WhatsApp post. Posted by identifies the contributor, not the person who performed the work.">
     <div className="section-title"><div><h2>Progress Post Register</h2><p>{posts.length} reviewed posts · chronological order</p></div></div>
-    {!posts.length?<p className="empty-state">{date==='2026-09-18'?'No progress posts recorded for Friday 18 September 2026.':'No progress updates recorded for this day.'}</p>:<div className="progress-list" data-reviewed-rows>{posts.map(row=><article key={row.id} className={evidence?.id===row.id?'is-selected':''}><time>{displayTime(row.time)}</time><div className="post-main"><strong>{row.postedBy}</strong><p className={row.descriptionStatus!=='provided'?'is-muted':''}>{row.captionRaw}</p><small>{recordTypeLabel(row.recordType)}{row.contributorStatus!=='confirmed'?' · Contributor cropped/unconfirmed':''}</small></div><div className="post-media"><strong>{row.attachmentCountStatus==='minimum_visible'?'≥ ':''}{row.attachmentCount}</strong><span>{mediaLabel(row)}</span></div><button onClick={()=>setEvidence(row)}>View</button></article>)}</div>}
+    {!posts.length?<p className="empty-state">No site-progress updates recorded for this date.</p>:<div className="progress-list" data-reviewed-rows><div className="progress-register-head" aria-hidden="true"><span>Time</span><span>Posted by</span><span>Reported update</span><span>Evidence</span><span>View</span></div>{posts.map(row=><article key={row.id} className={evidence?.id===row.id?'is-selected':''}><time>{displayTime(row.time)}</time><strong className="post-author">{row.postedBy}</strong><div className="post-main"><p className={row.descriptionStatus!=='provided'?'is-muted':''}>{row.captionRaw}</p><span className={'description-badge '+(row.descriptionStatus==='provided'?'is-provided':'is-missing')}>{row.descriptionStatus==='provided'?'Description provided':'Description not provided'}</span>{row.contributorStatus!=='confirmed'&&<small>Contributor cropped/unconfirmed</small>}</div><div className={'post-media '+(row.mediaType==='video'?'is-video':'is-photo')}><strong>{row.attachmentCountStatus==='minimum_visible'?'≥ ':''}{row.attachmentCount}</strong><span>{mediaLabel(row)}</span></div><button onClick={()=>setEvidence(row)}>View</button></article>)}</div>}
     <p className="progress-note">Evidence contribution summary only. Photograph and post counts are not measures of employee performance or work completed.</p>
    </DataComponent>
    <aside className="evidence-panel" aria-live="polite">

@@ -9,20 +9,23 @@ const dailySpec={type:'stackedBar',x:'dayLabel',y:'deliveries',series:'materialG
 function FilterSelect({label,value,onChange,children}){return <label className="site-filter"><span>{label}</span><select value={value} onChange={event=>onChange(event.target.value)}>{children}</select></label>}
 function Kpi({id,label,value,note,rows,tone,icon}){return <DataComponent id={id} queryId={QUERY} title={label} kind="metric" variant="card" className={'super-kpi-card tone-'+tone} showHeading={false} sourceRows={rows} displayRows={[{label,value}]}><div className={'site-kpi super-kpi tone-'+tone} data-reviewed-rows><div className="kpi-symbol" aria-hidden="true">{icon}</div><span>{label}</span><strong>{value}</strong><small>{note}</small><span className="kpi-detail" aria-hidden="true">→</span></div></DataComponent>}
 export function DeliveriesContent(){
- const {queries,filters,setFilter,reviewedRows}=useDataApp();
+ const {queries,filters,setFilter}=useDataApp();
  const allRows=queries[QUERY]?.rows??[], calendar=queries.day_register?.rows??[];
  const day=filters.deliveryDay??'all';
  const [arrival,setArrival]=useState('all'),[company,setCompany]=useState('all'),[filtersOpen,setFiltersOpen]=useState(()=>globalThis.matchMedia?.('(min-width: 621px)').matches??true);
- const dayRows=reviewedRows(QUERY,['date','day','dayLabel','arrival','material','materialGroup','quantity','deliveries','category','company','deliveryCompany','gate']);
- const dailyRecords=reviewedRows('daily_records',['date','day','time','arrival','category','company','gate','timeStatus']);
- const rows=dayRows.filter(row=>(arrival==='all'||row.arrival===arrival)&&(company==='all'||row.company===company));
+ const bySelectedDate=dataset=>day==='all'?dataset:dataset.filter(row=>row.date===day);
+ const matchesSecondary=row=>(arrival==='all'||row.arrival===arrival)&&(company==='all'||row.company===company);
+ const rows=bySelectedDate(allRows).filter(matchesSecondary);
+ const dailyRecords=bySelectedDate(queries.daily_records?.rows??[]).filter(matchesSecondary);
+ const calendarRows=bySelectedDate(calendar);
+ const selectedDay=day==='all'?null:calendar.find(row=>row.date===day);
  const materialRows=rows.filter(row=>row.category==='Material delivery');
  const totalSite=sum(rows), materialTotal=sum(materialRows), welfareTotal=sum(rows.filter(row=>row.category==='Welfare service'));
  const sixF5=sum(rows.filter(row=>row.arrival==='6F5')), type1=sum(rows.filter(row=>row.arrival==='Type 1')), mill=sum(rows.filter(row=>row.arrival==='20Mill'));
  const arrivals=[...new Set(allRows.map(row=>row.arrival))], companies=[...new Set(allRows.map(row=>row.company))];
- const daily=calendar.map(entry=>{const scoped=rows.filter(row=>row.date===entry.date);return {...entry,total:sum(scoped),sixF5:sum(scoped.filter(row=>row.arrival==='6F5')),type1:sum(scoped.filter(row=>row.arrival==='Type 1')),mill:sum(scoped.filter(row=>row.arrival==='20Mill')),welfare:sum(scoped.filter(row=>row.category==='Welfare service'))};});
+ const daily=calendarRows.map(entry=>{const scoped=rows.filter(row=>row.date===entry.date);return {...entry,total:sum(scoped),sixF5:sum(scoped.filter(row=>row.arrival==='6F5')),type1:sum(scoped.filter(row=>row.arrival==='Type 1')),mill:sum(scoped.filter(row=>row.arrival==='20Mill')),welfare:sum(scoped.filter(row=>row.category==='Welfare service'))};});
  return <section className="dashboard-view delivery-dashboard">
-  <header className="view-heading"><div><h1>Second Gate · Delivery Overview</h1><p>Site arrival records · 17–21 September 2026</p></div><div className="header-chips"><span className="status-chip">● Recorded site data</span><span className="hours-chip">Site hours · 7:00am–5:30pm</span></div></header>
+  <header className="view-heading"><div><h1>{selectedDay?selectedDay.day+' · '+formatDate(selectedDay.date):'Second Gate · Delivery Overview'}</h1><p>{selectedDay?'Second Gate site arrivals':'All recorded dates · 17–21 September 2026'}</p></div><div className="header-chips"><span className="status-chip">● Recorded site data</span><span className="hours-chip">Site hours · 7:00am–5:30pm</span></div></header>
   <div className="section-title kpi-heading"><div><h2>Site arrivals</h2><p>Live totals for the current selection</p></div></div>
   <div className="kpi-grid delivery-kpis">
    <Kpi id="arrival-total" label="Total site arrivals" value={totalSite} note="Materials and welfare visits" rows={rows} tone="pink" icon="◇"/>

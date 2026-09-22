@@ -95,3 +95,30 @@
  .mobile-filter-panel:not([open])>.filter-strip{display:none}
  .source-note-grid{grid-template-columns:1fr}
 }
+.progress-page .view-heading h1,.progress-page .section-title h2{font-family:Georgia,"Times New Roman",serif;color:var(--text)}
+.progress-page .view-heading h1{font-size:30px;letter-spacing:-.03em}
+.progress-kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.progress-kpis>.super-kpi-card{position:relative;min-width:0;min-height:160px;padding:16px;overflow:hidden;--card-surface-border:color-mix(in srgb,#17273a 78%,var(--border));border-width:2px;box-shadow:4px 5px 0 color-mix(in srgb,#17273a 22%,transparent)}
+.progress-kpis .super-kpi{min-height:128px}.progress-kpis .super-kpi strong{font-size:43px}
+.progress-register-head,.progress-list article{grid-template-columns:64px minmax(95px,.75fr) minmax(190px,2fr) 72px 52px}
+.progress-register-head{display:grid;gap:12px;padding:9px 12px;background:var(--muted);color:var(--secondary);font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+.post-author{font-size:10px;line-height:1.35;color:var(--text)}
+.post-main p{margin-top:0}.post-main small{display:block;margin-top:5px}
+.description-badge{display:inline-flex;margin-top:3px;padding:3px 6px;border:1px solid var(--border);border-radius:999px;font-size:7px;font-weight:750;line-height:1.2}
+.description-badge.is-provided{background:light-dark(#d4ecd6,#29483a);color:light-dark(#173d2a,#e0f4e5)}
+.description-badge.is-missing{background:light-dark(#f4d6c1,#513a2f);color:light-dark(#56301d,#f7e3d5)}
+.post-media{align-self:start;padding:5px 4px;border:1px solid var(--border);border-radius:8px}
+.post-media.is-photo{background:light-dark(#d5eaf4,#294759)}
+.post-media.is-video{background:light-dark(#ddd5f5,#3d3658)}
+@media(max-width:900px){.progress-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){
+ .progress-page .view-heading h1{font-size:25px}
+ .progress-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+ .progress-kpis>.super-kpi-card{min-height:152px;padding:14px}.progress-kpis .super-kpi{min-height:124px}.progress-kpis .super-kpi strong{font-size:39px}
+ .progress-register-head{display:none}
+ .progress-list article{grid-template-columns:50px minmax(0,1fr) 46px;gap:8px}
+ .progress-list article .post-author{grid-column:2}.progress-list article .post-main{grid-column:2}.progress-list article .post-media{grid-column:3;grid-row:1/3}.progress-list article>button{grid-column:2/-1}
+}
+
+.progress-page.no-record-date .progress-kpis,.progress-page.no-record-date .evidence-panel,.progress-page.no-record-date [data-component-id='progress-activities'],.progress-page.no-record-date .limitations{display:none!important}
+.progress-page.no-record-date .progress-workspace{display:block}
