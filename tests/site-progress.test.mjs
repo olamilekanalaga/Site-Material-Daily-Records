@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {execFileSync} from 'node:child_process';
 import {displayTime,filterProgress,orderProgress,progressTotals} from '../source/src/content/dashboard/progress-model.mjs';
 const data=JSON.parse(readFileSync(new URL('../source/src/data.json',import.meta.url),'utf8'));
 const posts=data.queries.progress_posts.rows;
@@ -17,26 +16,45 @@ test('delivery tallies preserve earlier records and reconcile Monday without dou
   ['2026-09-18','Type 1',4]
  ]);
  const monday=deliveries.filter(row=>row.date==='2026-09-21');
- assert.equal(monday.length,12);
- assert.equal(total(monday),12);
- assert.equal(total(monday.filter(row=>row.materialGroup==='6F5 crushed concrete')),6);
- assert.equal(total(monday.filter(row=>row.materialGroup==='Type 1 / recycled Type 1')),6);
- assert.deepEqual(monday.filter(row=>row.materialGroup==='6F5 crushed concrete').map(row=>row.time),['08:45','10:40','10:58','—','—','—']);
- assert.deepEqual(monday.filter(row=>row.materialGroup==='Type 1 / recycled Type 1').map(row=>row.time),['09:30','10:40','10:42','—','—','—']);
- assert(monday.every(row=>row.deliveryCompany==='Not recorded'&&row.gate==='Second Gate'));
- assert.equal(total(deliveries),46);
+ assert.equal(monday.length,4);
+ assert.deepEqual(monday.map(row=>[row.arrival,row.quantity,row.category,row.company,row.gate]),[
+  ['6F5',6,'Material delivery','LIME LOGISTICS','Second Gate'],
+  ['Type 1',6,'Material delivery','LIME LOGISTICS','Second Gate'],
+  ['20Mill',3,'Material delivery','LIME LOGISTICS','Second Gate'],
+  ['Toilet wash',1,'Welfare service','Welfare contractor','Second Gate']
+ ]);
+ assert.equal(total(monday),16);
+ assert.equal(total(monday.filter(row=>row.category==='Material delivery')),15);
+ assert.equal(total(monday.filter(row=>row.category==='Welfare service')),1);
+ assert.equal(total(deliveries),50);
  assert.equal(total(deliveries.filter(row=>row.materialGroup==='6F5 crushed concrete')),32);
  assert.equal(total(deliveries.filter(row=>row.materialGroup==='Type 1 / recycled Type 1')),14);
 });
 
-test('ambiguous material and service notes remain excluded from confirmed totals',()=>{
+test('Monday individual records reconcile and distinguish recorded from estimated times',()=>{
+ const rows=data.queries.daily_records.rows;
+ assert.equal(rows.length,16);
+ assert.deepEqual(rows.map(row=>[row.time,row.arrival,row.timeStatus]),[
+  ['08:45','6F5','Recorded'],['09:05','20Mill','Estimated'],['09:30','Type 1','Recorded'],['09:50','6F5','Estimated'],
+  ['10:15','Type 1','Estimated'],['10:40','6F5','Recorded'],['10:40','Type 1','Recorded'],['10:42','Type 1','Recorded'],
+  ['10:58','6F5','Recorded'],['11:18','20Mill','Estimated'],['11:38','Type 1','Estimated'],['11:58','6F5','Estimated'],
+  ['12:18','Type 1','Estimated'],['12:38','20Mill','Estimated'],['12:58','6F5','Estimated'],['13:18','Toilet wash','Estimated']
+ ]);
+ assert.deepEqual(Object.fromEntries(['6F5','Type 1','20Mill','Toilet wash'].map(name=>[name,rows.filter(row=>row.arrival===name).length])),{'6F5':6,'Type 1':6,'20Mill':3,'Toilet wash':1});
+ assert.equal(rows.filter(row=>row.timeStatus==='Recorded').length,6);
+ assert.equal(rows.filter(row=>row.timeStatus==='Estimated').length,10);
+ assert.equal(rows.filter(row=>row.time==='10:40').length,2);
+});
+
+test('source notes preserve wording and the latest owner classifications',()=>{
  const notes=data.queries.delivery_source_notes.rows;
  assert.equal(notes.length,4);
- assert(notes.every(row=>row.includedInConfirmedDeliveryTotals===false));
  assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-20MIL').wording,'20 mil single (3)');
  assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-20MIL').quantity,3);
- assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-20MIL').classificationStatus,'Awaiting confirmation');
+ assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-20MIL').classificationStatus,'Classified by owner as 20Mill material delivery');
+ assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-20MIL').includedInConfirmedDeliveryTotals,true);
  assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-TOILET').wording,'Toilet wash');
+ assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-TOILET').classificationStatus,'Classified by owner as Welfare service');
 });
 test('one row represents one WhatsApp post with normalized IDs and dates',()=>{
  assert.equal(posts.length,29);

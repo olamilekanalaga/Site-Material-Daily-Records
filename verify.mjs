@@ -14,19 +14,28 @@ function verify(data){
  assert.equal(sum(deliveries.filter(row=>row.date==='2026-09-17')),11);
  assert.equal(sum(deliveries.filter(row=>row.date==='2026-09-18')),23);
  const monday=deliveries.filter(row=>row.date==='2026-09-21');
- assert.equal(monday.length,12);
- assert.equal(sum(monday),12);
- assert.deepEqual(monday.filter(row=>row.materialGroup==='6F5 crushed concrete').map(row=>row.time),['08:45','10:40','10:58','—','—','—']);
- assert.deepEqual(monday.filter(row=>row.materialGroup==='Type 1 / recycled Type 1').map(row=>row.time),['09:30','10:40','10:42','—','—','—']);
- assert(monday.every(row=>row.deliveryCompany==='Not recorded'&&row.gate==='Second Gate'));
- assert.equal(sum(deliveries),46);
+ assert.deepEqual(monday.map(row=>[row.arrival,row.quantity,row.category,row.company,row.gate]),[
+  ['6F5',6,'Material delivery','LIME LOGISTICS','Second Gate'],
+  ['Type 1',6,'Material delivery','LIME LOGISTICS','Second Gate'],
+  ['20Mill',3,'Material delivery','LIME LOGISTICS','Second Gate'],
+  ['Toilet wash',1,'Welfare service','Welfare contractor','Second Gate']
+ ]);
+ assert.equal(sum(monday),16);
+ assert.equal(sum(monday.filter(row=>row.category==='Material delivery')),15);
+ assert.equal(sum(deliveries),50);
  assert.equal(sum(deliveries.filter(row=>row.materialGroup==='6F5 crushed concrete')),32);
  assert.equal(sum(deliveries.filter(row=>row.materialGroup==='Type 1 / recycled Type 1')),14);
- assert.deepEqual(Object.keys(data.queries).sort(),['activities','day_register','delivery_source_notes','material_deliveries','progress_posts']);
+ assert.deepEqual(Object.keys(data.queries).sort(),['activities','daily_records','day_register','delivery_source_notes','material_deliveries','progress_posts']);
+ const daily=data.queries.daily_records.rows;
+ assert.equal(daily.length,16);
+ assert.deepEqual(Object.fromEntries(['6F5','Type 1','20Mill','Toilet wash'].map(name=>[name,daily.filter(row=>row.arrival===name).length])),{'6F5':6,'Type 1':6,'20Mill':3,'Toilet wash':1});
+ assert.equal(daily.filter(row=>row.timeStatus==='Recorded').length,6);
+ assert.equal(daily.filter(row=>row.timeStatus==='Estimated').length,10);
+ assert.equal(daily.filter(row=>row.time==='10:40').length,2);
  const notes=data.queries.delivery_source_notes.rows;
  assert.equal(notes.length,4);
- assert(notes.every(row=>row.includedInConfirmedDeliveryTotals===false));
  assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-20MIL').wording,'20 mil single (3)');
+ assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-20MIL').includedInConfirmedDeliveryTotals,true);
  assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-TOILET').wording,'Toilet wash');
  const mondayDay=data.queries.day_register.rows.find(row=>row.date==='2026-09-21');
  assert(mondayDay&&!Object.hasOwn(mondayDay,'siteHours'));
@@ -52,6 +61,8 @@ const compiledText=html+[...html.matchAll(/data:text\/javascript;charset=utf-8;b
 for(const stale of ['site_progress','progress-6038','Recorded time notes','Friday is pending.']) assert(!compiledText.includes(stale),`Stale content: ${stale}`);
 assert(compiledText.includes('Progress Post Register'));
 assert(compiledText.includes('Confirmed activities from captions'));
-assert(compiledText.includes('Source notes awaiting clarification'));
+assert(compiledText.includes('Source interpretation notes'));
+assert(compiledText.includes('Daily Records'));
+assert(compiledText.includes('Time status'));
 assert(compiledText.includes('No progress posts recorded for Friday 18 September 2026.'));
-console.log('Verified export: 11 + 23 + 12 = 46 deliveries; 32 6F5 + 14 Type 1; 29 Thursday progress posts; ambiguous Monday notes excluded.');
+console.log('Verified export: Monday has 15 material deliveries + 1 welfare visit; all dates have 50 site arrivals; 16 daily rows retain 6 recorded and 10 estimated times; 29 Thursday progress posts preserved.');
