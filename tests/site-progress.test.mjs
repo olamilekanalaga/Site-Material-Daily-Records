@@ -7,17 +7,37 @@ const data=JSON.parse(readFileSync(new URL('../source/src/data.json',import.meta
 const posts=data.queries.progress_posts.rows;
 const activities=data.queries.activities.rows;
 
-test('delivery datasets remain byte-for-byte equivalent to Git HEAD',()=>{
- const before=JSON.parse(execFileSync('git',['show','HEAD:source/src/data.json'],{encoding:'utf8'}));
- assert.deepEqual(data.queries.material_deliveries,before.queries.material_deliveries);
- assert.deepEqual(data.queries.day_register,before.queries.day_register);
+test('delivery tallies preserve earlier records and reconcile Monday without double-counting',()=>{
  const deliveries=data.queries.material_deliveries.rows;
  const total=rows=>rows.reduce((sum,row)=>sum+row.deliveries,0);
- assert.equal(total(deliveries.filter(row=>row.date==='2026-09-17')),11);
- assert.equal(total(deliveries.filter(row=>row.date==='2026-09-18')),23);
- assert.equal(total(deliveries),34);
+ assert.deepEqual(deliveries.slice(0,4).map(row=>[row.date,row.material,row.deliveries]),[
+  ['2026-09-17','6F5 crushed concrete',7],
+  ['2026-09-17','Type 1 / recycled Type 1',4],
+  ['2026-09-18','6F5 crushed concrete',19],
+  ['2026-09-18','Type 1',4]
+ ]);
+ const monday=deliveries.filter(row=>row.date==='2026-09-21');
+ assert.equal(monday.length,12);
+ assert.equal(total(monday),12);
+ assert.equal(total(monday.filter(row=>row.materialGroup==='6F5 crushed concrete')),6);
+ assert.equal(total(monday.filter(row=>row.materialGroup==='Type 1 / recycled Type 1')),6);
+ assert.deepEqual(monday.filter(row=>row.materialGroup==='6F5 crushed concrete').map(row=>row.time),['08:45','10:40','10:58','—','—','—']);
+ assert.deepEqual(monday.filter(row=>row.materialGroup==='Type 1 / recycled Type 1').map(row=>row.time),['09:30','10:40','10:42','—','—','—']);
+ assert(monday.every(row=>row.deliveryCompany==='Not recorded'&&row.gate==='Second Gate'));
+ assert.equal(total(deliveries),46);
+ assert.equal(total(deliveries.filter(row=>row.materialGroup==='6F5 crushed concrete')),32);
+ assert.equal(total(deliveries.filter(row=>row.materialGroup==='Type 1 / recycled Type 1')),14);
 });
 
+test('ambiguous material and service notes remain excluded from confirmed totals',()=>{
+ const notes=data.queries.delivery_source_notes.rows;
+ assert.equal(notes.length,4);
+ assert(notes.every(row=>row.includedInConfirmedDeliveryTotals===false));
+ assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-20MIL').wording,'20 mil single (3)');
+ assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-20MIL').quantity,3);
+ assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-20MIL').classificationStatus,'Awaiting confirmation');
+ assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-TOILET').wording,'Toilet wash');
+});
 test('one row represents one WhatsApp post with normalized IDs and dates',()=>{
  assert.equal(posts.length,29);
  assert.deepEqual(posts.map(row=>row.id),Array.from({length:29},(_,index)=>`PROG-${String(index+1).padStart(3,'0')}`));

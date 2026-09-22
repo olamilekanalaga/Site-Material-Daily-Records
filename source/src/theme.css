@@ -1,33 +1,33 @@
 :root {
-  color-scheme: light;
-  --adaptive-theme: 0;
+  color-scheme: light dark;
+  --adaptive-theme: 1;
   --data-app-chrome-background: var(--background);
   --data-app-chrome-text: var(--text);
   --font-sans-default: -apple-system-body, ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
   --font-sans: var(--vscode-font-family, var(--font-sans-default));
-  --background: #f7f3ea;
-  --surface: #fffdf8;
-  --surface-raised: #ffffff;
-  --muted: #f1eadc;
-  --control: #fffdf8;
-  --control-hover: #eee5d5;
+  --background: light-dark(#f7f3ea, #101720);
+  --surface: light-dark(#fffdf8, #182231);
+  --surface-raised: light-dark(#ffffff, #202c3b);
+  --muted: light-dark(#f1eadc, #233142);
+  --control: light-dark(#fffdf8, #1c2837);
+  --control-hover: light-dark(#eee5d5, #2a3a4d);
   --interaction-hover: var(--muted);
   --interaction-active: var(--control-hover);
-  --text: #17273a;
-  --secondary: #6d7782;
-  --border: #e1d8c7;
-  --border-strong: #cfc2aa;
-  --accent: #9a6500;
-  --positive: var(--color-text-success, light-dark(#00a240, #40c977));
-  --negative: var(--color-text-error, light-dark(#e02e2a, #ff6764));
-  --chart-1: #d89b28;
-  --chart-2: #233f5c;
+  --text: light-dark(#17273a, #f2f4f7);
+  --secondary: light-dark(#6d7782, #aeb9c7);
+  --border: light-dark(#e1d8c7, #324256);
+  --border-strong: light-dark(#cfc2aa, #53667c);
+  --accent: light-dark(#9a6500, #efb13c);
+  --positive: light-dark(#167642, #65d6aa);
+  --negative: light-dark(#c83737, #ff8e89);
+  --chart-1: light-dark(#d89b28, #efb13c);
+  --chart-2: light-dark(#233f5c, #8fb4d8);
   --chart-3: light-dark(#6689ad, #91b3d2);
-  --chart-4: light-dark(#fb6a22, #ff8549);
-  --chart-5: light-dark(#ff66ad, #ff8cc1);
-  --chart-6: light-dark(#ffc300, #ffd240);
-  --chart-7: light-dark(#fa423e, #ff6764);
-  --chart-8: light-dark(#8f8f8f, #afafaf);
+  --chart-4: light-dark(#ba6a2c, #f3a26d);
+  --chart-5: light-dark(#a45078, #e984c7);
+  --chart-6: light-dark(#b98400, #ffd240);
+  --chart-7: light-dark(#c94a47, #ff7774);
+  --chart-8: light-dark(#767676, #afafaf);
   --chart-neutral-fill: color-mix(in srgb, var(--text) 3%, var(--surface));
   --ranked-list-fill: color-mix(in srgb, var(--chart-1) 16%, var(--surface));
   --ranked-list-fill-hover: color-mix(in srgb, var(--chart-1) 24%, var(--surface));
@@ -39,11 +39,10 @@
   --data-card-background: var(--surface);
   --control-radius: 12px;
   --mark-radius: 8;
-  --card-shadow: 0 6px 16px light-dark(rgb(21 40 64 / 6%), rgb(0 0 0 / 24%));
-  --shadow: 0 12px 32px light-dark(rgb(21 40 64 / 15%), rgb(0 0 0 / 40%));
+  --card-shadow: 0 6px 16px light-dark(rgb(21 40 64 / 6%), rgb(0 0 0 / 28%));
+  --shadow: 0 12px 32px light-dark(rgb(21 40 64 / 15%), rgb(0 0 0 / 44%));
 }
-
 :root:not([data-app-theme]),
 :root:is([data-app-theme="original"], [data-app-theme="codex-classic"]) {
-  --dashboard-background: light-dark(color-mix(in srgb, var(--background) 98.6%, var(--text)), var(--background));
+  --dashboard-background: color-mix(in srgb, var(--background) 98.6%, var(--text));
 }

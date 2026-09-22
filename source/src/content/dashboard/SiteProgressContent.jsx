@@ -9,7 +9,7 @@ function Select({label,value,onChange,children}){return <label className="site-f
 export function SiteProgressContent(){
  const {queries}=useDataApp();
  const allPosts=queries[QUERY]?.rows??[], allActivities=queries[ACTIVITY_QUERY]?.rows??[];
- const [date,setDate]=useState('all'),[contributor,setContributor]=useState('all'),[recordType,setRecordType]=useState('all'),[description,setDescription]=useState('all'),[search,setSearch]=useState(''),[evidence,setEvidence]=useState(null);
+ const [date,setDate]=useState('all'),[contributor,setContributor]=useState('all'),[recordType,setRecordType]=useState('all'),[description,setDescription]=useState('all'),[search,setSearch]=useState(''),[evidence,setEvidence]=useState(null),[filtersOpen,setFiltersOpen]=useState(()=>globalThis.matchMedia?.('(min-width: 621px)').matches??true);
  const posts=orderProgress(filterProgress(allPosts,{date,contributor,recordType,description,search}));
  const total=progressTotals(posts), names=[...new Set(allPosts.map(row=>row.postedBy))].sort((a,b)=>a.localeCompare(b)), types=[...new Set(allPosts.map(row=>row.recordType))];
  const activityByPost=useMemo(()=>Object.fromEntries(allActivities.map(row=>[row.linkedPostId,row])),[allActivities]);
@@ -19,7 +19,9 @@ export function SiteProgressContent(){
  const reset=()=>{setDate('all');setContributor('all');setRecordType('all');setDescription('all');setSearch('');};
  return <section className="dashboard-view progress-page">
   <header className="view-heading"><div><h1>Site Progress</h1><p>Thursday · 17 September 2026</p></div><span className="status-chip">● Recorded site updates</span></header>
-  <div className="filter-strip progress-filter-strip">
+  <details className="mobile-filter-panel" open={filtersOpen} onToggle={event=>setFiltersOpen(event.currentTarget.open)}>
+   <summary>Filters</summary>
+   <div className="filter-strip progress-filter-strip">
    <Select label="RECORDED DAY" value={date} onChange={setDate}><option value="all">All recorded days</option><option value="2026-09-17">Thursday · 17 September 2026</option><option value="2026-09-18">Friday · 18 September 2026</option></Select>
    <Select label="POSTED BY" value={contributor} onChange={setContributor}><option value="all">All posters</option>{names.map(name=><option key={name}>{name}</option>)}</Select>
    <Select label="ACTIVITY / TYPE" value={recordType} onChange={setRecordType}><option value="all">All activities</option>{types.map(type=><option key={type} value={type}>{recordTypeLabel(type)}</option>)}</Select>
@@ -27,6 +29,7 @@ export function SiteProgressContent(){
    <label className="site-filter progress-search"><span>SEARCH</span><input type="search" value={search} placeholder="Caption or poster" onChange={event=>setSearch(event.target.value)}/></label>
    <button className="reset-button" onClick={reset}>Reset</button>
   </div>
+  </details>
   <div className="kpi-grid"><Kpi id="progress-count" label="Progress updates" value={total.updates} note="One row per WhatsApp post" rows={posts}/><Kpi id="progress-contributors" label="Contributors" value={total.contributors} note="Confirmed display names" rows={posts}/><Kpi id="progress-photos" label="Photographs documented" value={`${total.minimum?'≥ ':''}${total.photos}`} note="Album counters produce minimum counts" rows={posts}/><Kpi id="progress-videos" label="Video posts" value={total.videos} note="Recorded separately from photographs" rows={posts}/></div>
   <div className="progress-workspace">
    <DataComponent id="progress-register" queryId={QUERY} title="Progress register" kind="table" variant="card" sourceRows={posts} displayRows={posts} description="One row per reviewed WhatsApp post. Posted by identifies the contributor, not the person who performed the work.">

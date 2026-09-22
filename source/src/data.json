@@ -3,7 +3,7 @@
   "title": "Second Gate Deliveries",
   "status": "recorded",
   "buildStatus": "complete",
-  "generatedAt": "2026-09-20T17:52:10.088Z",
+  "generatedAt": "2026-09-22T00:00:00.000Z",
   "filters": [
     {
       "id": "deliveryDay",
@@ -12,7 +12,8 @@
       "defaultValue": "all",
       "queryIds": [
         "material_deliveries",
-        "day_register"
+        "day_register",
+        "delivery_source_notes"
       ]
     }
   ],
@@ -66,28 +67,184 @@
           "deliveries": 4,
           "gate": "Second Gate",
           "deliveryCompany": "LIME LOGISTICS"
+        },
+        {
+          "id": "2026-09-21-6f5-01",
+          "date": "2026-09-21",
+          "day": "Monday",
+          "dayLabel": "Mon 21 Sep",
+          "time": "08:45",
+          "material": "6F5 crushed concrete",
+          "materialGroup": "6F5 crushed concrete",
+          "deliveries": 1,
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded",
+          "sourceNote": "Visit is included in Ola’s authoritative tally for 21 September 2026."
+        },
+        {
+          "id": "2026-09-21-6f5-02",
+          "date": "2026-09-21",
+          "day": "Monday",
+          "dayLabel": "Mon 21 Sep",
+          "time": "10:40",
+          "material": "6F5 crushed concrete",
+          "materialGroup": "6F5 crushed concrete",
+          "deliveries": 1,
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded",
+          "sourceNote": "Visit is included in Ola’s authoritative tally for 21 September 2026."
+        },
+        {
+          "id": "2026-09-21-6f5-03",
+          "date": "2026-09-21",
+          "day": "Monday",
+          "dayLabel": "Mon 21 Sep",
+          "time": "10:58",
+          "material": "6F5 crushed concrete",
+          "materialGroup": "6F5 crushed concrete",
+          "deliveries": 1,
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded",
+          "sourceNote": "Visit is included in Ola’s authoritative tally for 21 September 2026."
+        },
+        {
+          "id": "2026-09-21-6f5-04",
+          "date": "2026-09-21",
+          "day": "Monday",
+          "dayLabel": "Mon 21 Sep",
+          "time": "—",
+          "material": "6F5 crushed concrete",
+          "materialGroup": "6F5 crushed concrete",
+          "deliveries": 1,
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded",
+          "sourceNote": "Visit is included in Ola’s authoritative tally for 21 September 2026."
+        },
+        {
+          "id": "2026-09-21-6f5-05",
+          "date": "2026-09-21",
+          "day": "Monday",
+          "dayLabel": "Mon 21 Sep",
+          "time": "—",
+          "material": "6F5 crushed concrete",
+          "materialGroup": "6F5 crushed concrete",
+          "deliveries": 1,
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded",
+          "sourceNote": "Visit is included in Ola’s authoritative tally for 21 September 2026."
+        },
+        {
+          "id": "2026-09-21-6f5-06",
+          "date": "2026-09-21",
+          "day": "Monday",
+          "dayLabel": "Mon 21 Sep",
+          "time": "—",
+          "material": "6F5 crushed concrete",
+          "materialGroup": "6F5 crushed concrete",
+          "deliveries": 1,
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded",
+          "sourceNote": "Visit is included in Ola’s authoritative tally for 21 September 2026."
+        },
+        {
+          "id": "2026-09-21-type1-01",
+          "date": "2026-09-21",
+          "day": "Monday",
+          "dayLabel": "Mon 21 Sep",
+          "time": "09:30",
+          "material": "Type 1",
+          "materialGroup": "Type 1 / recycled Type 1",
+          "deliveries": 1,
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded",
+          "sourceNote": "Visit is included in Ola’s authoritative tally for 21 September 2026."
+        },
+        {
+          "id": "2026-09-21-type1-02",
+          "date": "2026-09-21",
+          "day": "Monday",
+          "dayLabel": "Mon 21 Sep",
+          "time": "10:40",
+          "material": "Type 1",
+          "materialGroup": "Type 1 / recycled Type 1",
+          "deliveries": 1,
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded",
+          "sourceNote": "Visit is included in Ola’s authoritative tally for 21 September 2026."
+        },
+        {
+          "id": "2026-09-21-type1-03",
+          "date": "2026-09-21",
+          "day": "Monday",
+          "dayLabel": "Mon 21 Sep",
+          "time": "10:42",
+          "material": "Type 1",
+          "materialGroup": "Type 1 / recycled Type 1",
+          "deliveries": 1,
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded",
+          "sourceNote": "Visit is included in Ola’s authoritative tally for 21 September 2026."
+        },
+        {
+          "id": "2026-09-21-type1-04",
+          "date": "2026-09-21",
+          "day": "Monday",
+          "dayLabel": "Mon 21 Sep",
+          "time": "—",
+          "material": "Type 1",
+          "materialGroup": "Type 1 / recycled Type 1",
+          "deliveries": 1,
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded",
+          "sourceNote": "Visit is included in Ola’s authoritative tally for 21 September 2026."
+        },
+        {
+          "id": "2026-09-21-type1-05",
+          "date": "2026-09-21",
+          "day": "Monday",
+          "dayLabel": "Mon 21 Sep",
+          "time": "—",
+          "material": "Type 1",
+          "materialGroup": "Type 1 / recycled Type 1",
+          "deliveries": 1,
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded",
+          "sourceNote": "Visit is included in Ola’s authoritative tally for 21 September 2026."
+        },
+        {
+          "id": "2026-09-21-type1-06",
+          "date": "2026-09-21",
+          "day": "Monday",
+          "dayLabel": "Mon 21 Sep",
+          "time": "—",
+          "material": "Type 1",
+          "materialGroup": "Type 1 / recycled Type 1",
+          "deliveries": 1,
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded",
+          "sourceNote": "Visit is included in Ola’s authoritative tally for 21 September 2026."
         }
       ],
       "source": {
-        "label": "Ola’s verified delivery tallies — 17–18 September 2026",
-        "description": "Authoritative tally counts supplied by Ola. Thursday: 7 6F5 + 4 Type 1/recycled Type 1 = 11. Friday: 19 6F5 + 4 Type 1 = 23. Ola clarified that this update adds two 6F5 deliveries to the prior Friday tally of 17. Counts are delivery visits, not tonnes. Arrival times were not reliably recorded for these aggregate rows and are shown as an em dash. Handwritten arrival notes are incomplete and never recalculate or override the tallies.",
+        "label": "Ola’s verified delivery tallies — 17, 18 and 21 September 2026",
+        "description": "Authoritative tally counts supplied by Ola. Thursday 17 September: 7 6F5 + 4 Type 1/recycled Type 1 = 11. Friday 18 September: 19 6F5 + 4 Type 1 = 23. Monday 21 September: 6 6F5 + 6 Type 1 = 12. The 21 September source screenshot heading says Monday; Ola explicitly assigns the records to 21 September 2026, and that explicit date controls. Three times are recorded for each Monday material and three visits per material retain —. These times identify visits already included in the tally and are never added again. The right-hand time column is interpreted as Type 1 because of its position beneath the Type 1 tally. Supplier is not recorded for 21 September.",
         "tables": [],
         "metricDefinitions": [
           {
             "label": "Delivery visits",
-            "definition": "Sum of the four authoritative date/material tally rows: 11 + 23 = 34. Material totals: 26 6F5 + 8 Type 1/recycled Type 1. Friday Type 1 is included in the combined Type 1 category for charts; its original label is preserved in the table."
+            "definition": "Sum of authoritative visit counts. Current total: 46 visits = 32 6F5 + 14 Type 1/recycled Type 1. Timed Monday rows and untimed Monday rows sum to the supplied Monday tally of 12; no visit is counted twice."
           }
         ],
         "filters": [
           "Second Gate",
-          "17–18 September 2026",
-          "LIME LOGISTICS"
+          "17–21 September 2026",
+          "Recorded and not-recorded suppliers"
         ]
       },
       "methods": [
         {
           "language": "text",
-          "code": "Filter by exact date, then sum deliveries from the supplied tallies. Never infer individual arrivals or weights. Missing times stay —. Group Type 1 and Type 1 / recycled Type 1 together only for aggregate material summaries."
+          "code": "Filter by exact date, then sum deliveries. Each 21 September row represents one visit within the supplied tally. Do not add recorded times to the tally. Missing times stay —. Group Type 1 labels only for aggregate summaries."
         }
       ]
     },
@@ -108,22 +265,29 @@
           "siteHours": "7:00am–5:30pm",
           "gate": "Second Gate",
           "deliveryCompany": "LIME LOGISTICS"
+        },
+        {
+          "date": "2026-09-21",
+          "day": "Monday",
+          "status": "Recorded",
+          "gate": "Second Gate",
+          "deliveryCompany": "Not recorded"
         }
       ],
       "source": {
         "label": "Ola’s site context and verified day register",
-        "description": "Both dates have recorded delivery tallies. The owner confirmed site opening hours of 7:00 am–5:30 pm for Thursday 17 September and Friday 18 September 2026. Site hours are operating context, not individual arrival times.",
+        "description": "Delivery dates are 17, 18 and 21 September 2026. Thursday and Friday site hours remain owner-confirmed at 7:00am–5:30pm. No site hours were supplied for Monday 21 September, so none are recorded. The screenshot heading says Monday; Ola’s explicitly supplied date of 21 September 2026 controls, and the discrepancy is retained in source notes.",
         "tables": [],
         "metricDefinitions": [],
         "filters": [
           "Second Gate",
-          "17–18 September 2026"
+          "17–21 September 2026"
         ]
       },
       "methods": [
         {
           "language": "text",
-          "code": "Preserve owner-confirmed site operating hours separately from delivery tallies. Both days operate 7:00 am–5:30 pm. Do not infer individual delivery times."
+          "code": "Preserve supplied site hours only. Do not infer Monday site hours or supplier."
         }
       ]
     },
@@ -824,8 +988,67 @@
           "code": "Review captionRaw only. Include a linked activity when the caption explicitly names work or a status. Preserve explicit places or asset references as workArea; otherwise use Not stated. Use Documented when the caption identifies work but does not state a status."
         }
       ]
+    },
+    "delivery_source_notes": {
+      "rows": [
+        {
+          "id": "NOTE-2026-09-21-DATE",
+          "date": "2026-09-21",
+          "noteType": "source_discrepancy",
+          "wording": "Screenshot heading says Monday; Ola explicitly assigns the records to 21 September 2026.",
+          "quantity": "Not applicable",
+          "classificationStatus": "Source discrepancy retained",
+          "unitStatus": "Not applicable",
+          "includedInConfirmedDeliveryTotals": false
+        },
+        {
+          "id": "NOTE-2026-09-21-TIMES",
+          "date": "2026-09-21",
+          "noteType": "interpretation",
+          "wording": "The right-hand time column is interpreted as Type 1 from its position beneath the Type 1 tally.",
+          "quantity": "Three recorded times",
+          "classificationStatus": "Interpretation recorded",
+          "unitStatus": "Not applicable",
+          "includedInConfirmedDeliveryTotals": false
+        },
+        {
+          "id": "NOTE-2026-09-21-20MIL",
+          "date": "2026-09-21",
+          "noteType": "unconfirmed_material",
+          "wording": "20 mil single (3)",
+          "quantity": 3,
+          "classificationStatus": "Awaiting confirmation",
+          "unitStatus": "Awaiting confirmation",
+          "includedInConfirmedDeliveryTotals": false
+        },
+        {
+          "id": "NOTE-2026-09-21-TOILET",
+          "date": "2026-09-21",
+          "noteType": "service_note",
+          "wording": "Toilet wash",
+          "quantity": "Not specified",
+          "time": "Not specified",
+          "classificationStatus": "Service note",
+          "unitStatus": "Not applicable",
+          "includedInConfirmedDeliveryTotals": false
+        }
+      ],
+      "source": {
+        "label": "Ola’s 21 September 2026 delivery screenshot and explicit clarification",
+        "description": "Source notes preserve ambiguous or non-delivery wording without adding it to confirmed material-delivery totals.",
+        "tables": [],
+        "metricDefinitions": [],
+        "filters": [
+          "21 September 2026"
+        ]
+      },
+      "methods": [
+        {
+          "language": "text",
+          "code": "Retain wording exactly. Exclude unconfirmed material classification and service notes from confirmed delivery totals until clarified."
+        }
+      ]
     }
   },
   "id": "dashboard:8868cad4-b9ac-4cf7-8b88-8482a83f38fa"
 }
-
