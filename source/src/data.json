@@ -196,13 +196,14 @@
           "date": "2026-09-21",
           "day": "Monday",
           "status": "Recorded",
+          "siteHours": "7:00am–5:30pm",
           "gate": "Second Gate",
           "deliveryCompany": "LIME LOGISTICS / Welfare contractor"
         }
       ],
       "source": {
         "label": "Ola’s site context and verified day register",
-        "description": "Delivery dates are 17, 18 and 21 September 2026. Thursday and Friday site hours remain owner-confirmed at 7:00am–5:30pm. No site hours were supplied for Monday 21 September, so none are recorded. The screenshot heading says Monday; Ola’s explicitly supplied date of 21 September 2026 controls, and the discrepancy is retained in source notes.",
+        "description": "Delivery dates are 17, 18 and 21 September 2026. Site hours are constant for every recorded day at 7:00am–5:30pm. The screenshot heading says Monday; Ola’s explicitly supplied date of 21 September 2026 controls, and the discrepancy is retained in source notes.",
         "tables": [],
         "metricDefinitions": [],
         "filters": [
@@ -213,7 +214,7 @@
       "methods": [
         {
           "language": "text",
-          "code": "Preserve supplied site hours only. Do not infer Monday site hours or supplier."
+          "code": "Show the constant site hours once in the dashboard header. Do not repeat them in arrival rows."
         }
       ]
     },

@@ -38,7 +38,8 @@ function verify(data){
  assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-20MIL').includedInConfirmedDeliveryTotals,true);
  assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-TOILET').wording,'Toilet wash');
  const mondayDay=data.queries.day_register.rows.find(row=>row.date==='2026-09-21');
- assert(mondayDay&&!Object.hasOwn(mondayDay,'siteHours'));
+ assert.equal(mondayDay?.siteHours,'7:00am–5:30pm');
+ assert(data.queries.day_register.rows.every(row=>row.siteHours==='7:00am–5:30pm'));
  const posts=data.queries.progress_posts.rows;
  assert.equal(posts.length,29);
  assert(posts.every(row=>row.date==='2026-09-17'&&row.day==='Thursday'));
@@ -61,8 +62,10 @@ const compiledText=html+[...html.matchAll(/data:text\/javascript;charset=utf-8;b
 for(const stale of ['site_progress','progress-6038','Recorded time notes','Friday is pending.']) assert(!compiledText.includes(stale),`Stale content: ${stale}`);
 assert(compiledText.includes('Progress Post Register'));
 assert(compiledText.includes('Confirmed activities from captions'));
-assert(compiledText.includes('Source interpretation notes'));
+assert(!compiledText.includes('delivery-source-notes'));
 assert(compiledText.includes('Daily Records'));
 assert(compiledText.includes('Time status'));
+assert(compiledText.includes('Site hours · 7:00am–5:30pm'));
+for(const label of ['Total site arrivals','Material deliveries','6F5','Type 1','20Mill','Welfare visits']) assert(compiledText.includes(label));
 assert(compiledText.includes('No progress posts recorded for Friday 18 September 2026.'));
 console.log('Verified export: Monday has 15 material deliveries + 1 welfare visit; all dates have 50 site arrivals; 16 daily rows retain 6 recorded and 10 estimated times; 29 Thursday progress posts preserved.');

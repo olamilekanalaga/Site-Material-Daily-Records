@@ -56,6 +56,13 @@ test('source notes preserve wording and the latest owner classifications',()=>{
  assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-TOILET').wording,'Toilet wash');
  assert.equal(notes.find(row=>row.id==='NOTE-2026-09-21-TOILET').classificationStatus,'Classified by owner as Welfare service');
 });
+
+test('site hours are constant for every recorded day',()=>{
+ const days=data.queries.day_register.rows;
+ assert.equal(days.length,3);
+ assert(days.every(row=>row.siteHours==='7:00am–5:30pm'));
+});
+
 test('one row represents one WhatsApp post with normalized IDs and dates',()=>{
  assert.equal(posts.length,29);
  assert.deepEqual(posts.map(row=>row.id),Array.from({length:29},(_,index)=>`PROG-${String(index+1).padStart(3,'0')}`));
