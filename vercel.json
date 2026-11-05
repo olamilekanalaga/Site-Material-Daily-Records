@@ -4,8 +4,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "public",
   "git": {
-    "deploymentEnabled": {
-      "main": false
-    }
+    "deploymentEnabled": false
   }
 }

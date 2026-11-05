@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Offline · Site Ledger</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 30px;
+        background: #f5f6f2;
+        color: #22342d;
+        font:
+          16px/1.7 Arial,
+          sans-serif;
+        min-height: 90vh;
+        display: grid;
+        place-items: center;
+      }
+      main {
+        max-width: 440px;
+        background: white;
+        border: 1px solid #e3e7df;
+        border-radius: 14px;
+        padding: 35px;
+      }
+      img {
+        width: 52px;
+        height: 52px;
+      }
+      h1 {
+        font-size: 25px;
+        letter-spacing: -0.6px;
+      }
+      p {
+        font-size: 14px;
+        color: #76806f;
+      }
+      button {
+        background: #143f35;
+        color: white;
+        border: 0;
+        border-radius: 7px;
+        padding: 14px 20px;
+        font: 600 14px Arial;
+        cursor: pointer;
+      }
+      small {
+        display: block;
+        margin-top: 25px;
+        color: #89947e;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icon.svg" alt="" />
+      <h1>You’re offline</h1>
+      <p>
+        Reconnect to sign in or reopen your workspace. Authenticated pages and
+        private evidence are never cached by this service worker.
+      </p>
+      <p>
+        If you already have Site Ledger open in another tab, you can keep
+        recording and saving drafts there. Device drafts remain saved until you
+        reconnect and submit them.
+      </p>
+      <p>A local draft is not a server submission or a supervisor decision.</p>
+      <button onclick="location.reload()">Try reconnecting</button
+      ><small>Site Ledger · Construction delivery management</small>
+    </main>
+  </body>
+</html>

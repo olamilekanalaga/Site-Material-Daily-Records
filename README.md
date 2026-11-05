@@ -1,3 +1,9 @@
+## Construction Delivery Management SaaS
+
+The new functional P0 pilot lives in [`saas/`](saas/README.md): Next.js, authenticated capture, private photographs, independent supervisor verification, reporting, offline drafts and Supabase tenant/site RLS. All SaaS demo data is fictional. The proposed DJ Civils pilot is unofficial and has no company approval.
+
+Run and deploy from `saas/` using its instructions. The original static application below is preserved and is not served or imported by the SaaS. Do not deploy the repository root or its real-data public snapshot as the new prototype.
+
 ## Current local revision — Site Progress
 
 Navigation contains Overview, Deliveries and Site Progress, with the supplied DJ Civils logo and proof-of-work disclaimer. Site Progress now uses `progress_posts`: one row per reviewed WhatsApp post. All 29 posts are dated Thursday 17 September 2026, explicitly confirmed by the owner. Eight confirmed display names document at least 52 photographs and five video posts. A separate `activities` dataset contains 12 caption-backed activities and never infers work from photographs. Friday has delivery records but zero progress posts.
