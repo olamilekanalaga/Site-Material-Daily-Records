@@ -6,9 +6,9 @@ The proposed company pilot remains unofficial. Included deliveries and suppliers
 
 ## Record an arrival
 
-1. Open `/demo`, then choose **Bemigho Estano** or **Olamilekan Alaga**. Their existing records page opens.
+1. Open `/demo`, then choose **Bemigho Estano** or **Olamilekan Alaga**. Their **Daily Records** page opens for the current site day.
 2. Choose **Record New Delivery**, then select **Category** first. The item dropdown is enabled for that category and shows only its items. Optional **Search items** inside the dropdown helps find a name or alias within that category.
-3. The item dropdown shows names only. Selecting a known item fills the separate entry-type box below it automatically. Changing category clears the previous item selection so an item from another category cannot remain selected.
+3. The item dropdown shows names only. Selecting a known item derives its classification internally. Changing category clears the previous item selection so an item from another category cannot remain selected.
 4. Add the company/supplier if known. Take or upload an image of the delivery evidence, such as a retained ticket where permitted. A truck photograph is not specifically required.
 5. Press **Save Delivery**. The app associates the selected marshal, records the timestamp and confirms the browser save. The known item remains selected for repeated arrivals; supplier and evidence are cleared for the next arrival.
 6. Choose **View Records** or **Back to Records** to inspect the saved row.
@@ -74,9 +74,11 @@ One saved arrival contributes one count. Two confirmed saves for separate 6F5 ar
 
 ## Records and supervisor reporting
 
-The existing table now includes **Date**, **Time**, **Item**, **Category**, **Entry type**, **Company/supplier**, **Recorded by** and **Photo/ticket evidence**. Newest records appear first, with existing historical records still visible. Open evidence using the existing photo viewer; absence of legacy evidence remains visible rather than being fabricated.
+The seven-column **Daily Records** table includes **Date**, **Time**, **Item**, **Category**, **Company/supplier**, **Recorded by** and **Photo/ticket evidence**. Newest records appear first. The default view covers the current Europe/London site day, from site midnight to the following midnight, and automatically advances when the next site day begins. Earlier records remain stored and available through custom date ranges. Open evidence using the existing photo viewer; absence of legacy evidence remains visible rather than being fabricated.
 
-Filters support inclusive custom date ranges, item, category, entry type, marshal and pending classification. Dates use the site timezone. Horizontal summary cards follow the selected dates; item selection narrows the table while period totals remain comparable. The supervisor can inspect:
+Entry type remains stored and derived for delivery/service totals, filtering and supervisor catalogue approval. It has no field on the delivery form and no column in the records table or arrival CSV. Existing legacy report exports retain their compatible format.
+
+Editing **From date** or **To date** switches to a custom range that stays fixed across midnight while the records view remains open. **Clear filters** returns to the automatic current-day view; reopening the page also starts with today. The table, summary cards and arrival CSV use the same effective dates. Additional filters cover item, category, entry type, marshal and pending classification. Dates use the site timezone. Horizontal summary cards follow the selected dates; item selection narrows the table while period totals remain comparable. The supervisor can inspect:
 
 - Total recorded arrivals, material deliveries, service visits and pending classifications separately.
 - Counts by item and category, including frequently delivered items.

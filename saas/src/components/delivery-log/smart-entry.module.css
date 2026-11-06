@@ -87,29 +87,6 @@
 .customField {
   margin-top: 8px;
 }
-.classification {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
-  margin: 0;
-  padding: 0;
-}
-.classification dt {
-  font-size: 14px;
-  font-weight: 600;
-}
-.classification dd {
-  display: flex;
-  align-items: center;
-  min-height: 52px;
-  margin: 8px 0 0;
-  padding: 12px 13px;
-  border: 1px solid #d6cdbf;
-  border-radius: 7px;
-  background: #faf7f1;
-  font-size: 16px;
-  overflow-wrap: anywhere;
-}
 .pending {
   margin-top: -12px;
   color: #82602e;

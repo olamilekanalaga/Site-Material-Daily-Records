@@ -384,11 +384,12 @@ test("arrival CSV includes pending and service records, matches inclusive site-d
   const report = await (await call(state, url)).text();
   const lines = report.replace(/^\uFEFF/, "").split("\r\n");
   assert.equal(lines.length, 3);
-  assert(lines[0].includes('"Item","Category","Entry type"'));
+  assert(lines[0].includes('"Item","Category","Company/supplier"'));
+  assert(!lines[0].includes('"Entry type"'));
   assert(!lines[0].includes("quantity"));
   assert(report.includes('"2026-10-01","00:30"'));
-  assert(report.includes('"Pending classification","Pending review"'));
-  assert(report.includes('"Road sweeper","Site services","Service visit"'));
+  assert(report.includes('"Pending classification"'));
+  assert(report.includes('"Road sweeper","Site services"'));
   assert(report.includes('"\'=HYPERLINK(""example"")"'));
   assert(report.includes('"\'+Example supplier"'));
   assert(!report.includes(excluded.id));

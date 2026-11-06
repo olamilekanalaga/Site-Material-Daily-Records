@@ -8,7 +8,6 @@ import {
   findExactCatalogueItem,
   normaliseItemName,
   PENDING_CATEGORY,
-  PENDING_ENTRY_TYPE,
   searchCatalogue,
 } from "@/lib/catalogue";
 import { ItemSelector } from "./item-selector";
@@ -114,7 +113,6 @@ export function SimpleForm({
     ? findExactCatalogueItem(data.materials, customName)
     : data.materials.find((item) => item.id === material);
   const category = selectedItem?.category || PENDING_CATEGORY;
-  const entryType = selectedItem?.entry_type || PENDING_ENTRY_TYPE;
   const hasItem = Boolean(material || (custom && customName.trim()));
   // A restored draft retains its catalogue classification. The picker only
   // narrows selection; it never assigns a guessed category to an unknown name.
@@ -315,17 +313,6 @@ export function SimpleForm({
                 }}
                 onCustomName={setCustomName}
               />
-              {hasItem && (
-                <dl
-                  className={styles.classification}
-                  aria-label="Automatic classification"
-                >
-                  <div>
-                    <dt>Entry type</dt>
-                    <dd>{entryType}</dd>
-                  </div>
-                </dl>
-              )}
               {hasItem && category === PENDING_CATEGORY && (
                 <p className={styles.pending}>
                   This arrival can be saved now. A supervisor will review its

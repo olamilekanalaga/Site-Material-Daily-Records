@@ -47,22 +47,23 @@ This repository keeps the current DJ Civils delivery log and an earlier dashboar
 
 ## Where to make changes
 
-| Task                                                  | Location                                                                   |
-| ----------------------------------------------------- | -------------------------------------------------------------------------- |
-| Home, marshal selection or delivery entry             | `saas/src/components/delivery-log/`                                        |
-| Supervisor records and photo viewer                   | `saas/src/components/delivery-log/simple-records.tsx`                      |
-| Category-first item selection and entry type          | `saas/src/components/delivery-log/item-selector.tsx` and `simple-form.tsx` |
-| Supervisor catalogue approval controls                | `saas/src/components/delivery-log/classification-review.tsx`               |
-| Catalogue names, aliases and automatic classification | `saas/src/lib/catalogue.ts`                                                |
-| Login                                                 | `saas/src/components/auth/login.tsx`                                       |
-| Demo entry screen                                     | `saas/src/components/demo/`                                                |
-| Demo sample data or simulated API                     | `saas/src/lib/demo/`                                                       |
-| Pending attempts, upload retries or browser transport | `saas/src/lib/client/`                                                     |
-| Authenticated API endpoints                           | `saas/src/app/api/`                                                        |
-| Sessions, permissions, persistence or validation      | `saas/src/lib/server/`                                                     |
-| Database changes                                      | A new ordered migration in `saas/supabase/migrations/`                     |
-| Production setup                                      | `saas/docs/DEPLOYMENT.md` and `saas/.env.example`                          |
-| Browser demo capture, classification and limitations  | `saas/docs/SMART-ARRIVALS.md`                                              |
+| Task                                                  | Location                                                                                     |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Home, marshal selection or delivery entry             | `saas/src/components/delivery-log/`                                                          |
+| Supervisor records and photo viewer                   | `saas/src/components/delivery-log/simple-records.tsx`                                        |
+| Daily records, site-day rollover and custom ranges    | `saas/src/components/delivery-log/simple-records.tsx` and `saas/src/lib/delivery-records.ts` |
+| Category-first item selection                         | `saas/src/components/delivery-log/item-selector.tsx` and `simple-form.tsx`                   |
+| Supervisor catalogue approval controls                | `saas/src/components/delivery-log/classification-review.tsx`                                 |
+| Catalogue names, aliases and automatic classification | `saas/src/lib/catalogue.ts`                                                                  |
+| Login                                                 | `saas/src/components/auth/login.tsx`                                                         |
+| Demo entry screen                                     | `saas/src/components/demo/`                                                                  |
+| Demo sample data or simulated API                     | `saas/src/lib/demo/`                                                                         |
+| Pending attempts, upload retries or browser transport | `saas/src/lib/client/`                                                                       |
+| Authenticated API endpoints                           | `saas/src/app/api/`                                                                          |
+| Sessions, permissions, persistence or validation      | `saas/src/lib/server/`                                                                       |
+| Database changes                                      | A new ordered migration in `saas/supabase/migrations/`                                       |
+| Production setup                                      | `saas/docs/DEPLOYMENT.md` and `saas/.env.example`                                            |
+| Browser demo capture, classification and limitations  | `saas/docs/SMART-ARRIVALS.md`                                                                |
 
 The team entrypoint is `saas/src/app/page.tsx`. Demo entrypoints under `saas/src/app/demo/` cover marshal selection, `delivery/[profile]/`, `records/` and the separate `supervisor/` records view. Components under `components/legacy/` retain the earlier pilot interface for reference and compatibility; active pages do not import them. Existing backend routes and historical records remain available.
 
