@@ -28,6 +28,25 @@ async function openDemo(page: Page) {
     page.getByRole("heading", { name: "Sign in as", exact: true }),
   ).toBeVisible();
 }
+async function cleanLayout(page: Page) {
+  await expect(page.getByText(/^Traffic Marshal Unit$/i)).toBeVisible();
+  await expect(page.locator(".simple-workspace-bar")).toHaveCount(0);
+  await expect(page.locator(".simple-footer")).toHaveCount(0);
+  await expect(
+    page.getByRole("navigation", { name: "Main navigation" }),
+  ).toHaveCount(0);
+  for (const role of ["button", "link"] as const) {
+    await expect(
+      page.getByRole(role, { name: "Home", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole(role, { name: "Delivery Records", exact: true }),
+    ).toHaveCount(0);
+  }
+  await expect(page.locator("body")).not.toContainText(
+    /Demonstration Site|Demo workspace|Saved only in this browser|DJ CIVILS · Delivery log/,
+  );
+}
 async function capture(
   page: Page,
   marshal: string,
@@ -35,11 +54,21 @@ async function capture(
   time?: string,
 ) {
   await page.getByRole("button", { name: marshal, exact: true }).click();
+  const profile = marshal === "Bemigho Estano" ? "b" : "olamilekan";
   await expect(page).toHaveURL(
-    new RegExp(
-      `/demo/delivery/${marshal === "Bemigho Estano" ? "b" : "olamilekan"}$`,
-    ),
+    new RegExp(`/demo/records[?]profile=${profile}$`),
   );
+  await expect(
+    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "New Delivery", exact: true }),
+  ).toHaveCount(0);
+  await cleanLayout(page);
+  await page
+    .getByRole("button", { name: "Record New Delivery", exact: true })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`/demo/delivery/${profile}$`));
   await expect(
     page.getByRole("heading", { name: "Record Delivery", exact: true }),
   ).toBeVisible();
@@ -74,7 +103,7 @@ async function capture(
   );
 }
 
-test("public DJ Civils demo starts with Sign in as and opens marshal entry and records on separate pages", async ({
+test("public DJ Civils photo selection opens clean marshal records with separate delivery entry", async ({
   page,
   context,
   request,
@@ -124,15 +153,27 @@ test("public DJ Civils demo starts with Sign in as and opens marshal entry and r
     path: testInfo.outputPath("simple-demo-home.png"),
     fullPage: true,
   });
+  await cleanLayout(page);
+  await expect(
+    page.getByRole("button", { name: "Refresh deliveries" }),
+  ).toHaveCount(0);
   await page
-    .getByRole("link", { name: "Delivery Records", exact: true })
+    .getByRole("button", { name: "Bemigho Estano", exact: true })
     .click();
+  await expect(page).toHaveURL(/\/demo\/records\?profile=b$/);
+  await expect(page.locator(".simple-table tbody tr")).toHaveCount(20);
+  await expect(
+    page.getByRole("button", { name: "Record New Delivery", exact: true }),
+  ).toBeVisible();
+  await cleanLayout(page);
+  await page.screenshot({
+    path: testInfo.outputPath("clean-marshal-records.png"),
+    fullPage: false,
+  });
   await expect(
     page.getByRole("heading", { name: "Delivery Records", exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("link", { name: "View as supervisor", exact: true })
-    .click();
+  await page.goto("/demo/supervisor");
   const sampleRows = page.locator(".simple-table tbody tr");
   await expect(sampleRows).toHaveCount(30);
   const marshalCells = sampleRows.locator("td:nth-child(5)");
@@ -175,7 +216,7 @@ test("public DJ Civils demo starts with Sign in as and opens marshal entry and r
     fullPage: false,
   });
   await page.goto("/demo");
-  await page.getByRole("link", { name: "Home", exact: true }).click();
+  await page.getByRole("link", { name: "DJ Civils home", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Sign in as", exact: true }),
   ).toBeVisible();
@@ -203,7 +244,7 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   await expect(
     page.getByRole("row").filter({ hasText: earlySupplier }),
   ).toHaveCount(1);
-  await page.getByRole("link", { name: "Home", exact: true }).click();
+  await page.getByRole("link", { name: "DJ Civils home", exact: true }).click();
   await capture(page, "Olamilekan Alaga", recentSupplier);
   await page.getByRole("button", { name: "View Records", exact: true }).click();
   await expect(page).toHaveURL(/\/demo\/records(?:\?|$)/);
@@ -211,9 +252,7 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   const recentRow = page.getByRole("row").filter({ hasText: recentSupplier });
   await expect(earlyRow).toHaveCount(0);
   await expect(recentRow).toHaveCount(1);
-  await page
-    .getByRole("link", { name: "View as supervisor", exact: true })
-    .click();
+  await page.goto("/demo/supervisor");
   await expect(
     page.getByRole("heading", { name: "Delivery Records", exact: true }),
   ).toBeVisible();
@@ -277,17 +316,16 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
     page.getByRole("heading", { name: "Sign in as", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("link", { name: "Delivery Records", exact: true })
+    .getByRole("button", { name: "Olamilekan Alaga", exact: true })
     .click();
+  await expect(page).toHaveURL(/\/demo\/records\?profile=olamilekan$/);
   await expect(
     page.getByRole("row").filter({ hasText: earlySupplier }),
   ).toHaveCount(0);
   await expect(
     page.getByRole("row").filter({ hasText: recentSupplier }),
   ).toHaveCount(1);
-  await page
-    .getByRole("link", { name: "View as supervisor", exact: true })
-    .click();
+  await page.goto("/demo/supervisor");
   await expect(
     page.getByRole("row").filter({ hasText: earlySupplier }),
   ).toHaveCount(1);
@@ -312,6 +350,10 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
     page.getByRole("heading", { name: "Delivery Records", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".simple-table tbody tr")).toHaveCount(30);
+  await cleanLayout(page);
+  await expect(
+    page.getByRole("button", { name: "Record New Delivery", exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: "Home", exact: true }),
   ).toHaveCount(0);
@@ -353,6 +395,10 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
   await openDemo(bPage);
   await bPage
     .getByRole("button", { name: "Bemigho Estano", exact: true })
+    .click();
+  await expect(bPage).toHaveURL(/\/demo\/records\?profile=b$/);
+  await bPage
+    .getByRole("button", { name: "Record New Delivery", exact: true })
     .click();
   await expect(bPage).toHaveURL(/\/demo\/delivery\/b$/);
   await bPage

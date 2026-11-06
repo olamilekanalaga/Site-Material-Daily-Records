@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Check, LogOut, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { Check, LogOut, RefreshCw, WifiOff } from "lucide-react";
 import type { Bootstrap, Marshal } from "@/lib/types";
 import { demoProfiles } from "@/lib/demo/profiles";
 import { request } from "@/lib/client/offline";
@@ -11,17 +11,20 @@ import { Login } from "../auth/login";
 import { SimpleForm } from "./simple-form";
 import { SimpleRecords } from "./simple-records";
 import type { DemoView } from "../demo/demo-access";
+import type { SignInPortal } from "@/lib/access";
 
 export function SimpleApp({
   demo = false,
   demoView = "marshal",
   localDemo = false,
   workspaceEnabled = true,
+  portal = null,
 }: {
   demo?: boolean;
   demoView?: DemoView;
   localDemo?: boolean;
   workspaceEnabled?: boolean;
+  portal?: SignInPortal | null;
 }) {
   const supervisorDemo = demo && demoView === "supervisor";
   const entryDemo = demo && demoView === "entry";
@@ -44,7 +47,9 @@ export function SimpleApp({
       return null;
     }
     try {
-      const next = await request<Bootstrap>("/api/bootstrap");
+      const next = await request<Bootstrap>(
+        !demo && portal ? `/api/bootstrap?portal=${portal}` : "/api/bootstrap",
+      );
       hasWorkspace.current = true;
       setData(next);
       setSiteId((previous) =>
@@ -71,7 +76,7 @@ export function SimpleApp({
     } finally {
       setLoaded(true);
     }
-  }, [demo, entryDemo, workspaceEnabled]);
+  }, [demo, entryDemo, workspaceEnabled, portal]);
 
   useEffect(() => {
     void load();
@@ -101,11 +106,11 @@ export function SimpleApp({
           );
         const { selectDemoProfile } = await import("@/lib/demo/browser");
         await selectDemoProfile(profile.id);
-        window.location.assign(`/demo/delivery/${profile.id}`);
+        window.location.assign(`/demo/records?profile=${profile.id}`);
         return;
       }
       setMarshalId(marshal.id);
-      setPage("entry");
+      setPage("records");
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
@@ -165,12 +170,14 @@ export function SimpleApp({
         localDemo={localDemo}
         workspaceEnabled={workspaceEnabled}
         startupError={error}
+        portal={portal}
       />
     );
   }
 
   const canRecord =
-    !(demo && supervisorDemo) &&
+    !supervisorDemo &&
+    portal !== "supervisor" &&
     (data.actor.role === "gate" || data.actor.role === "company_admin");
   const site = data.sites.find((item) => item.id === siteId);
   const marshals = (data.marshals || []).filter(
@@ -185,6 +192,21 @@ export function SimpleApp({
     (item) => item.name === data.actor.name,
   );
   const demoRecordsHref = `/demo/records?profile=${demoProfile?.id || "b"}`;
+
+  function showRecords() {
+    if (demo) window.location.assign(demoRecordsHref);
+    else setPage("records");
+  }
+
+  function recordNewDelivery() {
+    if (demo && demoProfile) {
+      window.location.assign(`/demo/delivery/${demoProfile.id}`);
+    } else if (selected) {
+      setPage("entry");
+    } else {
+      setPage("home");
+    }
+  }
 
   return (
     <div className="simple-app">
@@ -209,91 +231,7 @@ export function SimpleApp({
           </button>
         </div>
       </header>
-      <div className="simple-workspace-bar">
-        <div>
-          {demo ? (
-            <>
-              <strong>
-                {supervisorDemo ? "Supervisor demo" : "Demo workspace"}
-              </strong>
-              <span>Saved only in this browser.</span>
-            </>
-          ) : (
-            <>
-              <strong>{data.company.name}</strong>
-              <span>
-                {data.mode === "local"
-                  ? "Local demo workspace"
-                  : "Private workspace"}
-              </span>
-            </>
-          )}
-        </div>
-        <span className={`simple-connection${online ? "" : " is-offline"}`}>
-          {online ? <Wifi size={16} /> : <WifiOff size={16} />}
-          {online ? "Online" : "Offline · device only"}
-        </span>
-      </div>
       <div className="simple-main">
-        <div className="simple-navigation">
-          <nav aria-label="Main navigation">
-            {canRecord &&
-              (demo ? (
-                <a
-                  href="/demo"
-                  aria-current={page === "home" ? "page" : undefined}
-                >
-                  Home
-                </a>
-              ) : (
-                <button
-                  aria-current={page === "home" ? "page" : undefined}
-                  onClick={() => setPage("home")}
-                >
-                  Home
-                </button>
-              ))}
-            {demo ? (
-              <a
-                href={supervisorDemo ? "/demo/supervisor" : demoRecordsHref}
-                aria-current={recordsPage ? "page" : undefined}
-              >
-                Delivery Records
-              </a>
-            ) : (
-              <button
-                aria-current={recordsPage ? "page" : undefined}
-                onClick={() => setPage("records")}
-              >
-                Delivery Records
-              </button>
-            )}
-          </nav>
-          <button
-            className="secondary simple-refresh"
-            disabled={busy}
-            aria-label="Refresh deliveries"
-            onClick={async () => {
-              setBusy(true);
-              await load();
-              setBusy(false);
-            }}
-          >
-            <RefreshCw size={18} />
-            <span>Refresh</span>
-          </button>
-        </div>
-        {demo && (
-          <div className="simple-demo-view">
-            {supervisorDemo ? (
-              <p>Supervisor view · Delivery records and photos</p>
-            ) : (
-              <a className="text-button" href="/demo/supervisor">
-                View as supervisor
-              </a>
-            )}
-          </div>
-        )}
         <main>
           <div className="simple-page-title">
             <div>
@@ -309,10 +247,47 @@ export function SimpleApp({
                   ? "Saved deliveries for your site."
                   : page === "entry"
                     ? "Enter the delivery details below."
-                    : "Choose your name to record a delivery."}
+                    : "Choose your name to view delivery records."}
               </p>
             </div>
-            {data.sites.length > 1 ? (
+            {page !== "home" || !canRecord ? (
+              <div className="simple-page-actions">
+                {canRecord &&
+                  (recordsPage ? (
+                    <button
+                      className="primary"
+                      disabled={busy}
+                      onClick={recordNewDelivery}
+                    >
+                      Record New Delivery
+                    </button>
+                  ) : (
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={showRecords}
+                    >
+                      Back to Records
+                    </button>
+                  ))}
+                {recordsPage && (
+                  <button
+                    className="secondary simple-refresh"
+                    disabled={busy}
+                    aria-label="Refresh deliveries"
+                    onClick={async () => {
+                      setBusy(true);
+                      await load();
+                      setBusy(false);
+                    }}
+                  >
+                    <RefreshCw size={18} />
+                    <span>Refresh</span>
+                  </button>
+                )}
+              </div>
+            ) : null}
+            {data.sites.length > 1 && (
               <label className="simple-site-select">
                 Site
                 <select
@@ -330,10 +305,13 @@ export function SimpleApp({
                   ))}
                 </select>
               </label>
-            ) : (
-              site && <span className="simple-site-name">{site.name}</span>
             )}
           </div>
+          {!online && page === "entry" && (
+            <p className="simple-offline-note" role="status">
+              <WifiOff size={16} aria-hidden="true" /> Offline
+            </p>
+          )}
           {error && (
             <div className="simple-error" role="alert">
               <p>{error}</p>
@@ -420,17 +398,13 @@ export function SimpleApp({
                   onSaved={async () => {
                     await load();
                   }}
-                  onViewRecords={() => {
-                    if (demo) window.location.assign(demoRecordsHref);
-                    else setPage("records");
-                  }}
+                  onViewRecords={showRecords}
                 />
               )}
             </>
           )}
         </main>
       </div>
-      <footer className="simple-footer">DJ CIVILS · Delivery log</footer>
     </div>
   );
 }

@@ -13,7 +13,7 @@ export function Brand({ compact = false }: { compact?: boolean }) {
       </div>
       <div className="djcu-wordmark">
         <strong>DJ CIVILS</strong>
-        <span>Site operations</span>
+        <span>Traffic Marshal Unit</span>
       </div>
     </div>
   );
