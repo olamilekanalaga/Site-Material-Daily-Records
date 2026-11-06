@@ -42,6 +42,15 @@ async function selectMarshal(page: Page) {
     .getByRole("button", { name: "Olamilekan Alaga", exact: true })
     .click();
   await expect(
+    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "New Delivery", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Record New Delivery", exact: true })
+    .click();
+  await expect(
     page.getByRole("heading", { name: "Record Delivery", exact: true }),
   ).toBeVisible();
   await expect(
@@ -64,7 +73,7 @@ async function fillDelivery(page: Page, supplier: string) {
   });
 }
 
-test("marshal selection opens a separate entry view that validates required details, site time and photograph limits", async ({
+test("marshal selection opens clean records before a separate delivery form with validation", async ({
   page,
 }, testInfo) => {
   const creations: string[] = [];
@@ -90,12 +99,19 @@ test("marshal selection opens a separate entry view that validates required deta
     expect(box).not.toBeNull();
     expect(Math.abs(box!.width - box!.height)).toBeLessThanOrEqual(2);
   }
+  await expect(page.getByText(/^Traffic Marshal Unit$/i)).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Main navigation" }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator(".simple-workspace-bar, .simple-footer"),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Home", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Delivery Records", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Verification queue" }),
   ).toHaveCount(0);
@@ -204,7 +220,7 @@ test("failed photo upload retries one persisted record that an authenticated sup
     0,
   );
   await page
-    .getByRole("button", { name: "Delivery Records", exact: true })
+    .getByRole("button", { name: "Back to Records", exact: true })
     .click();
   await expect(page.getByRole("row").filter({ hasText: supplier })).toHaveCount(
     0,
@@ -288,9 +304,82 @@ test("failed photo upload retries one persisted record that an authenticated sup
   await reviewContext.close();
   await page.reload();
   await page
-    .getByRole("button", { name: "Delivery Records", exact: true })
+    .getByRole("button", { name: "Olamilekan Alaga", exact: true })
     .click();
+  await expect(
+    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("row").filter({ hasText: supplier })).toHaveCount(
     1,
   );
+});
+
+test("separate staff sign-in forms enforce the chosen entrance and open the assigned role", async ({
+  page,
+  context,
+}, testInfo) => {
+  await page.goto("/sign-in/supervisor");
+  await expect(
+    page.getByRole("heading", {
+      name: "Supervisor / Site Manager sign-in",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Explore demo", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByLabel("Email address", { exact: true })
+    .fill("gate@demo.invalid");
+  await page.getByLabel("Password", { exact: true }).fill("DemoPass123!");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.locator(".login-form").getByRole("alert")).toContainText(
+    /not approved for this sign-in entrance/i,
+  );
+  expect(
+    (await context.cookies()).some(
+      (cookie) => cookie.name === "delivery_session",
+    ),
+  ).toBe(false);
+  await expect(
+    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByLabel("Email address", { exact: true })
+    .fill("supervisor@demo.invalid");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Record New Delivery", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await page.goto("/sign-in/marshal");
+  await expect(
+    page.getByRole("heading", { name: "Traffic Marshal sign-in", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Email address", { exact: true })
+    .fill("gate@demo.invalid");
+  await page.getByLabel("Password", { exact: true }).fill("DemoPass123!");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Sign in as", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Olamilekan Alaga", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Record New Delivery", exact: true }),
+  ).toBeVisible();
+  await noOverflow(page);
+  await page.screenshot({
+    path: testInfo.outputPath("approved-staff-portal.png"),
+    fullPage: false,
+  });
 });

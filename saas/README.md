@@ -1,6 +1,6 @@
 # DJ Civils — construction delivery management
 
-DJ Civils is a delivery log: traffic marshals choose their name, then record deliveries on a separate entry page, and supervisors inspect saved Delivery Records and private photos. The interface uses the supplied DJ Civils logo. The proposed pilot remains **unofficial and unauthorised**; all included supplier, ticket and delivery records are fictional. The named demo profiles are for demonstration only.
+DJ Civils is a delivery log: traffic marshals choose their name to open their records and start new deliveries from there, and supervisors inspect saved Delivery Records and private photos. The interface uses the supplied DJ Civils logo. The proposed pilot remains **unofficial and unauthorised**; all included supplier, ticket and delivery records are fictional. The named demo profiles are for demonstration only.
 
 The original reporting app remains outside `saas/` and is not served by DJ Civils.
 
@@ -14,16 +14,18 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000/demo` and click one of the two square profile cards: **Bemigho Estano** or **Olamilekan Alaga**. Both marshal cards use their supplied portraits. The demo includes 30 sample deliveries: 20 for Bemigho Estano and 10 for Olamilekan Alaga. Select **View as supervisor** to see the combined records in arrival-time order. Existing browser records and photos are kept when the sample data is updated. The first page says **Sign in as**. Choosing a square photo opens the next page with the selected marshal’s delivery form. **View Records** opens the saved table. Reloading keeps your current demo session; select a marshal again to resume any pending save.
+Open `http://localhost:3000/demo` and click one of the two square profile cards: **Bemigho Estano** or **Olamilekan Alaga**. Both marshal cards use their supplied portraits. The demo includes 30 sample deliveries: 20 for Bemigho Estano and 10 for Olamilekan Alaga. Open `/demo/supervisor` to see the combined records in arrival-time order. Existing browser records and photos are kept when the sample data is updated. The first page says **Sign in as**. Choosing a square photo opens the selected marshal’s saved records. **Record New Delivery** opens their entry form; **View Records** returns to the saved table. Reloading keeps your current demo session; select a marshal again to resume any pending save.
 
 **No email, password, Supabase project, environment variables or backend session are needed for `/demo`.** The landing page and interactive demo also work on a deployment with no team backend configured.
 
-1. Select a marshal, choose a material, enter a fictional supplier/company, check the editable site-local time and take or upload a sample image.
+1. Select a marshal to open their delivery records. Choose **Record New Delivery**, choose a material, enter a sample supplier/company, check the site-local time and take or upload an image.
 2. Press **Save Delivery**. Successful saving clears the form for the next delivery. The date and submission timestamp are recorded automatically. No vehicle registration, quantity or ticket number is required.
-3. Open **Delivery Records** to see saved rows, newest arrival first, and filter by date or material.
-4. Choose **View as supervisor** to inspect all sample site deliveries and open their photos. Open `/demo` to return to marshal selection.
+3. Choose **View Records** or **Back to Records** to return to saved rows, newest arrival first, and filter by date or material.
+4. Open `/demo/supervisor` to inspect all sample site deliveries and open their photos. Open `/demo` to return to marshal selection.
 
 **Sign out** returns to the landing page. Changes persist across page reloads until browser site storage is cleared. The simplified interface does not expose the previous dashboards, reports, administration screens or review queue; their historical data and compatible backend routes remain intact.
+
+The working pages use the DJ Civils logo with **Traffic Marshal Unit** beneath the company name. Workspace/site labels, navigation tabs and the delivery-log footer are omitted from the one-site interface.
 
 ### Supervisor entry
 
@@ -44,6 +46,14 @@ Demo records and photos stay in this browser's IndexedDB. The demo does not send
 The demo has separate marshal and supervisor entry points; these are a simulation for exploring the workflow, not real authentication or a production security boundary. Saving a delivery or uploading a photo never marks physical receipt as verified. Historical review decisions remain stored separately.
 
 Use fictional information only. IndexedDB is not encrypted against someone controlling the device/browser profile. Browser storage can be unavailable, full or cleared, and these sample records have no server backup. Clear the browser's site data before handing a demo device to someone else.
+
+## Private sign-in entrances
+
+Use `/sign-in/marshal` for Traffic Marshals and `/sign-in/supervisor` for Supervisors / Site Managers. Both use the existing email/password authentication; no Google sign-in or identity-document upload is required. The selected entrance never changes an account's stored role.
+
+Private access is invite-only: an operator provisions the Auth user, and an authorised company administrator assigns the company membership, role and site access. There is no public role-selection or account-registration form. Login rejects an unapproved role or missing site before issuing session cookies; company administrators may sign in before a first site exists for setup. The bootstrap endpoint also enforces the selected entrance for existing sessions.
+
+The public browser demo remains a simulation. Private accounts cannot be activated on an unconfigured deployment. Apply the migrations, connect the Supabase environment settings in `docs/DEPLOYMENT.md`, establish the initial company administrator and provision only approved staff accounts. A dedicated self-service account-creation/approval queue is not included in this prototype; administrator membership tools and operator provisioning remain the onboarding mechanism.
 
 ## Authenticated team workspace
 

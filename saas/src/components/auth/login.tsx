@@ -3,17 +3,20 @@ import { useState } from "react";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { request } from "@/lib/client/offline";
 import { Brand } from "../shared/brand";
+import type { SignInPortal } from "@/lib/access";
 
 export function Login({
   onLogin,
   localDemo,
   workspaceEnabled,
   startupError,
+  portal = null,
 }: {
   onLogin: () => Promise<void>;
   localDemo: boolean;
   workspaceEnabled: boolean;
   startupError: string;
+  portal?: SignInPortal | null;
 }) {
   const [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
@@ -44,29 +47,60 @@ export function Login({
       </section>
       <section className="login-form">
         <div className="demo-pill">DJ CIVILS SOFTWARE</div>
-        <h2>Explore DJ Civils</h2>
-        <p>Quick delivery entry. Clear saved records.</p>
-        <div className="demo-entry">
-          <span className="eyebrow">INTERACTIVE SAMPLE WORKSPACE</span>
-          <h3>Try the delivery log</h3>
-          <p>
-            Record a sample delivery and view the saved records. No email or
-            password needed.
-          </p>
-          <a className="primary" href="/demo">
-            Explore demo <ArrowRight size={18} />
-          </a>
-          <a className="secondary" href="/demo/supervisor">
-            Supervisor demo
-          </a>
-          <small>
-            Sample records. Demo changes and photos stay in your browser.
-          </small>
-        </div>
+        <h2>
+          {portal === "marshal"
+            ? "Traffic Marshal sign-in"
+            : portal === "supervisor"
+              ? "Supervisor / Site Manager sign-in"
+              : "Explore DJ Civils"}
+        </h2>
+        <p>
+          {portal
+            ? "Use your approved staff account."
+            : "Quick delivery entry. Clear saved records."}
+        </p>
+        {!portal && (
+          <div
+            className="staff-sign-in-choices"
+            aria-label="Staff sign-in entrances"
+          >
+            <a className="secondary" href="/sign-in/marshal">
+              Traffic Marshal sign-in
+            </a>
+            <a className="secondary" href="/sign-in/supervisor">
+              Supervisor / Site Manager sign-in
+            </a>
+          </div>
+        )}
+        {!portal && (
+          <div className="demo-entry">
+            <span className="eyebrow">INTERACTIVE SAMPLE WORKSPACE</span>
+            <h3>Try the delivery log</h3>
+            <p>
+              Record a sample delivery and view the saved records. No email or
+              password needed.
+            </p>
+            <a className="primary" href="/demo">
+              Explore demo <ArrowRight size={18} />
+            </a>
+            <a className="secondary" href="/demo/supervisor">
+              Supervisor demo
+            </a>
+            <small>
+              Sample records. Demo changes and photos stay in your browser.
+            </small>
+          </div>
+        )}
         {workspaceEnabled ? (
           <>
-            <div className="login-divider">Team sign-in</div>
-            <p>Use your assigned workspace account.</p>
+            <div className="login-divider">
+              {portal ? "Approved accounts" : "Team sign-in"}
+            </div>
+            <p>
+              {portal
+                ? "Your administrator assigns your access. Contact them if you need an account."
+                : "Use your assigned workspace account."}
+            </p>
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -75,7 +109,11 @@ export function Login({
                 try {
                   await request("/api/auth/login", {
                     method: "POST",
-                    body: JSON.stringify({ email, password }),
+                    body: JSON.stringify({
+                      email,
+                      password,
+                      ...(portal ? { portal } : {}),
+                    }),
                   });
                   await onLogin();
                 } catch (e) {
@@ -128,10 +166,15 @@ export function Login({
           <div className="workspace-note">
             <ShieldCheck size={19} />
             <p>
-              Private team sign-in will be available when your workspace is
-              connected. The sample demo is ready to explore now.
+              Private sign-in will be available when your team workspace is
+              connected.
             </p>
           </div>
+        )}
+        {portal && (
+          <a className="text-button" href="/">
+            Choose another sign-in
+          </a>
         )}
         {localDemo && (
           <details className="demo-logins">
