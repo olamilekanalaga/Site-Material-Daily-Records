@@ -182,10 +182,8 @@ export function SimpleRecords({
                   <td className="simple-date-cell">{clock.date}</td>
                   <td className="simple-time-cell">{clock.time}</td>
                   <td>
-                    <span className="simple-material-label">
-                      {data.materials.find((m) => m.id === d.material_id)
-                        ?.name || "Historical material"}
-                    </span>
+                    {data.materials.find((m) => m.id === d.material_id)?.name ||
+                      "Historical material"}
                   </td>
                   <td>
                     {d.supplier_name ||

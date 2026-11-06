@@ -58,7 +58,7 @@ This repository keeps the current DJCU delivery log and an earlier dashboard in 
 | Database changes                                      | A new ordered migration in `saas/supabase/migrations/` |
 | Production setup                                      | `saas/docs/DEPLOYMENT.md` and `saas/.env.example`      |
 
-The active page entrypoints are `saas/src/app/page.tsx` and `saas/src/app/demo/page.tsx`. They use the two-page delivery log. Components under `components/legacy/` retain the earlier pilot interface for reference and compatibility; active pages do not import them. Existing backend routes and historical records remain available.
+The team entrypoint is `saas/src/app/page.tsx`. Demo entrypoints under `saas/src/app/demo/` cover marshal selection, `delivery/[profile]/`, `records/` and the separate `supervisor/` records view. Components under `components/legacy/` retain the earlier pilot interface for reference and compatibility; active pages do not import them. Existing backend routes and historical records remain available.
 
 ## Conventions
 

@@ -195,6 +195,54 @@ test("renaming the original local marshal keeps saved delivery references intact
   assert.equal(local.bootstrap(gate).marshals!.length, 2);
 });
 
+test("correcting the local 6F5 catalogue keeps material IDs and saved photos intact", () => {
+  const aggregate = boot.materials.find((item) => item.name === "6F5")!;
+  assert(aggregate);
+  const fields = input({ material_id: aggregate.id });
+  const draft = local.log(gate, fields).delivery;
+  const photoId = attach(fields.id);
+  local.log(gate, { ...fields, intent: "submit", version: draft.version });
+  const before = local.bootstrap(gate);
+  const saved = before.deliveries.find((item) => item.id === draft.id);
+  const connection = new DatabaseSync(join(folder, "pilot.sqlite"));
+  let history;
+  try {
+    connection
+      .prepare("UPDATE objects SET body=? WHERE kind='material' AND id=?")
+      .run(JSON.stringify({ ...aggregate, name: "GF5" }), aggregate.id);
+    history = connection
+      .prepare("SELECT body FROM objects WHERE kind='audit' ORDER BY id")
+      .all();
+  } finally {
+    connection.close();
+  }
+  const corrected = local.bootstrap(gate);
+  assert.equal(corrected.materials.length, before.materials.length);
+  assert.equal(
+    corrected.materials.find((item) => item.id === aggregate.id)?.name,
+    "6F5",
+  );
+  assert.deepEqual(
+    corrected.deliveries.find((item) => item.id === draft.id),
+    saved,
+  );
+  assert.equal(local.bootstrap(gate).materials.length, before.materials.length);
+  const verify = new DatabaseSync(join(folder, "pilot.sqlite"));
+  try {
+    assert.deepEqual(
+      verify
+        .prepare("SELECT body FROM objects WHERE kind='audit' ORDER BY id")
+        .all(),
+      history,
+    );
+  } finally {
+    verify.close();
+  }
+  const savedPhoto = local.file(gate, photoId);
+  assert.equal(savedPhoto.evidence.id, photoId);
+  assert.deepEqual(savedPhoto.data, png);
+});
+
 test("gate access is limited to own records/photos while selected marshal remains distinct from authentication", () => {
   const fields = input({ marshal_id: boot.marshals![1].id });
   const draft = local.log(gate, fields).delivery;

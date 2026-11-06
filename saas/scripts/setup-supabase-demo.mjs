@@ -81,7 +81,7 @@ await check(
   ),
 );
 const materials = [
-  "GF5",
+  "6F5",
   "G1",
   "Type 1",
   "Sand",

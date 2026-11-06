@@ -75,7 +75,7 @@ test("demo opens without credentials and uses only clearly fictional sample data
   assert.equal(boot.company.name, "DJCU Demo Workspace");
   assert.deepEqual(
     boot.materials.map((item) => item.name),
-    ["GF5", "G1", "Type 1", "Sand", "10mm shingles", "20mm shingles", "Other"],
+    ["6F5", "G1", "Type 1", "Sand", "10mm shingles", "20mm shingles", "Other"],
   );
   assert(
     boot.deliveries.every(
@@ -130,6 +130,56 @@ test("ten fictional samples are split between the two named marshals with scoped
   assert.deepEqual(
     [...new Set(supervisor.deliveries.map((item) => item.marshal_name))].sort(),
     ["B", "Olamilekan Alaga"],
+  );
+});
+
+test("the 6F5 correction preserves saved browser deliveries, photos and audit history", async () => {
+  const state = createDemoState();
+  const aggregate = state.materials[0];
+  const fields = input(state, { intent: "draft", ticket_number: "KEEP-6F5" });
+  const { delivery: draft } = await ok<{ delivery: Delivery }>(
+    call(state, "/api/deliveries", fields),
+  );
+  const upload = photo();
+  await ok(call(state, `/api/deliveries/${draft.id}/evidence`, upload));
+  await ok(
+    call(
+      state,
+      `/api/deliveries/${draft.id}`,
+      { ...fields, intent: "submit", version: draft.version },
+      "PATCH",
+    ),
+  );
+  aggregate.name = "GF5";
+  const customMaterial = {
+    ...aggregate,
+    id: crypto.randomUUID(),
+    name: "GF5 custom blend",
+  };
+  state.materials.push(customMaterial);
+  const deliveries = structuredClone(state.deliveries);
+  const history = structuredClone(state.audit);
+  const files = state.files;
+  const materialCount = state.materials.length;
+  migrateDemoState(state);
+  migrateDemoState(state);
+  const boot = demoBootstrap(state);
+  assert.equal(
+    boot.materials.find((item) => item.id === aggregate.id)?.name,
+    "6F5",
+  );
+  assert.equal(state.materials.length, materialCount);
+  assert.equal(state.materials.at(-1)?.name, customMaterial.name);
+  assert.equal(
+    boot.deliveries.find((item) => item.id === draft.id)?.material_id,
+    aggregate.id,
+  );
+  assert.deepEqual(state.deliveries, deliveries);
+  assert.deepEqual(state.audit, history);
+  assert.equal(state.files, files);
+  assert.deepEqual(
+    new Uint8Array(await state.files[String(upload.get("id"))].arrayBuffer()),
+    new Uint8Array(await png.arrayBuffer()),
   );
 });
 

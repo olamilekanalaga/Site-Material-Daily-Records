@@ -74,7 +74,17 @@ function db() {
   );
   if (!get("company", C)) seed();
   seedMarshals();
+  correctDemoMaterialName();
   return database;
+}
+function correctDemoMaterialName() {
+  // Correct the supplied catalogue entry in place; saved deliveries retain its ID.
+  const aggregate = get<CatalogueItem>(
+    "material",
+    "30000000-0000-4000-8000-000000000001",
+  );
+  if (aggregate?.company_id === C && aggregate.name === "GF5")
+    put("material", { ...aggregate, name: "6F5" });
 }
 function seedMarshals() {
   // Add catalogue entries to existing local demo databases without resetting data.
@@ -253,7 +263,7 @@ function seed() {
       [S, S3],
     );
     const materials = [
-      "GF5",
+      "6F5",
       "G1",
       "Type 1",
       "Sand",
@@ -462,6 +472,7 @@ export const local = {
       canSite(actor, x.id),
     );
     seedMarshals();
+    correctDemoMaterialName();
     const deliveries = all<Delivery>("delivery", actor.company_id)
       .filter(
         (x) =>

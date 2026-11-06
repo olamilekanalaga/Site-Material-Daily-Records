@@ -13,7 +13,7 @@ import {
 
 const order = [
   "Type 1",
-  "GF5",
+  "6F5",
   "G1",
   "Sand",
   "10mm Shingle",
@@ -26,11 +26,13 @@ export function SimpleForm({
   site,
   marshal,
   onSaved,
+  onViewRecords,
 }: {
   data: Bootstrap;
   site: Site;
   marshal: Marshal;
   onSaved: () => Promise<void>;
+  onViewRecords: () => void;
 }) {
   const [material, setMaterial] = useState("");
   const [supplier, setSupplier] = useState("");
@@ -330,6 +332,14 @@ export function SimpleForm({
           disabled={busy || restoring}
         >
           {busy ? "Saving delivery…" : "Save Delivery"}
+        </button>
+        <button
+          type="button"
+          className="secondary simple-view-records"
+          disabled={busy}
+          onClick={onViewRecords}
+        >
+          View Records
         </button>
         <p className="simple-help">
           The date, selected marshal and submission time are recorded

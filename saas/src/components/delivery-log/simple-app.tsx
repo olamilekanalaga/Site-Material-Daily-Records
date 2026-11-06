@@ -4,26 +4,34 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Check, LogOut, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import type { Bootstrap, Marshal } from "@/lib/types";
+import { demoProfiles } from "@/lib/demo/profiles";
 import { request } from "@/lib/client/offline";
 import { Brand } from "../shared/brand";
 import { Login } from "../auth/login";
 import { SimpleForm } from "./simple-form";
 import { SimpleRecords } from "./simple-records";
+import type { DemoView } from "../demo/demo-access";
 
 export function SimpleApp({
   demo = false,
+  demoView = "marshal",
   localDemo = false,
   workspaceEnabled = true,
 }: {
   demo?: boolean;
+  demoView?: DemoView;
   localDemo?: boolean;
   workspaceEnabled?: boolean;
 }) {
+  const supervisorDemo = demo && demoView === "supervisor";
+  const entryDemo = demo && demoView === "entry";
   const [data, setData] = useState<Bootstrap | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [siteId, setSiteId] = useState("");
-  const [page, setPage] = useState<"home" | "records">("home");
+  const [page, setPage] = useState<"home" | "entry" | "records">(
+    entryDemo ? "entry" : demo && demoView !== "marshal" ? "records" : "home",
+  );
   const [marshalId, setMarshalId] = useState("");
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(true);
@@ -45,6 +53,7 @@ export function SimpleApp({
           : next.sites[0]?.id || "",
       );
       setError("");
+      if (entryDemo && next.actor.role === "gate") setMarshalId(next.actor.id);
       if (!["gate", "company_admin"].includes(next.actor.role)) {
         setPage("records");
         setMarshalId("");
@@ -62,7 +71,7 @@ export function SimpleApp({
     } finally {
       setLoaded(true);
     }
-  }, [demo, workspaceEnabled]);
+  }, [demo, entryDemo, workspaceEnabled]);
 
   useEffect(() => {
     void load();
@@ -92,31 +101,11 @@ export function SimpleApp({
           );
         const { selectDemoProfile } = await import("@/lib/demo/browser");
         await selectDemoProfile(profile.id);
-        const next = await load();
-        if (!next) return;
+        window.location.assign(`/demo/delivery/${profile.id}`);
+        return;
       }
       setMarshalId(marshal.id);
-      setPage("home");
-    } catch (problem) {
-      setError((problem as Error).message);
-    } finally {
-      acting.current = false;
-      setBusy(false);
-    }
-  }
-
-  async function switchDemo(supervisor: boolean) {
-    if (acting.current) return;
-    acting.current = true;
-    setBusy(true);
-    setMarshalId("");
-    try {
-      await request("/api/demo/role", {
-        method: "POST",
-        body: JSON.stringify({ role: supervisor ? "supervisor" : "gate" }),
-      });
-      const next = await load();
-      if (next) setPage(supervisor ? "records" : "home");
+      setPage("entry");
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
@@ -181,7 +170,8 @@ export function SimpleApp({
   }
 
   const canRecord =
-    data.actor.role === "gate" || data.actor.role === "company_admin";
+    !(demo && supervisorDemo) &&
+    (data.actor.role === "gate" || data.actor.role === "company_admin");
   const site = data.sites.find((item) => item.id === siteId);
   const marshals = (data.marshals || []).filter(
     (item) =>
@@ -191,11 +181,18 @@ export function SimpleApp({
   );
   const selected = marshals.find((item) => item.id === marshalId);
   const recordsPage = page === "records" || !canRecord;
+  const demoProfile = demoProfiles.find(
+    (item) => item.name === data.actor.name,
+  );
+  const demoRecordsHref = `/demo/records?profile=${demoProfile?.id || "b"}`;
 
   return (
     <div className="simple-app">
       <header className="simple-header">
-        <a href={demo ? "/demo" : "/"} aria-label="DJCU home">
+        <a
+          href={demo ? (supervisorDemo ? "/demo/supervisor" : "/demo") : "/"}
+          aria-label="DJCU home"
+        >
           <Brand compact />
         </a>
         <div className="simple-identity">
@@ -216,7 +213,9 @@ export function SimpleApp({
         <div>
           {demo ? (
             <>
-              <strong>Demo workspace</strong>
+              <strong>
+                {supervisorDemo ? "Supervisor demo" : "Demo workspace"}
+              </strong>
               <span>Saved only in this browser.</span>
             </>
           ) : (
@@ -238,20 +237,37 @@ export function SimpleApp({
       <div className="simple-main">
         <div className="simple-navigation">
           <nav aria-label="Main navigation">
-            {canRecord && (
-              <button
-                aria-current={!recordsPage ? "page" : undefined}
-                onClick={() => setPage("home")}
+            {canRecord &&
+              (demo ? (
+                <a
+                  href="/demo"
+                  aria-current={page === "home" ? "page" : undefined}
+                >
+                  Home
+                </a>
+              ) : (
+                <button
+                  aria-current={page === "home" ? "page" : undefined}
+                  onClick={() => setPage("home")}
+                >
+                  Home
+                </button>
+              ))}
+            {demo ? (
+              <a
+                href={supervisorDemo ? "/demo/supervisor" : demoRecordsHref}
+                aria-current={recordsPage ? "page" : undefined}
               >
-                Home
+                Delivery Records
+              </a>
+            ) : (
+              <button
+                aria-current={recordsPage ? "page" : undefined}
+                onClick={() => setPage("records")}
+              >
+                Delivery Records
               </button>
             )}
-            <button
-              aria-current={recordsPage ? "page" : undefined}
-              onClick={() => setPage("records")}
-            >
-              Delivery Records
-            </button>
           </nav>
           <button
             className="secondary simple-refresh"
@@ -269,23 +285,31 @@ export function SimpleApp({
         </div>
         {demo && (
           <div className="simple-demo-view">
-            <button
-              className="text-button"
-              disabled={busy}
-              onClick={() => void switchDemo(canRecord)}
-            >
-              {canRecord ? "View as supervisor" : "Back to marshal entry"}
-            </button>
+            {supervisorDemo ? (
+              <p>Supervisor view · Delivery records and photos</p>
+            ) : (
+              <a className="text-button" href="/demo/supervisor">
+                View as supervisor
+              </a>
+            )}
           </div>
         )}
         <main>
           <div className="simple-page-title">
             <div>
-              <h1>{recordsPage ? "Delivery Records" : "Home"}</h1>
+              <h1>
+                {recordsPage
+                  ? "Delivery Records"
+                  : page === "entry"
+                    ? "Record Delivery"
+                    : "Sign in as"}
+              </h1>
               <p>
                 {recordsPage
                   ? "Saved deliveries for your site."
-                  : "Tap a marshal to record a delivery."}
+                  : page === "entry"
+                    ? "Enter the delivery details below."
+                    : "Choose your name to record a delivery."}
               </p>
             </div>
             {data.sites.length > 1 ? (
@@ -331,48 +355,50 @@ export function SimpleApp({
             <SimpleRecords key={site.id} data={data} siteId={site.id} />
           ) : (
             <>
-              <div
-                className="simple-marshal-grid"
-                aria-label="Select traffic marshal"
-              >
-                {marshals.map((marshal) => (
-                  <button
-                    key={marshal.id}
-                    type="button"
-                    className="simple-marshal-card"
-                    aria-label={marshal.name}
-                    aria-pressed={selected?.id === marshal.id}
-                    disabled={busy}
-                    onClick={() => void selectMarshal(marshal)}
-                  >
-                    {(demo || data.mode === "local") &&
-                    marshal.name === "Olamilekan Alaga" ? (
-                      <Image
-                        src="/marshals/olamilekan-alaga.jpg"
-                        alt=""
-                        fill
-                        sizes="(max-width: 650px) 45vw, 230px"
-                        style={{ objectPosition: "50% 65%" }}
-                      />
-                    ) : (
-                      <img src="/marshal-placeholder.svg" alt="" />
-                    )}
-                    <span>
-                      {marshal.name}
-                      {selected?.id === marshal.id && (
-                        <Check size={20} aria-hidden="true" />
+              {page === "home" && (
+                <div
+                  className="simple-marshal-grid"
+                  aria-label="Select traffic marshal"
+                >
+                  {marshals.map((marshal) => (
+                    <button
+                      key={marshal.id}
+                      type="button"
+                      className="simple-marshal-card"
+                      aria-label={marshal.name}
+                      aria-pressed={selected?.id === marshal.id}
+                      disabled={busy}
+                      onClick={() => void selectMarshal(marshal)}
+                    >
+                      {(demo || data.mode === "local") &&
+                      marshal.name === "Olamilekan Alaga" ? (
+                        <Image
+                          src="/marshals/olamilekan-alaga.jpg"
+                          alt=""
+                          fill
+                          sizes="(max-width: 650px) 45vw, 230px"
+                          style={{ objectPosition: "50% 65%" }}
+                        />
+                      ) : (
+                        <img src="/marshal-placeholder.svg" alt="" />
                       )}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              {!marshals.length && (
+                      <span>
+                        {marshal.name}
+                        {selected?.id === marshal.id && (
+                          <Check size={20} aria-hidden="true" />
+                        )}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {page === "home" && !marshals.length && (
                 <section className="simple-panel simple-empty">
                   No traffic marshals are configured for this site. Ask your
                   company administrator to add them.
                 </section>
               )}
-              {selected && (
+              {page === "entry" && selected && (
                 <SimpleForm
                   key={`${data.actor.id}:${selected.id}`}
                   data={data}
@@ -380,6 +406,10 @@ export function SimpleApp({
                   marshal={selected}
                   onSaved={async () => {
                     await load();
+                  }}
+                  onViewRecords={() => {
+                    if (demo) window.location.assign(demoRecordsHref);
+                    else setPage("records");
                   }}
                 />
               )}

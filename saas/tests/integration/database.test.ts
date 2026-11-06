@@ -76,7 +76,7 @@ before(async () => {
  insert into company_memberships(company_id,user_id,role) values('${c}','${gate}','gate'),('${c}','${supervisor}','supervisor'),('${c}','${manager}','site_manager'),('${c}','${admin}','company_admin'),('${other}','${outsider}','gate'),('${c}','${platform}','platform_admin');
  insert into sites(id,company_id,name,require_photo) values('${site}','${c}','Demo Riverside',false),('${hidden}','${c}','Unassigned demo site',false),('${otherSite}','${other}','Other demo site',false);
  insert into site_assignments(company_id,site_id,user_id) values('${c}','${site}','${gate}'),('${c}','${site}','${supervisor}'),('${c}','${site}','${manager}'),('${other}','${otherSite}','${outsider}');
- insert into materials(id,company_id,name) values('${material}','${c}','GF5'),('${otherMaterial}','${other}','Other material');insert into suppliers(id,company_id,name) values('${supplier}','${c}','Fictional Aggregate Supply');`);
+ insert into materials(id,company_id,name) values('${material}','${c}','6F5'),('${otherMaterial}','${other}','Other material');insert into suppliers(id,company_id,name) values('${supplier}','${c}','Fictional Aggregate Supply');`);
   await db.exec(
     await readFile(
       new URL(

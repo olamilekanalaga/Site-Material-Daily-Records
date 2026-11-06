@@ -1,6 +1,6 @@
 # DJCU delivery log
 
-The active application lives in [`saas/`](saas/README.md). It has two main pages: traffic marshals record deliveries on **Home**, and supervisors inspect **Delivery Records** and their photos. The proposed DJ Civils pilot is unofficial; included delivery records are fictional.
+The active application lives in [`saas/`](saas/README.md). Traffic marshals start at **Sign in as**, choose their photo, record deliveries on a separate page and open **Delivery Records**. Supervisors have a separate entry directly into the records and photo viewer. The proposed DJ Civils pilot is unofficial; included delivery records are fictional.
 
 ## Run the SaaS
 
