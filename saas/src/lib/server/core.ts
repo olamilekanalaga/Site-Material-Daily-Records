@@ -5,6 +5,7 @@ import type {
   DeliveryInput,
   ReviewInput,
   Site,
+  SimpleDeliveryInput,
   Unit,
 } from "../types";
 
@@ -87,6 +88,38 @@ export function parseDelivery(raw: unknown): DeliveryInput {
     arrival_at: new Date(x.arrival_at).toISOString(),
     notes: text(x.notes, 2000),
     intent: x.intent as DeliveryInput["intent"],
+    version: x.version as number | undefined,
+  };
+}
+export function parseSimpleDelivery(raw: unknown): SimpleDeliveryInput {
+  assert(
+    raw && typeof raw === "object" && !Array.isArray(raw),
+    "Invalid delivery",
+  );
+  const x = raw as Record<string, unknown>;
+  assert(x.intent === "draft" || x.intent === "submit", "Invalid intent");
+  assert(
+    typeof x.arrival_at === "string" &&
+      Number.isFinite(Date.parse(x.arrival_at)),
+    "Valid delivery date and time required",
+  );
+  assert(
+    Date.parse(x.arrival_at) <= Date.now() + 300000,
+    "Delivery time cannot be in the future",
+  );
+  if (x.version !== undefined)
+    assert(
+      Number.isInteger(x.version) && Number(x.version) > 0,
+      "Invalid version",
+    );
+  return {
+    id: uuid(x.id),
+    site_id: uuid(x.site_id),
+    material_id: uuid(x.material_id),
+    marshal_id: uuid(x.marshal_id),
+    supplier_name: text(x.supplier_name, 200, true),
+    arrival_at: new Date(x.arrival_at).toISOString(),
+    intent: x.intent,
     version: x.version as number | undefined,
   };
 }

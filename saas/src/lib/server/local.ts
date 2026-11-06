@@ -20,6 +20,8 @@ import type {
   ReviewInput,
   Role,
   Site,
+  Marshal,
+  SimpleDeliveryInput,
 } from "../types";
 import {
   AppError,
@@ -64,12 +66,36 @@ function db() {
     /* turbopackIgnore: true */ process.env.LOCAL_DATA_DIR || ".local-data",
   );
   mkdirSync(dir, { recursive: true, mode: 0o700 });
-  database = new DatabaseSync(resolve(dir, "pilot.sqlite"));
+  database = new DatabaseSync(
+    resolve(/* turbopackIgnore: true */ dir, "pilot.sqlite"),
+  );
   database.exec(
     `PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; CREATE TABLE IF NOT EXISTS objects (kind TEXT NOT NULL,id TEXT NOT NULL,company_id TEXT NOT NULL,body TEXT NOT NULL,PRIMARY KEY(kind,id)); CREATE INDEX IF NOT EXISTS objects_company ON objects(kind,company_id); CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS attempts (key TEXT PRIMARY KEY,count INTEGER NOT NULL,expires INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY,data BLOB NOT NULL);`,
   );
   if (!get("company", C)) seed();
+  seedMarshals();
   return database;
+}
+function seedMarshals() {
+  // Add catalogue entries to existing local demo databases without resetting data.
+  for (const s of all<Site>("site")) {
+    const names =
+      s.company_id === C
+        ? ["B Traffic Marshal", "Olamilekan Alaga"]
+        : ["Other Demo Marshal"];
+    for (const name of names) {
+      const key = hash(`marshal:${s.id}:${name}`);
+      const id = `${key.slice(0, 8)}-${key.slice(8, 12)}-4${key.slice(13, 16)}-8${key.slice(17, 20)}-${key.slice(20, 32)}`;
+      if (!get<Marshal>("marshal", id))
+        put("marshal", {
+          id,
+          company_id: s.company_id,
+          site_id: s.id,
+          name,
+          active: true,
+        });
+    }
+  }
 }
 function all<T>(kind: string, company?: string): T[] {
   const rows = (
@@ -362,6 +388,7 @@ function record(actor: Actor, id: string) {
     d &&
       d.company_id === actor.company_id &&
       canSite(actor, d.site_id) &&
+      (actor.role !== "gate" || d.created_by === actor.id) &&
       (d.status !== "Draft" || d.created_by === actor.id),
     "Delivery not found",
     404,
@@ -427,10 +454,12 @@ export const local = {
     const sites = all<Site>("site", actor.company_id).filter((x) =>
       canSite(actor, x.id),
     );
+    seedMarshals();
     const deliveries = all<Delivery>("delivery", actor.company_id)
       .filter(
         (x) =>
           canSite(actor, x.site_id) &&
+          (actor.role !== "gate" || x.created_by === actor.id) &&
           (x.status !== "Draft" || x.created_by === actor.id),
       )
       .map(hydrate)
@@ -438,8 +467,9 @@ export const local = {
     const events = all<AuditEvent>("audit", actor.company_id)
       .filter(
         (x) =>
-          actor.role === "company_admin" ||
-          (x.site_id && canSite(actor, x.site_id)),
+          actor.role !== "gate" &&
+          (actor.role === "company_admin" ||
+            (x.site_id && canSite(actor, x.site_id))),
       )
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .slice(0, 500);
@@ -449,6 +479,9 @@ export const local = {
       sites,
       materials: all<CatalogueItem>("material", actor.company_id),
       suppliers: all<CatalogueItem>("supplier", actor.company_id),
+      marshals: all<Marshal>("marshal", actor.company_id).filter(
+        (m) => m.active && canSite(actor, m.site_id),
+      ),
       deliveries,
       audit: events,
       historical: all<HistoricalSummary>("historical", actor.company_id).filter(
@@ -460,6 +493,132 @@ export const local = {
           : [],
       mode: "local",
     };
+  },
+  log(actor: Actor, input: SimpleDeliveryInput) {
+    return transaction(() => {
+      capturePermission(actor);
+      site(actor, input.site_id);
+      const material = get<CatalogueItem>("material", input.material_id);
+      assert(
+        material?.company_id === actor.company_id && material.active,
+        "Material not available",
+      );
+      const marshal = get<Marshal>("marshal", input.marshal_id);
+      assert(
+        marshal?.company_id === actor.company_id &&
+          marshal.site_id === input.site_id &&
+          marshal.active,
+        "Traffic marshal not available",
+        403,
+      );
+      const existing = get<Delivery>("delivery", input.id);
+      if (existing) {
+        assert(
+          existing.company_id === actor.company_id &&
+            existing.created_by === actor.id &&
+            existing.site_id === input.site_id,
+          "Delivery does not belong to you",
+          403,
+        );
+        assert(
+          existing.capture_mode === "simple",
+          "Record ID is already used by another delivery",
+          409,
+        );
+        assert(
+          (
+            [
+              "site_id",
+              "material_id",
+              "marshal_id",
+              "supplier_name",
+              "arrival_at",
+            ] as const
+          ).every((key) => existing[key] === input[key]),
+          "Saved draft details differ. Retry the original delivery or start a new one.",
+          409,
+        );
+        // A lost successful response must not create another arrival or alter its timestamp.
+        if (existing.submitted_at || input.intent === "draft")
+          return { delivery: hydrate(existing) };
+        assert(
+          existing.status === "Draft",
+          "Delivery cannot be submitted in this status",
+          409,
+        );
+        assert(
+          existing.version === input.version,
+          "Record changed. Reload before saving.",
+          409,
+        );
+        assert(
+          hydrate(existing).evidence.length > 0,
+          "Upload a delivery image before saving",
+        );
+        const stamp = now();
+        const submitted: Delivery = {
+          ...existing,
+          submitted_at: stamp,
+          updated_at: stamp,
+          status: "Submitted",
+          version: existing.version + 1,
+        };
+        put("delivery", submitted);
+        audit(
+          actor,
+          "delivery.logged",
+          input.id,
+          input.site_id,
+          existing,
+          submitted,
+        );
+        return { delivery: hydrate(submitted) };
+      }
+      assert(
+        input.intent === "draft",
+        "Save the draft and upload a delivery image first",
+      );
+      const stamp = now();
+      const draft: Delivery = {
+        id: input.id,
+        company_id: actor.company_id,
+        site_id: input.site_id,
+        material_id: input.material_id,
+        supplier_id: null,
+        supplier_name: input.supplier_name,
+        marshal_id: marshal.id,
+        marshal_name: marshal.name,
+        capture_mode: "simple",
+        arrival_at: input.arrival_at,
+        vehicle: "",
+        ticket_number: "",
+        ticket_quantity: null,
+        ticket_unit: "loads",
+        notes: "",
+        created_by: actor.id,
+        creator_name: actor.name,
+        created_at: stamp,
+        updated_at: stamp,
+        submitted_at: null,
+        status: "Draft",
+        commercial_status: "Not Linked",
+        accepted_quantity: null,
+        accepted_unit: null,
+        version: 1,
+        evidence: [],
+        reviews: [],
+      };
+      put("delivery", draft);
+      audit(
+        actor,
+        "delivery.draft.created",
+        draft.id,
+        draft.site_id,
+        null,
+        draft,
+      );
+      return { delivery: draft };
+    });
   },
   save(actor: Actor, input: DeliveryInput, patch = false) {
     return transaction(() => {
@@ -491,6 +650,11 @@ export const local = {
           existing.created_by === actor.id,
           "Only the original recorder may edit this arrival",
           403,
+        );
+        assert(
+          existing.capture_mode !== "simple",
+          "Use the delivery logging endpoint for this record",
+          409,
         );
         if (
           !patch ||

@@ -6,186 +6,289 @@ const png = Buffer.from(
   "base64",
 );
 
-async function login(
-  page: Page,
-  role: "gate" | "supervisor" | "manager" = "gate",
-) {
+// Site time must remain correct even when the device uses another time zone.
+test.use({ timezoneId: "America/Los_Angeles" });
+
+async function login(page: Page, role: "gate" | "supervisor" = "gate") {
   await page.goto("/");
-  await page.getByLabel("Email address").fill(`${role}@demo.invalid`);
+  await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath("simple-login.png"),
+    fullPage: true,
+  });
+  await page
+    .getByLabel("Email address", { exact: true })
+    .fill(`${role}@demo.invalid`);
   await page.getByLabel("Password", { exact: true }).fill("DemoPass123!");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Your site, at a glance" }),
+    page.getByRole("heading", {
+      name: role === "gate" ? "Home" : "Delivery Records",
+      exact: true,
+    }),
   ).toBeVisible();
 }
 
-async function navigate(page: Page, label: string) {
-  const name = new RegExp(
-    `^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s+\\d+)?$`,
+async function noOverflow(page: Page) {
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - innerWidth,
+    ),
+  ).toBeLessThanOrEqual(1);
+}
+
+async function selectMarshal(page: Page) {
+  await page
+    .getByRole("button", { name: "Olamilekan Alaga", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "New Delivery", exact: true }),
+  ).toBeVisible();
+}
+
+async function fillDelivery(page: Page, supplier: string) {
+  await page
+    .getByRole("combobox", { name: "Material name", exact: true })
+    .selectOption({ label: "GF5" });
+  await page
+    .getByLabel("Supplier / Company name", { exact: true })
+    .fill(supplier);
+  await page.getByLabel("Delivery image", { exact: true }).setInputFiles({
+    name: "fictional-load.png",
+    mimeType: "image/png",
+    buffer: png,
+  });
+}
+
+test("two-page marshal entry validates required details, site time and photograph limits", async ({
+  page,
+}, testInfo) => {
+  const creations: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/api/log-deliveries"
+    )
+      creations.push(request.url());
+  });
+  await login(page);
+  for (const name of ["B Traffic Marshal", "Olamilekan Alaga"]) {
+    const photo = page
+      .getByRole("button", { name, exact: true })
+      .locator("img");
+    await expect(photo).toBeVisible();
+    await expect
+      .poll(() =>
+        photo.evaluate((image) => (image as HTMLImageElement).naturalWidth),
+      )
+      .toBeGreaterThan(0);
+    const box = await photo.boundingBox();
+    expect(box).not.toBeNull();
+    expect(Math.abs(box!.width - box!.height)).toBeLessThanOrEqual(2);
+  }
+  await expect(
+    page.getByRole("button", { name: "Home", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Delivery Records", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Verification queue" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Daily reports" })).toHaveCount(
+    0,
   );
-  const button = page
-    .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("button", { name });
-  const menu = page.getByRole("button", { name: "Open navigation" });
-  if (await menu.isVisible()) await menu.click();
-  await button.click();
-}
+  await page.screenshot({
+    path: testInfo.outputPath("simple-home.png"),
+    fullPage: true,
+  });
+  await selectMarshal(page);
+  await page.screenshot({
+    path: testInfo.outputPath("simple-delivery-form.png"),
+    fullPage: true,
+  });
+  const state = await (await page.request.get("/api/bootstrap")).json();
+  const timeAt = (instant: Date) =>
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: state.sites[0].timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(instant);
+  expect([
+    timeAt(new Date(Date.now() - 60_000)),
+    timeAt(new Date()),
+    timeAt(new Date(Date.now() + 60_000)),
+  ]).toContain(await page.getByLabel(/^Delivery time/).inputValue());
+  await page
+    .getByRole("button", { name: "Save Delivery", exact: true })
+    .click();
+  await expect(page.getByText("Delivery saved", { exact: false })).toHaveCount(
+    0,
+  );
+  await page
+    .getByRole("combobox", { name: "Material name", exact: true })
+    .selectOption({ label: "GF5" });
+  await page
+    .getByLabel("Supplier / Company name", { exact: true })
+    .fill("Fictional validation supplier");
+  await page
+    .getByRole("button", { name: "Save Delivery", exact: true })
+    .click();
+  await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
+    /image|photo/i,
+  );
+  await page.getByLabel("Delivery image", { exact: true }).setInputFiles({
+    name: "fictional-document.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("Not an image"),
+  });
+  await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
+    /JPEG|PNG|WebP|image/i,
+  );
+  await page.getByLabel("Delivery image", { exact: true }).setInputFiles({
+    name: "too-large.png",
+    mimeType: "image/png",
+    buffer: Buffer.concat([png, Buffer.alloc(3 * 1024 * 1024)]),
+  });
+  await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
+    /3\s*(?:Mi?B|megabytes)|too large|size/i,
+  );
+  expect(creations).toEqual([]);
+  await noOverflow(page);
+  await page.screenshot({
+    path: testInfo.outputPath("simple-delivery-validation.png"),
+    fullPage: true,
+  });
+});
 
-async function noPageOverflow(page: Page) {
-  const dimensions = await page.evaluate(() => ({
-    width: innerWidth,
-    content: document.documentElement.scrollWidth,
-  }));
-  expect(dimensions.content).toBeLessThanOrEqual(dimensions.width + 1);
-}
-
-test("gate captures a ticket on a touch device, supervisor verifies, manager sees report", async ({
+test("failed photo upload retries one persisted record that an authenticated supervisor can privately view", async ({
   page,
   browser,
 }, testInfo) => {
   await login(page);
-  await noPageOverflow(page);
+  await selectMarshal(page);
+  const supplier = `Fictional retry ${randomUUID().slice(0, 8)}`;
+  await fillDelivery(page, supplier);
+  const submittedIds: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/api/log-deliveries"
+    )
+      submittedIds.push(request.postDataJSON().id);
+  });
+  await page.route(
+    "**/api/deliveries/*/evidence",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "Fictional connection loss. Please retry.",
+        }),
+      }),
+    { times: 1 },
+  );
+  await page
+    .getByRole("button", { name: "Save Delivery", exact: true })
+    .click();
+  await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
+    /connection loss|retry/i,
+  );
+  await expect(page.getByText("Delivery saved", { exact: false })).toHaveCount(
+    0,
+  );
+  await page
+    .getByRole("button", { name: "Delivery Records", exact: true })
+    .click();
+  await expect(page.getByRole("row").filter({ hasText: supplier })).toHaveCount(
+    0,
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Home", exact: true }),
+  ).toBeVisible();
+  await selectMarshal(page);
+  await expect(
+    page.getByLabel("Supplier / Company name", { exact: true }),
+  ).toHaveValue(supplier);
+  await page
+    .getByRole("button", { name: "Save Delivery", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Delivery saved");
+  await expect(
+    page.getByLabel("Supplier / Company name", { exact: true }),
+  ).toHaveValue("");
+  await expect(
+    page.getByRole("combobox", { name: "Material name", exact: true }),
+  ).toHaveValue("");
+  await expect(page.getByLabel("Delivery image", { exact: true })).toHaveValue(
+    "",
+  );
+  expect(submittedIds.length).toBeGreaterThanOrEqual(2);
+  expect(new Set(submittedIds).size).toBe(1);
+  await page
+    .getByRole("button", { name: "Delivery Records", exact: true })
+    .click();
+  const row = page.getByRole("row").filter({ hasText: supplier });
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("GF5");
+  await expect(row).toContainText("Olamilekan Alaga");
+  const state = await (await page.request.get("/api/bootstrap")).json();
+  const matches = state.deliveries.filter(
+    (record: { supplier_name?: string }) => record.supplier_name === supplier,
+  );
+  expect(matches).toHaveLength(1);
+  expect(matches[0].created_by).toBe(state.actor.id);
+  expect(matches[0].marshal_id).not.toBe(state.actor.id);
+  expect(matches[0].evidence).toHaveLength(1);
+  expect(matches[0].submitted_at).toBeTruthy();
+  await noOverflow(page);
   await page.screenshot({
-    path: testInfo.outputPath("overview.png"),
+    path: testInfo.outputPath("simple-delivery-records.png"),
     fullPage: true,
   });
-  await expect(
-    page.getByText("All records are fictional. No company approval implied.", {
-      exact: false,
-    }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Record delivery", exact: true })
-    .click();
-  await page.getByRole("button", { name: /GF5$/ }).click();
-  await page
-    .getByRole("combobox", { name: "Supplier", exact: true })
-    .selectOption({ label: "Fictional Aggregate Co" });
-  await page
-    .getByLabel("Vehicle registration", { exact: true })
-    .fill("DEMO MOBILE");
-  const ticket = `MOB-${randomUUID().slice(0, 8)}`;
-  await page.getByLabel("Ticket number", { exact: true }).fill(ticket);
-  await page.getByLabel("Ticket quantity", { exact: true }).fill("22.5");
-  await page
-    .getByRole("combobox", { name: "Quantity unit", exact: true })
-    .selectOption("tonnes");
-  await page
-    .getByLabel("Ticket photograph", { exact: true })
-    .setInputFiles({
-      name: "fictional-ticket.png",
-      mimeType: "image/png",
-      buffer: png,
-    });
-  await noPageOverflow(page);
-  await page
-    .getByRole("button", { name: "Submit delivery", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "Delivery register", exact: true }),
-  ).toBeVisible();
-  await page.getByLabel("Search deliveries").fill(ticket);
-  await expect(page.getByText(ticket, { exact: true })).toBeVisible();
-  await expect(page.getByRole("table").getByText("Submitted", { exact: true })).toBeVisible();
-  await noPageOverflow(page);
 
-  // Independent contexts prove that review and reporting use server-persisted data.
-  const context = await browser.newContext({
+  const reviewContext = await browser.newContext({
     viewport: page.viewportSize() ?? undefined,
   });
-  const reviewPage = await context.newPage();
+  const reviewPage = await reviewContext.newPage();
   await login(reviewPage, "supervisor");
-  await navigate(reviewPage, "Verification queue");
-  await reviewPage.getByLabel("Search deliveries").fill(ticket);
-  await reviewPage
+  await expect(
+    reviewPage.getByRole("heading", { name: "New Delivery", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    reviewPage.getByRole("button", { name: "Olamilekan Alaga", exact: true }),
+  ).toHaveCount(0);
+  const supervisorRow = reviewPage
     .getByRole("row")
-    .filter({ hasText: ticket })
-    .getByRole("button", { name: /^DL-/ })
+    .filter({ hasText: supplier });
+  await expect(supervisorRow).toHaveCount(1);
+  await supervisorRow
+    .getByRole("button", { name: "View photo", exact: true })
     .click();
+  const photo = reviewPage.getByRole("dialog").getByRole("img");
+  await expect(photo).toBeVisible();
+  await expect(photo).toHaveJSProperty("naturalWidth", 1);
   await reviewPage
-    .getByRole("combobox", { name: "Decision", exact: true })
-    .selectOption("Accepted");
-  await reviewPage.getByLabel("Accepted quantity", { exact: true }).fill("21");
-  await reviewPage
-    .getByRole("checkbox", {
-      name: "I independently confirm physical receipt of this delivery.",
-    })
-    .check();
-  await reviewPage
-    .getByLabel("Reason / supporting notes", { exact: true })
-    .fill("Fictional test: physically checked the received load.");
-  await reviewPage
-    .getByRole("button", { name: "Save decision", exact: true })
+    .getByRole("button", { name: "Close photo", exact: true })
     .click();
-  await expect(reviewPage.getByRole("status")).toContainText(
-    "Supervisor decision saved",
+  const anonymous = await browser.newContext();
+  expect(
+    (
+      await anonymous.request.get(
+        `http://127.0.0.1:3100/api/evidence/${matches[0].evidence[0].id}`,
+      )
+    ).status(),
+  ).toBe(401);
+  await anonymous.close();
+  await reviewContext.close();
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Delivery Records", exact: true })
+    .click();
+  await expect(page.getByRole("row").filter({ hasText: supplier })).toHaveCount(
+    1,
   );
-  await context.close();
-
-  const managerContext = await browser.newContext({
-    viewport: page.viewportSize() ?? undefined,
-  });
-  const managerPage = await managerContext.newPage();
-  await login(managerPage, "manager");
-  await navigate(managerPage, "Daily reports");
-  await expect(managerPage.getByText(ticket, { exact: true })).toBeVisible();
-  await expect(
-    managerPage.getByRole("heading", { name: "Accepted quantities by unit" }),
-  ).toBeVisible();
-  await expect(
-    managerPage.getByRole("link", { name: "Export CSV" }),
-  ).toBeVisible();
-  await noPageOverflow(managerPage);
-  await managerPage.screenshot({
-    path: testInfo.outputPath("report.png"),
-    fullPage: true,
-  });
-  await managerContext.close();
-});
-
-test("offline draft is visibly local, survives reload-free navigation and retries once online", async ({
-  page,
-  context,
-}) => {
-  await login(page);
-  await page
-    .getByRole("button", { name: "Record delivery", exact: true })
-    .click();
-  await page.getByRole("button", { name: /Sand$/ }).click();
-  await page
-    .getByLabel("Vehicle registration", { exact: true })
-    .fill("DEMO OFFLINE");
-  const ticket = `OFF-${randomUUID().slice(0, 8)}`;
-  await page.getByLabel("Ticket number", { exact: true }).fill(ticket);
-  await context.setOffline(true);
-  await expect(
-    page.getByText("Offline · local saves only", { exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Save locally", exact: true }).click();
-  await navigate(page, "Drafts & uploads");
-  await expect(
-    page.getByText("Saved locally — not submitted", { exact: false }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Resume", exact: true }).click();
-  await expect(page.getByLabel("Ticket number", { exact: true })).toHaveValue(
-    ticket,
-  );
-  await page
-    .getByRole("button", { name: "Queue for upload", exact: true })
-    .click();
-  await navigate(page, "Drafts & uploads");
-  await expect(
-    page.getByText("Upload pending — not submitted to server", {
-      exact: false,
-    }),
-  ).toBeVisible();
-  await context.setOffline(false);
-  await expect(page.getByText("Online", { exact: true })).toBeVisible();
-  await expect(page.getByRole("status")).toContainText("submitted", {
-    timeout: 30_000,
-  });
-  await navigate(page, "Delivery register");
-  await page.getByLabel("Search deliveries").fill(ticket);
-  await expect(page.getByText(ticket, { exact: true })).toHaveCount(1);
-  await expect(page.getByRole("table").getByText("Submitted", { exact: true })).toBeVisible();
 });

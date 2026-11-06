@@ -30,16 +30,14 @@ const company = randomUUID(),
   site = randomUUID();
 await check(admin.from("companies").insert({ id: company, name: companyName }));
 await check(
-  admin
-    .from("sites")
-    .insert({
-      id: site,
-      company_id: company,
-      name: "Demo Riverside",
-      timezone: "Europe/London",
-      require_ticket: true,
-      require_photo: false,
-    }),
+  admin.from("sites").insert({
+    id: site,
+    company_id: company,
+    name: "Demo Riverside",
+    timezone: "Europe/London",
+    require_ticket: true,
+    require_photo: false,
+  }),
 );
 const users = {};
 for (const [role, name] of [
@@ -71,6 +69,17 @@ for (const [role, name] of [
       .insert({ company_id: company, site_id: site, user_id: data.user.id }),
   );
 }
+await check(
+  admin.from("traffic_marshals").insert(
+    ["B Traffic Marshal", "Olamilekan Alaga"].map((name) => ({
+      id: randomUUID(),
+      company_id: company,
+      site_id: site,
+      name,
+      active: true,
+    })),
+  ),
+);
 const materials = [
   "GF5",
   "G1",
@@ -142,19 +151,17 @@ for (const [i, status] of [
     );
 }
 await check(
-  admin
-    .from("historical_delivery_summaries")
-    .insert({
-      company_id: company,
-      site_id: site,
-      date: new Date().toISOString().slice(0, 10),
-      material_id: materials[0].id,
-      reported_count: 7,
-      source_reference: "FICTIONAL notebook illustration",
-      confidence: "Uncertain",
-      notes:
-        "Illustration only. These counts are separate from individual digital deliveries.",
-    }),
+  admin.from("historical_delivery_summaries").insert({
+    company_id: company,
+    site_id: site,
+    date: new Date().toISOString().slice(0, 10),
+    material_id: materials[0].id,
+    reported_count: 7,
+    source_reference: "FICTIONAL notebook illustration",
+    confidence: "Uncertain",
+    notes:
+      "Illustration only. These counts are separate from individual digital deliveries.",
+  }),
 );
 console.log(
   "Provisioned fictional demo workspace. No company authorisation implied.",

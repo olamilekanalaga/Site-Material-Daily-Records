@@ -9,7 +9,11 @@ import {
   type DemoRole,
 } from "../src/lib/demo/engine";
 import { summarise } from "../src/lib/reporting";
-import type { Delivery, DeliveryInput } from "../src/lib/types";
+import type {
+  Delivery,
+  DeliveryInput,
+  SimpleDeliveryInput,
+} from "../src/lib/types";
 import { demoProfiles } from "../src/lib/demo/profiles";
 
 async function call(
@@ -652,7 +656,8 @@ test("selected marshal survives role changes, logout and sample reset", async ()
   assert.equal(reset.actor.id, selected.actor.id);
   assert.equal(reset.actor.role, "gate");
   assert.equal(reset.actor.name, "Olamilekan Alaga");
-  assert.equal(reset.deliveries.length, 5);
+  assert.equal(reset.deliveries.length, 0);
+  assert.equal(state.deliveries.length, 5);
   assert(!reset.deliveries.some((delivery) => delivery.id === captured.id));
   assert.equal(Object.keys(state.files).length, 0);
 });
@@ -735,4 +740,267 @@ test("unrecognised profile selections leave the active identity unchanged", asyn
   );
   assert.equal(demoBootstrap(state).actor.id, selected.id);
   assert.equal(state.gate_profile, "olamilekan");
+});
+
+function simpleInput(
+  state: DemoState,
+  fields: Partial<SimpleDeliveryInput> = {},
+): SimpleDeliveryInput {
+  return {
+    id: crypto.randomUUID(),
+    site_id: state.sites[0].id,
+    material_id: state.materials[0].id,
+    marshal_id: demoBootstrap(state).marshals![0].id,
+    supplier_name: "Fictional Quarry",
+    arrival_at: new Date().toISOString(),
+    intent: "draft",
+    ...fields,
+  };
+}
+
+test("simple photo logging preserves chosen marshal, actual creator and supplier snapshots", async () => {
+  const state = createDemoState(),
+    boot = demoBootstrap(state);
+  assert.equal(boot.marshals?.length, 2);
+  assert.deepEqual(
+    boot.marshals?.map((marshal) => marshal.name),
+    ["B Traffic Marshal", "Olamilekan Alaga"],
+  );
+  assert(
+    boot.marshals?.every(
+      (marshal) =>
+        marshal.active &&
+        marshal.company_id === boot.company.id &&
+        marshal.site_id === state.sites[0].id,
+    ),
+  );
+  const fields = simpleInput(state, {
+    marshal_id: boot.marshals![1].id,
+    supplier_name: " Fictional Quarry ",
+  });
+  const { delivery: draft } = await ok<{ delivery: Delivery }>(
+    call(state, "/api/log-deliveries", fields),
+  );
+  assert.equal(draft.marshal_name, "Olamilekan Alaga");
+  assert.equal(draft.created_by, boot.actor.id);
+  assert.equal(draft.creator_name, "B Traffic Marshal");
+  assert.notEqual(draft.marshal_id, draft.created_by);
+  assert.equal(draft.supplier_name, "Fictional Quarry");
+  assert.equal(draft.capture_mode, "simple");
+  assert.equal(draft.status, "Draft");
+  assert.equal(draft.vehicle, "");
+  assert.equal(draft.ticket_number, "");
+  assert.equal(draft.ticket_quantity, null);
+  assert.equal(draft.ticket_unit, "loads");
+  assert.equal(summarise(state.deliveries).arrivals, 5);
+  assert.equal(
+    (
+      await call(state, "/api/log-deliveries", {
+        ...fields,
+        intent: "submit",
+        version: draft.version,
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    state.deliveries.find((delivery) => delivery.id === draft.id)?.status,
+    "Draft",
+  );
+  const form = photo();
+  form.set("kind", "load");
+  await ok(call(state, `/api/deliveries/${draft.id}/evidence`, form));
+  state.members.find((member) => member.id === draft.marshal_id)!.name =
+    "Updated catalogue display name";
+  const { delivery } = await ok<{ delivery: Delivery }>(
+    call(state, "/api/log-deliveries", {
+      ...fields,
+      intent: "submit",
+      version: draft.version,
+    }),
+  );
+  assert.equal(delivery.status, "Submitted");
+  assert.equal(delivery.evidence.length, 1);
+  assert.equal(delivery.marshal_name, "Olamilekan Alaga");
+  assert.equal(delivery.supplier_name, "Fictional Quarry");
+  assert.equal(delivery.accepted_quantity, null);
+  assert.equal(delivery.accepted_unit, null);
+  assert.equal(summarise(state.deliveries).arrivals, 6);
+  assert.equal(
+    state.audit.find(
+      (event) =>
+        event.action === "delivery.submitted" && event.entity_id === draft.id,
+    )?.actor_id,
+    boot.actor.id,
+  );
+});
+
+test("simple retries cannot duplicate arrivals or mutate saved fields, and legacy routes cannot bypass photos", async () => {
+  const state = createDemoState(),
+    fields = simpleInput(state);
+  const { delivery } = await ok<{ delivery: Delivery }>(
+    call(state, "/api/log-deliveries", fields),
+  );
+  await ok(call(state, "/api/log-deliveries", fields));
+  for (const patch of [
+    { supplier_name: "Changed supplier" },
+    { material_id: state.materials[1].id },
+    { marshal_id: demoBootstrap(state).marshals![1].id },
+    { arrival_at: new Date(Date.now() - 60_000).toISOString() },
+  ]) {
+    assert.equal(
+      (
+        await call(state, "/api/log-deliveries", {
+          ...fields,
+          ...patch,
+          intent: "submit",
+          version: delivery.version,
+        })
+      ).status,
+      409,
+    );
+  }
+  assert.equal(
+    (
+      await call(
+        state,
+        `/api/deliveries/${delivery.id}`,
+        input(state, { id: delivery.id, version: delivery.version }),
+        "PATCH",
+      )
+    ).status,
+    409,
+  );
+  const form = photo();
+  form.set("kind", "load");
+  await ok(call(state, `/api/deliveries/${delivery.id}/evidence`, form));
+  assert.equal(
+    (
+      await call(state, "/api/log-deliveries", {
+        ...fields,
+        intent: "submit",
+        version: delivery.version + 1,
+      })
+    ).status,
+    409,
+  );
+  const submission = { ...fields, intent: "submit", version: delivery.version };
+  const saved = await ok<{ delivery: Delivery }>(
+    call(state, "/api/log-deliveries", submission),
+  );
+  const retry = await ok<{ delivery: Delivery }>(
+    call(state, "/api/log-deliveries", submission),
+  );
+  assert.deepEqual(retry, saved);
+  assert.equal(
+    state.deliveries.filter((record) => record.id === fields.id).length,
+    1,
+  );
+  assert.equal(
+    state.audit.filter(
+      (event) =>
+        event.entity_id === fields.id && event.action === "delivery.created",
+    ).length,
+    1,
+  );
+  assert.equal(
+    state.audit.filter(
+      (event) =>
+        event.entity_id === fields.id && event.action === "delivery.submitted",
+    ).length,
+    1,
+  );
+  assert.equal(summarise(state.deliveries).arrivals, 6);
+});
+
+test("simple logging rejects unassigned marshals, invalid suppliers, future times and image-free first submission", async () => {
+  const state = createDemoState(),
+    fields = simpleInput(state);
+  for (const supplier of ["", "  ", "x".repeat(201), null]) {
+    assert.equal(
+      (
+        await call(state, "/api/log-deliveries", {
+          ...fields,
+          supplier_name: supplier,
+        })
+      ).status,
+      400,
+    );
+  }
+  assert.equal(
+    (await call(state, "/api/log-deliveries", { ...fields, intent: "submit" }))
+      .status,
+    400,
+  );
+  assert.equal(
+    (
+      await call(state, "/api/log-deliveries", {
+        ...fields,
+        marshal_id: crypto.randomUUID(),
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await call(state, "/api/log-deliveries", {
+        ...fields,
+        arrival_at: new Date(Date.now() + 3600_000).toISOString(),
+      })
+    ).status,
+    400,
+  );
+  const second = demoBootstrap(state).marshals![1];
+  state.members.find((member) => member.id === second.id)!.site_ids = [];
+  assert.equal(
+    (
+      await call(state, "/api/log-deliveries", {
+        ...fields,
+        marshal_id: second.id,
+      })
+    ).status,
+    400,
+  );
+  state.materials[0].active = false;
+  assert.equal((await call(state, "/api/log-deliveries", fields)).status, 400);
+  assert.equal(state.deliveries.length, 5);
+});
+
+test("gate sees only their own records and photos, no audit snapshots, while the supervisor sees the authorised site", async () => {
+  const state = createDemoState(),
+    fields = simpleInput(state);
+  const { delivery } = await ok<{ delivery: Delivery }>(
+    call(state, "/api/log-deliveries", fields),
+  );
+  const form = photo(),
+    evidenceId = String(form.get("id"));
+  form.set("kind", "load");
+  await ok(call(state, `/api/deliveries/${delivery.id}/evidence`, form));
+  await ok(
+    call(state, "/api/log-deliveries", {
+      ...fields,
+      intent: "submit",
+      version: delivery.version,
+    }),
+  );
+  await ok(call(state, "/api/demo/profile", { profile: "olamilekan" }));
+  const ola = demoBootstrap(state);
+  assert.equal(ola.deliveries.length, 0);
+  assert.equal(ola.audit.length, 0);
+  assert.equal((await call(state, `/api/evidence/${evidenceId}`)).status, 404);
+  assert.equal((await call(state, "/api/log-deliveries", fields)).status, 404);
+  await role(state, "supervisor");
+  assert(
+    demoBootstrap(state).deliveries.some((record) => record.id === fields.id),
+  );
+  assert.equal((await call(state, `/api/evidence/${evidenceId}`)).status, 200);
+  assert.equal(
+    (
+      await call(state, "/api/log-deliveries", {
+        ...fields,
+        id: crypto.randomUUID(),
+      })
+    ).status,
+    403,
+  );
 });

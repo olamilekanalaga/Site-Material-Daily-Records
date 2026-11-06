@@ -1,6 +1,6 @@
 # DJCU — construction delivery management
 
-DJCU captures arrivals, keeps ticket evidence, separates supervisor receipt checks from gate entries, and produces daily site reports. The interface uses the supplied DJ Civils logo. The proposed pilot remains **unofficial and unauthorised**; all included supplier, ticket and delivery records are fictional. The named demo profiles are for demonstration only.
+DJCU is a two-page delivery log: traffic marshals record deliveries on Home, and supervisors inspect saved Delivery Records and private photos. The interface uses the supplied DJ Civils logo. The proposed pilot remains **unofficial and unauthorised**; all included supplier, ticket and delivery records are fictional. The named demo profiles are for demonstration only.
 
 The original reporting app remains outside `saas/` and is not served by DJCU.
 
@@ -14,24 +14,24 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000` or `http://localhost:3000/demo` and click one of the two square profile tiles: **B Traffic Marshal** or **Olamilekan Alaga**. Either opens the software directly as a traffic marshal. New deliveries record the chosen name; **Switch marshal** lets you choose the other profile. Reloading keeps your current demo session.
+Open `http://localhost:3000/demo` and click one of the two square profile cards: **B Traffic Marshal** or **Olamilekan Alaga**. Both use placeholder portraits until approved photos are provided. The delivery form opens within Home and records the selected marshal. Reloading keeps your current demo session; select a marshal again to resume any pending save.
 
 **No email, password, Supabase project, environment variables or backend session are needed for `/demo`.** The landing page and interactive demo also work on a deployment with no team backend configured.
 
-1. As **Gate staff**, choose **Record delivery**, select a material and enter fictional arrival details. Add a sample image if desired, then submit.
-2. Use **Demo role** to switch to **Supervisor**. Open the verification queue, inspect the record and make a simulated receipt decision. Ticket quantity and accepted quantity remain separate.
-3. Switch to **Site manager** to review tallies, filter reports, download CSV or print.
-4. Switch to **Administrator** to explore sample catalogue/site settings.
+1. Select a marshal, choose a material, enter a fictional supplier/company, check the editable site-local time and take or upload a sample image.
+2. Press **Save Delivery**. Successful saving clears the form for the next delivery. The date and submission timestamp are recorded automatically. No vehicle registration, quantity or ticket number is required.
+3. Open **Delivery Records** to see saved rows, newest arrival first, and filter by date or material.
+4. Choose **View as supervisor** to inspect all sample site deliveries and open their photos. **Back to marshal entry** returns to Home.
 
-Use **Reset demo** to remove this browser's demo records, attached photos and demo drafts and restore the fictional samples. **Exit demo** returns to the landing page. Changes persist across page reloads until reset or browser storage is cleared.
+**Sign out** returns to the landing page. Changes persist across page reloads until browser site storage is cleared. The simplified interface does not expose the previous dashboards, reports, administration screens or review queue; their historical data and compatible backend routes remain intact.
 
 ### What the demo stores
 
 Demo records and photos stay in this browser's IndexedDB. The demo does not send them to the company APIs, create a real user session, or share them with other visitors. Its separate databases keep sample records and drafts away from authenticated team drafts.
 
-Role switching is a simulation for exploring the workflow, not real authentication or a production security boundary. An “Accepted” demo record represents a simulated decision; it does not establish that any material physically arrived. A ticket photograph documents a ticket and is not independent proof of delivery.
+Role switching is a simulation for exploring the workflow, not real authentication or a production security boundary. Saving a delivery or uploading a photo never marks physical receipt as verified. Historical review decisions remain stored separately.
 
-Use fictional information only. IndexedDB is not encrypted against someone controlling the device/browser profile. Browser storage can be unavailable, full or cleared, and these sample records have no server backup. Reset the demo before handing a shared device to someone else.
+Use fictional information only. IndexedDB is not encrypted against someone controlling the device/browser profile. Browser storage can be unavailable, full or cleared, and these sample records have no server backup. Clear the browser's site data before handing a demo device to someone else.
 
 ## Authenticated team workspace
 
@@ -46,15 +46,17 @@ npm run dev
 
 Set `APP_MODE=local` explicitly. Local mode accepts localhost requests only, uses Node's built-in SQLite, and refuses to run on Vercel. Fictional accounts are `gate@demo.invalid`, `supervisor@demo.invalid`, `manager@demo.invalid` and `admin@demo.invalid`, each with password `DemoPass123!`. Local server records and private photos persist in `.local-data/pilot.sqlite`; this is separate from the public browser demo.
 
-Production team operation uses Supabase Authentication, PostgreSQL RLS, private Storage and checked transactional workflow functions. The app uses each employee's identity rather than a runtime service-role key. Employees belong to one company and can have multiple site assignments; supervisors cannot verify their own arrivals. Corrections, reviews and evidence remain auditable. Historical tallies stay separate from individual deliveries; incompatible quantity units are never combined.
+Production team operation uses Supabase Authentication, PostgreSQL RLS, private Storage and checked transactional functions. The app uses each employee's identity rather than a runtime service-role key. Selecting a marshal records attribution separately from the authenticated creator. Gate employees can capture deliveries and view only their own records/photos; assigned supervisors can inspect their site's records. Historical deliveries and quantities are preserved. Operator-managed company/site/marshal setup remains outside the two-page interface.
+
+Apply the additive `202611060001_simple_delivery_log.sql` migration after the original schema before using this version with an existing Supabase database. It adds marshal metadata and the simple logging function without resetting delivery or historical-summary records. The original API remains compatible with older clients, so historical or legacy deliveries without images show **No photo**. The new simple form requires an image.
 
 See [Supabase setup and deployment](docs/DEPLOYMENT.md) and [security boundaries](docs/SECURITY.md) before configuring an authenticated hosted pilot. Obtain company permission before collecting private records. No hosted Supabase verification or live URL is claimed by this README.
 
 ## Offline support
 
-The already-open app can save drafts and photo files locally. In the team workspace, **Saved locally** and **Upload pending** are distinct from a confirmed server submission. Stable record/photo IDs allow retries without another counted arrival. Reconnect or choose **Retry pending**; an expired session requires signing in again.
+Pressing **Save Delivery** keeps the attempt and photo on the device before uploading. A failed upload/save shows an error and retains the same record/photo IDs for a safe retry. Refresh, select the same marshal and press **Save Delivery** to resume. An offline device copy is never presented as a confirmed server save. Fields are locked once an attempt is prepared so retries cannot silently alter its contents. Unsaved typing is not automatically preserved before the first save attempt.
 
-The browser demo completes its simulated workflow locally. Neither mode promises a full offline cold start or background uploads after the browser closes. The service worker does not cache authenticated APIs or private photos. Keep a capture page open on unreliable site connections and use managed devices for an authorised pilot.
+The browser demo completes its simulated workflow locally. Neither mode promises a full offline cold start or background uploads after the browser closes. Authenticated APIs and private photos are not cached by a service worker. An expired session requires signing in again. JPEG, PNG and WebP images are accepted up to **3 MiB**; HEIC conversion and automatic compression are not implemented.
 
 ## Tests
 
@@ -66,7 +68,7 @@ npm run test:demo
 npm run test:e2e
 ```
 
-Verified demo coverage: **18 demo engine tests** and **12 browser tests** across phone, tablet and desktop. Browser checks cover one-click profile entry without credentials/backend requests, distinct marshal attribution, photo and manual capture, simulated supervisor review, reports/CSV, persistence and reset. The complete unit/SQL suite currently passes **39 tests**.
+The unit/SQL suite passes **58 tests**, and authenticated/API plus credential-free demo browser suites pass **32 tests**. The production build passed using `npm run build -- --webpack`; the default Turbopack worker port is blocked in this workspace. The automated checks cover the new simple workflow, migration preservation, permissions, private evidence, duplicate retries, site time/DST and previous backend behaviour. See [validation results](docs/VALIDATION.md) for the latest browser and release-build checks.
 
 `npm run test:demo` uses `playwright.demo.config.ts` and deliberately starts without a configured backend. `npm run test:e2e` exercises the separate authenticated local adapter. Install Chromium with `npx playwright install chromium` if needed; the configuration uses `/usr/bin/chromium` when available. PostgreSQL policy tests use PGlite with mocked Supabase identity/storage metadata. Those tests do not replace a real Supabase Auth/Storage smoke test when credentials are supplied.
 
@@ -75,10 +77,12 @@ Verified demo coverage: **18 demo engine tests** and **12 browser tests** across
 | Path                              | Purpose                                                         |
 | --------------------------------- | --------------------------------------------------------------- |
 | `src/app/demo/`, `src/lib/demo/`  | Credential-free browser demo and persistent fictional state     |
-| `src/components/`                 | Capture, register, review, reports and administration           |
+| `src/components/simple-*.tsx`     | Home, inline delivery form and filtered records/photo viewer    |
+| `src/components/login.tsx`        | Existing team sign-in and credential-free demo entry            |
 | `src/app/api/`, `src/lib/server/` | Authenticated team APIs, validation and storage adapters        |
-| `src/lib/offline.ts`              | Separate demo/team drafts and retry handling                    |
+| `src/lib/simple-drafts.ts`        | Separate demo/team pending attempts and idempotent image upload |
+| `src/lib/site-time.ts`            | Site-local dates/times independent of the phone timezone        |
 | `supabase/migrations/`            | Production schema, tenant/site RLS and private-storage policies |
 | `tests/`                          | Demo, domain, SQL and browser tests                             |
 
-P0 focuses on delivery accountability. Purchase order, invoice and reconciliation tables prepare for P1; commercial screens, OCR, billing and broader site operations are later work. No paid construction API is required.
+The next step is an approved hosted Supabase smoke test and a short gate-user trial of this simple flow. Analytical reporting can be added later without changing historical records. No paid construction API is required. Production releases require explicit approval; see the deployment instructions above.

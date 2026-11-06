@@ -3593,3 +3593,682 @@ code {
     transform: none;
   }
 }
+
+/* The delivery log keeps its two working pages independent of the legacy shell. */
+.simple-app {
+  min-height: 100vh;
+  background: #f5f3ef;
+  color: #242422;
+}
+.simple-app button,
+.simple-app input,
+.simple-app select {
+  min-height: 48px;
+}
+.simple-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 16px max(24px, calc((100vw - 1040px) / 2));
+  background: #191a18;
+  color: #f9f7f2;
+}
+.simple-header .djcu-brand-compact {
+  flex-direction: row;
+  gap: 16px;
+  width: auto;
+  padding: 0;
+  border: 0;
+}
+.simple-header .djcu-logo-surface {
+  width: 128px;
+}
+.simple-header .djcu-wordmark {
+  display: block;
+  width: auto;
+  padding: 2px 0 2px 16px;
+  border-left: 1px solid #8d7250;
+}
+.simple-header .djcu-wordmark strong {
+  font-size: 23px;
+}
+.simple-header .djcu-wordmark span {
+  display: block;
+  border: 0;
+  padding: 0;
+  margin-top: 7px;
+  font-size: 7px;
+}
+.simple-identity {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  font-size: 12px;
+  color: #c9c3b9;
+}
+.simple-identity strong {
+  display: block;
+  color: white;
+  font-size: 14px;
+  margin-top: 2px;
+}
+.simple-signout {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 13px;
+  border: 1px solid #635747;
+  border-radius: 7px;
+  font-size: 12px;
+  color: #f2e9db;
+}
+.simple-signout:hover {
+  background: #302c25;
+}
+.simple-workspace-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 12px max(24px, calc((100vw - 1040px) / 2));
+  background: #eae2d4;
+  border-bottom: 1px solid #dcd0bd;
+  color: #655640;
+  font-size: 12px;
+}
+.simple-workspace-bar > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.simple-workspace-bar strong {
+  color: #483b27;
+}
+.simple-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: 11px;
+}
+.simple-connection svg {
+  flex-shrink: 0;
+}
+.simple-connection.is-offline {
+  color: #8b4f1f;
+}
+.simple-main {
+  max-width: 1088px;
+  padding: 24px 24px 0;
+  margin: 0 auto;
+  min-width: 0;
+}
+.simple-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+.simple-navigation nav {
+  display: flex;
+  gap: 8px;
+  padding: 5px;
+  border: 1px solid #e1dace;
+  border-radius: 10px;
+  background: white;
+}
+.simple-navigation nav button {
+  padding: 11px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.simple-navigation nav button[aria-current="page"] {
+  background: #262720;
+  color: #fff;
+}
+.simple-navigation nav button:hover:not([aria-current="page"]) {
+  background: #f3efe7;
+}
+.simple-refresh {
+  background: transparent;
+  font-size: 12px;
+}
+.simple-demo-view {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 5px;
+}
+.simple-demo-view .text-button {
+  color: #735530;
+  font-size: 12px;
+}
+.simple-page-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 30px 0 26px;
+}
+.simple-demo-view + main .simple-page-title {
+  margin-top: 14px;
+}
+.simple-page-title h1 {
+  font-size: 30px;
+  line-height: 1.2;
+  letter-spacing: -0.8px;
+}
+.simple-page-title p {
+  margin-top: 9px;
+  color: #6e685e;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.simple-site-name {
+  max-width: 100%;
+  color: #756b5b;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.simple-site-select {
+  min-width: 190px;
+  max-width: 100%;
+  font-size: 12px;
+}
+.simple-site-select select {
+  font-size: 14px;
+}
+.simple-marshal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 230px));
+  gap: 20px;
+  width: 100%;
+  margin-bottom: 28px;
+}
+.simple-marshal-card {
+  display: block;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 3px solid transparent;
+  border-radius: 14px;
+  background: #ddd5c8;
+  box-shadow: 0 3px 15px #2520170a;
+  text-align: left;
+}
+.simple-marshal-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.simple-marshal-card > span {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 63px;
+  padding: 14px 16px;
+  background: #24251ff5;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.simple-marshal-card > span svg {
+  flex-shrink: 0;
+  color: #e5c796;
+}
+.simple-marshal-card:hover {
+  border-color: #beaa88;
+}
+.simple-marshal-card[aria-pressed="true"] {
+  border-color: #9c7946;
+  box-shadow: 0 0 0 3px #b9986a2b;
+}
+.simple-panel {
+  min-width: 0;
+  background: white;
+  border: 1px solid #e1dace;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.simple-entry {
+  max-width: 720px;
+  padding: 28px;
+}
+.simple-panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 24px;
+}
+.simple-panel-title h2 {
+  font-size: 21px;
+  letter-spacing: -0.5px;
+}
+.simple-panel-title p {
+  margin-top: 5px;
+  color: #70685b;
+  font-size: 13px;
+}
+.simple-entry fieldset {
+  display: grid;
+  gap: 23px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.simple-entry label {
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.simple-entry input,
+.simple-entry select,
+.simple-filters input,
+.simple-filters select {
+  min-height: 52px;
+  border-color: #d6cdbf;
+  border-radius: 7px;
+  font-size: 16px;
+}
+.simple-entry label small,
+.simple-upload > small {
+  font-size: 12px;
+  font-weight: 400;
+  color: #7b7162;
+}
+.simple-upload > label {
+  margin-bottom: 10px;
+}
+.simple-image-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.simple-image-controls .secondary {
+  font-size: 13px;
+  min-height: 49px;
+  border-color: #cebea6;
+  background: #faf7f1;
+  padding: 11px 16px;
+}
+.simple-image-controls .simple-upload-button {
+  flex-direction: row;
+  font-size: 13px;
+  cursor: pointer;
+}
+.simple-entry .simple-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.simple-image-controls:has(.simple-file-input:focus-visible)
+  .simple-upload-button {
+  outline: 3px solid #967443;
+  outline-offset: 3px;
+}
+.simple-image-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  margin-top: 15px;
+  border-radius: 8px;
+  border: 1px solid #e5daca;
+  background: #faf8f4;
+}
+.simple-image-preview img {
+  width: 85px;
+  height: 85px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  object-fit: cover;
+}
+.simple-image-preview span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #716657;
+  font-size: 12px;
+}
+.simple-help {
+  margin-top: 13px;
+  color: #756d61;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.7;
+}
+.simple-error,
+.simple-success {
+  padding: 14px 16px;
+  margin: 18px 0;
+  border: 1px solid #e3bbae;
+  border-radius: 7px;
+  background: #fff2ec;
+  color: #963d29;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.simple-error .text-button {
+  color: #963d29;
+  font-size: 12px;
+  margin-top: 5px;
+}
+.simple-success {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border-color: #cddabd;
+  background: #f0f5e9;
+  color: #45612e;
+}
+.simple-success svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.simple-save {
+  min-height: 54px;
+  margin-top: 24px;
+  padding: 14px 28px;
+  font-size: 15px;
+}
+.simple-filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 24px;
+}
+.simple-filters label {
+  min-width: 180px;
+  flex: 1;
+  font-size: 13px;
+}
+.simple-filters button {
+  min-height: 52px;
+  font-size: 13px;
+}
+.simple-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.simple-table {
+  width: 100%;
+  min-width: 770px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+.simple-table th {
+  padding: 15px 20px;
+  background: #f7f3ec;
+  border-block: 1px solid #e7dfd2;
+  color: #71624b;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.simple-table td {
+  padding: 18px 20px;
+  border-bottom: 1px solid #eee8dd;
+  vertical-align: middle;
+  max-width: 230px;
+  overflow-wrap: anywhere;
+}
+.simple-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.simple-photo-button {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
+  border-radius: 5px;
+  padding: 0;
+  text-align: left;
+  color: #79592d;
+  font-size: 11px;
+}
+.simple-photo-button > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.simple-thumbnail {
+  width: 72px;
+  height: 56px;
+  border-radius: 5px;
+  object-fit: cover;
+  background: #eee9df;
+}
+.simple-photo-dialog {
+  max-width: min(720px, calc(100vw - 32px));
+  width: 100%;
+  max-height: calc(100dvh - 32px);
+  padding: 24px;
+  border: 1px solid #d3c5ad;
+  border-radius: 12px;
+  color: #242422;
+  background: white;
+  overflow-y: auto;
+  box-shadow: 0 20px 80px #16150e44;
+}
+.simple-photo-dialog::backdrop {
+  background: #171713a6;
+}
+.simple-photo-dialog .simple-panel-title {
+  margin-bottom: 16px;
+}
+.simple-photo-full {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  margin: 12px auto;
+  object-fit: contain;
+}
+.simple-empty {
+  padding: 35px 24px;
+  font-size: 14px;
+  color: #746a5b;
+  line-height: 1.7;
+  text-align: center;
+}
+.simple-table-note {
+  padding: 17px 24px;
+  border-top: 1px solid #ece5d8;
+  color: #7b7060;
+  font-size: 12px;
+}
+.simple-footer {
+  max-width: 1088px;
+  padding: 30px 24px;
+  margin: 20px auto 0;
+  color: #877a65;
+  font-size: 11px;
+}
+.simple-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+  background: #191a18;
+  color: #f8f4ec;
+  text-align: center;
+}
+.simple-loading .primary {
+  background: #b9986a;
+  color: #171713;
+}
+.simple-loading .secondary {
+  color: #242422;
+}
+@media (max-width: 650px) {
+  .simple-header {
+    gap: 12px;
+    padding: 13px 20px 15px;
+  }
+  .simple-header .djcu-logo-surface {
+    width: 120px;
+  }
+  .simple-header .djcu-brand-compact {
+    gap: 13px;
+  }
+  .simple-header .djcu-wordmark {
+    padding-left: 13px;
+  }
+  .simple-identity {
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+  }
+  .simple-identity > span {
+    min-width: 0;
+    font-size: 11px;
+  }
+  .simple-identity strong {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+  .simple-signout {
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+  .simple-workspace-bar {
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 20px;
+    font-size: 11px;
+  }
+  .simple-connection {
+    max-width: 110px;
+    font-size: 10px;
+  }
+  .simple-main {
+    padding: 20px 18px 0;
+  }
+  .simple-navigation {
+    gap: 9px;
+  }
+  .simple-navigation nav {
+    flex: 1;
+    gap: 3px;
+    padding: 4px;
+  }
+  .simple-navigation nav button {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .simple-refresh {
+    width: 48px;
+    padding: 10px;
+  }
+  .simple-refresh span {
+    display: none;
+  }
+  .simple-page-title {
+    margin-top: 25px;
+    gap: 10px;
+  }
+  .simple-page-title h1 {
+    font-size: 28px;
+  }
+  .simple-page-title p {
+    font-size: 13px;
+  }
+  .simple-site-name {
+    font-size: 11px;
+  }
+  .simple-marshal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 23px;
+  }
+  .simple-marshal-card {
+    border-radius: 10px;
+  }
+  .simple-marshal-card > span {
+    min-height: 59px;
+    padding: 12px;
+    font-size: 14px;
+  }
+  .simple-entry {
+    padding: 23px 19px;
+  }
+  .simple-panel-title {
+    margin-bottom: 23px;
+  }
+  .simple-panel-title h2 {
+    font-size: 20px;
+  }
+  .simple-image-controls {
+    gap: 8px;
+  }
+  .simple-image-controls .secondary {
+    flex: 1;
+    padding: 11px 10px;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .simple-image-controls .simple-upload-button {
+    font-size: 12px;
+  }
+  .simple-save {
+    width: 100%;
+    min-height: 55px;
+  }
+  .simple-filters {
+    gap: 14px;
+    padding: 20px 18px;
+  }
+  .simple-filters label {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .simple-filters button {
+    width: 100%;
+  }
+  .simple-table-note {
+    padding: 15px 18px;
+    font-size: 11px;
+  }
+  .simple-photo-dialog {
+    padding: 20px 16px;
+  }
+  .simple-footer {
+    padding: 25px 18px;
+  }
+  .simple-loading .djcu-brand {
+    flex-direction: column;
+    gap: 20px;
+  }
+  .simple-loading .djcu-wordmark {
+    border: 0;
+    padding: 0;
+  }
+}

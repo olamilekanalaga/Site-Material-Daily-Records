@@ -41,6 +41,13 @@ export type CatalogueItem = {
   name: string;
   active: boolean;
 };
+export type Marshal = {
+  id: string;
+  company_id: string;
+  site_id: string;
+  name: string;
+  active: boolean;
+};
 export type Evidence = {
   id: string;
   delivery_id: string;
@@ -67,6 +74,10 @@ export type Delivery = {
   site_id: string;
   material_id: string;
   supplier_id: string | null;
+  supplier_name?: string;
+  marshal_id?: string;
+  marshal_name?: string;
+  capture_mode?: "simple" | "legacy";
   vehicle: string;
   ticket_number: string;
   ticket_quantity: number | null;
@@ -85,6 +96,16 @@ export type Delivery = {
   version: number;
   evidence: Evidence[];
   reviews: Review[];
+};
+export type SimpleDeliveryInput = {
+  id: string;
+  site_id: string;
+  material_id: string;
+  marshal_id: string;
+  supplier_name: string;
+  arrival_at: string;
+  intent: "draft" | "submit";
+  version?: number;
 };
 export type DeliveryInput = {
   id: string;
@@ -129,6 +150,7 @@ export type Bootstrap = {
   sites: Site[];
   materials: CatalogueItem[];
   suppliers: CatalogueItem[];
+  marshals?: Marshal[];
   deliveries: Delivery[];
   audit: AuditEvent[];
   historical: HistoricalSummary[];

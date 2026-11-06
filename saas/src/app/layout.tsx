@@ -3,7 +3,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "DJCU | Delivery Control",
   description:
-    "DJCU construction delivery control. Capture arrivals, review receipt and keep a clear site record.",
+    "DJCU construction delivery log. Record deliveries, save photos and inspect clear site records.",
   manifest: "/manifest.webmanifest",
   robots: { index: false, follow: false },
 };
