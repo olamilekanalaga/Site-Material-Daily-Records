@@ -71,10 +71,14 @@ async function capture(page: Page, marshal: string, supplier: string) {
     page.getByRole("heading", { name: "New Delivery", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
+  await expect(page.getByText("Quick Record", { exact: true })).toHaveCount(0);
   await page
-    .getByRole("region", { name: "Quick Record", exact: true })
-    .getByRole("button", { name: "6F5", exact: true })
+    .getByRole("combobox", { name: "Item / material / activity", exact: true })
     .click();
+  await page
+    .getByRole("searchbox", { name: "Search items", exact: true })
+    .fill("6F5");
+  await page.getByRole("option", { name: "6F5", exact: true }).click();
   await page
     .getByLabel("Supplier / Company name", { exact: true })
     .fill(supplier);

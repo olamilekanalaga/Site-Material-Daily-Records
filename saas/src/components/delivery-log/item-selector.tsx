@@ -167,7 +167,6 @@ export function ItemSelector({
                   onClick={() => select(item)}
                 >
                   <span>{item.name}</span>
-                  <small>{item.category}</small>
                 </button>
               ))}
               <button

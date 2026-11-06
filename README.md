@@ -1,6 +1,6 @@
 # DJ Civils delivery log
 
-The active application lives in [`saas/`](saas/README.md). Traffic marshals start at **Sign in as**, choose their photo to open **Delivery Records**, then use **Record New Delivery** for the entry form. The browser demo now supports searchable delivery and service items, automatic classification, Quick Record shortcuts and supervisor review of unknown items. The proposed DJ Civils pilot is unofficial; included delivery records are fictional.
+The active application lives in [`saas/`](saas/README.md). Traffic marshals start at **Sign in as**, choose their photo to open **Delivery Records**, then use **Record New Delivery** for the entry form. The browser demo supports one searchable item dropdown, automatic classification and supervisor review of unknown items. The proposed DJ Civils pilot is unofficial; included delivery records are fictional.
 
 ## Run the SaaS
 
