@@ -1,5 +1,5 @@
 {
-  "name": "site-ledger-saas",
+  "name": "djcu-delivery-control",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx tests/all.ts",
     "test:e2e": "playwright test",
-    "check": "npm run typecheck && npm test && npm run build"
+    "check": "npm run typecheck && npm test && npm run build",
+    "test:demo": "playwright test --config=playwright.demo.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",

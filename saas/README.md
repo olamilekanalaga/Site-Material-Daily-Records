@@ -1,86 +1,84 @@
-# Site Ledger — delivery pilot
+# DJCU — construction delivery management
 
-A runnable Next.js application for gate capture, independent supervisor verification and daily site reporting. This is the new SaaS application; the repository's original static dashboard remains unchanged outside `saas/` and is not served by this app.
+DJCU captures arrivals, keeps ticket evidence, separates supervisor receipt checks from gate entries, and produces daily site reports. The interface uses the supplied DJ Civils logo. The proposed pilot remains **unofficial and unauthorised**; every included supplier, person, ticket and delivery is fictional.
 
-**DJ Civils Demo — Unofficial Prototype.** The proposed pilot has no company approval. Seeded people, suppliers, vehicles, tickets and deliveries are fictional. Do not put real company records in the local demo. The application does not import the existing dashboard's records or infer individual truck visits from historical tallies.
+The original reporting app remains outside `saas/` and is not served by DJCU.
 
-## Run the fictional local demo
+## Explore the public demo
 
-Use Node.js **22.13 or newer**; Node.js 24 is recommended. Local persistence uses Node's built-in SQLite module.
+Use Node.js **22.13 or newer**; Node.js 24 is recommended.
 
 ```bash
 cd saas
 npm ci
+npm run dev
+```
+
+Open `http://localhost:3000` and choose **Explore demo**, or go directly to `http://localhost:3000/demo`.
+
+**No email, password, Supabase project, environment variables or backend session are needed for `/demo`.** The landing page and interactive demo also work on a deployment with no team backend configured.
+
+1. As **Gate staff**, choose **Record delivery**, select a material and enter fictional arrival details. Add a sample image if desired, then submit.
+2. Use **Demo role** to switch to **Supervisor**. Open the verification queue, inspect the record and make a simulated receipt decision. Ticket quantity and accepted quantity remain separate.
+3. Switch to **Site manager** to review tallies, filter reports, download CSV or print.
+4. Switch to **Administrator** to explore sample catalogue/site settings.
+
+Use **Reset demo** to remove this browser's demo records, attached photos and demo drafts and restore the fictional samples. **Exit demo** returns to the landing page. Changes persist across page reloads until reset or browser storage is cleared.
+
+### What the demo stores
+
+Demo records and photos stay in this browser's IndexedDB. The demo does not send them to the company APIs, create a real user session, or share them with other visitors. Its separate databases keep sample records and drafts away from authenticated team drafts.
+
+Role switching is a simulation for exploring the workflow, not real authentication or a production security boundary. An “Accepted” demo record represents a simulated decision; it does not establish that any material physically arrived. A ticket photograph documents a ticket and is not independent proof of delivery.
+
+Use fictional information only. IndexedDB is not encrypted against someone controlling the device/browser profile. Browser storage can be unavailable, full or cleared, and these sample records have no server backup. Reset the demo before handing a shared device to someone else.
+
+## Authenticated team workspace
+
+Team sign-in stays separate from `/demo`. It uses the configured backend and real session/permission checks; entering the demo never grants access to a company workspace. An unconfigured deployment offers the public demo without exposing backend configuration errors to visitors.
+
+For the **local authenticated development adapter**:
+
+```bash
 cp .env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000`. `APP_MODE=local` must be explicitly set. Local mode accepts localhost requests only and refuses to run on Vercel. It is a functional development adapter, not the production tenant-isolation boundary.
+Set `APP_MODE=local` explicitly. Local mode accepts localhost requests only, uses Node's built-in SQLite, and refuses to run on Vercel. Fictional accounts are `gate@demo.invalid`, `supervisor@demo.invalid`, `manager@demo.invalid` and `admin@demo.invalid`, each with password `DemoPass123!`. Local server records and private photos persist in `.local-data/pilot.sqlite`; this is separate from the public browser demo.
 
-| Fictional account | Email | Password |
-| --- | --- | --- |
-| Gate employee | `gate@demo.invalid` | `DemoPass123!` |
-| Supervisor | `supervisor@demo.invalid` | `DemoPass123!` |
-| Site manager | `manager@demo.invalid` | `DemoPass123!` |
-| Company administrator | `admin@demo.invalid` | `DemoPass123!` |
+Production team operation uses Supabase Authentication, PostgreSQL RLS, private Storage and checked transactional workflow functions. The app uses each employee's identity rather than a runtime service-role key. Employees belong to one company and can have multiple site assignments; supervisors cannot verify their own arrivals. Corrections, reviews and evidence remain auditable. Historical tallies stay separate from individual deliveries; incompatible quantity units are never combined.
 
-Additional isolated company/site users exist for the automated access-control tests. The initial demonstration site is **Demo Riverside**. Materials include GF5, G1, Type 1, Sand, 10mm shingles, 20mm shingles and Other. Sample accepted, submitted, rejected and flagged records are fictional.
+See [Supabase setup and deployment](docs/DEPLOYMENT.md) and [security boundaries](docs/SECURITY.md) before configuring an authenticated hosted pilot. Obtain company permission before collecting private records. No hosted Supabase verification or live URL is claimed by this README.
 
-SQLite records, sessions, audit events and private image bytes persist in `.local-data/pilot.sqlite` unless `LOCAL_DATA_DIR` specifies another directory. They are not under `public/`. To reset the fictional demo, stop the server and remove its `.local-data` directory; this permanently deletes that local demo's records. IndexedDB drafts on the browser are separate and can be removed through **Drafts & uploads → Discard**.
+## Offline support
 
-## Complete the workflow
+The already-open app can save drafts and photo files locally. In the team workspace, **Saved locally** and **Upload pending** are distinct from a confirmed server submission. Stable record/photo IDs allow retries without another counted arrival. Reconnect or choose **Retry pending**; an expired session requires signing in again.
 
-1. Sign in as the gate employee. Choose **Record delivery**, select a material, enter arrival details and optionally photograph a ticket, vehicle or load. Manual entry and photography feed the same delivery record. Submit incomplete arrivals when necessary; the supervisor's acceptance rules identify required information.
-2. Sign in separately as the supervisor. Open **Verification queue**, inspect the record and private evidence, then start review, accept, reject, flag or request correction. Acceptance requires a separate physical-receipt confirmation and accepted quantity. Rejection, flags and correction requests keep their reasons. The recorder cannot verify their own arrival.
-3. Sign in as the manager. Review the delivery register and **Daily reports**. Filter by date, supplier, material and current site; export CSV or print. Recorded arrivals count distinct submitted records. Ticket and accepted quantities remain separate; different units are never added together or converted automatically.
-4. As the administrator, add sites, employees, materials and suppliers, assign site access, and configure ticket-number/photo requirements for acceptance. In Supabase mode, an Auth user must first be provisioned or invited by an authorised operator, then assigned to the company in the app.
+The browser demo completes its simulated workflow locally. Neither mode promises a full offline cold start or background uploads after the browser closes. The service worker does not cache authenticated APIs or private photos. Keep a capture page open on unreliable site connections and use managed devices for an authorised pilot.
 
-Each delivery has a stable UUID. Retry and correction preserve its identity rather than adding another arrival. Receipt statuses and commercial statuses are separate. A physically accepted delivery is not a commercial match or an authorisation to pay.
-
-## Offline behaviour
-
-The already-open application can save form fields and image files in IndexedDB. **Saved locally** and **Upload pending** are device states, not server submission or supervisor approval. Stable delivery/photo IDs make retries idempotent. Pending uploads retry when the authenticated app reconnects, or through **Retry pending**. If a session expires, sign in again as the same employee and resume the queue.
-
-This release does not provide background synchronisation or a complete offline cold-start application shell. The service worker never caches authenticated API responses or private photographs. An offline navigation fallback explains how to return when connectivity is available. Keep an active capture page open on unreliable connections. Device storage can be unavailable, full or removed by the browser; until synchronisation, local drafts exist only on that device. Use managed devices and discard unneeded drafts before handing a shared device to someone else.
-
-## Production architecture
-
-- Next.js App Router, TypeScript, React and Tailwind CSS.
-- Same-origin server APIs validate input, authenticate sessions and authorise actions.
-- Supabase Authentication, PostgreSQL with Row Level Security and private Supabase Storage.
-- Checked transactional database functions handle creation, correction, receipt decisions and administration. The web application uses the authenticated employee's token, never a service-role key.
-- Company/site-scoped reads, original evidence and audit history. A platform role does not automatically grant company-document access.
-- A separate historical-summary table preserves counts and review confidence without fabricating individual deliveries.
-- Purchase order, invoice and reconciliation tables are foundations for P1; commercial workflows, OCR, billing and broader site operations are not implemented in P0.
-
-V1 employees belong to one company and can have multiple site assignments. A company administrator manages their company. Ordinary site roles see assigned sites only. There is no public registration flow that can self-assign a privileged role.
-
-Read [deployment and Supabase setup](docs/DEPLOYMENT.md) and [security boundaries](docs/SECURITY.md) before configuring a hosted environment.
-
-## Validation
+## Tests
 
 ```bash
 npm run typecheck
 npm test
 npm run build
+npm run test:demo
 npm run test:e2e
 ```
 
-Unit/database tests run with Node's test runner through `tsx`. SQL tests exercise PostgreSQL RLS using PGlite with a minimal mocked Supabase `auth`/`storage` schema. Playwright tests run against an isolated local SQLite directory and cover API access controls and browser workflows at mobile/tablet sizes. Install Chromium with `npx playwright install chromium` if no supported browser is installed. The test configuration uses `/usr/bin/chromium` when available.
+Verified demo coverage: **13 demo engine tests** and **9 browser tests** covering three workflows on phone, tablet and desktop. Browser checks cover one-click entry without credentials/backend requests, photo and manual capture, simulated supervisor review, reports/CSV, persistence and reset. The complete unit/SQL suite currently passes **34 tests**.
 
-PGlite and local browser tests do not replace a smoke test against an actual configured Supabase Auth/Storage project. See the implementation handoff for the test results obtained in this environment; the commands above are the reproducible checks, not a claim that hosted services were available.
+`npm run test:demo` uses `playwright.demo.config.ts` and deliberately starts without a configured backend. `npm run test:e2e` exercises the separate authenticated local adapter. Install Chromium with `npx playwright install chromium` if needed; the configuration uses `/usr/bin/chromium` when available. PostgreSQL policy tests use PGlite with mocked Supabase identity/storage metadata. Those tests do not replace a real Supabase Auth/Storage smoke test when credentials are supplied.
 
-## Source map
+## Source map and next phase
 
-| Path | Responsibility |
+| Path | Purpose |
 | --- | --- |
-| `src/components/` | Gate capture, register, review, reports and administration interfaces |
-| `src/app/api/` | Authenticated server endpoints and exports |
-| `src/lib/server/` | Validation, permissions, local adapter and Supabase adapter |
-| `src/lib/offline.ts` | IndexedDB drafts, resumable photo uploads and submission retries |
-| `src/lib/reporting.ts` | Unit-aware summaries and site-date handling |
-| `supabase/migrations/` | Production schema, constraints, RLS, workflow functions and private-storage policies |
-| `tests/` | Database, domain and end-to-end tests |
-| `.env.example` | Explicit local/production configuration template |
+| `src/app/demo/`, `src/lib/demo/` | Credential-free browser demo and persistent fictional state |
+| `src/components/` | Capture, register, review, reports and administration |
+| `src/app/api/`, `src/lib/server/` | Authenticated team APIs, validation and storage adapters |
+| `src/lib/offline.ts` | Separate demo/team drafts and retry handling |
+| `supabase/migrations/` | Production schema, tenant/site RLS and private-storage policies |
+| `tests/` | Demo, domain, SQL and browser tests |
 
-No paid construction API is required. Photographs support traceability; a ticket image, signed ticket or GPS position is not independent proof of the correct material quantity arriving. The application improves accountability and does not claim to eliminate fraud.
+P0 focuses on delivery accountability. Purchase order, invoice and reconciliation tables prepare for P1; commercial screens, OCR, billing and broader site operations are later work. No paid construction API is required.

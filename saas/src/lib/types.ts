@@ -133,7 +133,7 @@ export type Bootstrap = {
   audit: AuditEvent[];
   historical: HistoricalSummary[];
   members: Actor[];
-  mode: "local" | "supabase";
+  mode: "local" | "supabase" | "demo";
 };
 export type ReviewInput = {
   decision:

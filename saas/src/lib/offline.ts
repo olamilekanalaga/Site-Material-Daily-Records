@@ -14,12 +14,34 @@ export type LocalDraft = {
   updated_at: string;
   error?: string;
 };
-const database = () =>
-  openDB("site-ledger-offline", 1, {
+const openDraftDatabase = (name: string) =>
+  openDB(name, 1, {
     upgrade(db) {
       db.createObjectStore("drafts", { keyPath: "id" });
     },
   });
+export const isDemoPath = () =>
+  typeof window !== "undefined" &&
+  /^\/demo(?:\/|$)/.test(window.location.pathname);
+const database = () =>
+  openDraftDatabase(isDemoPath() ? "djcu-demo-drafts" : "site-ledger-offline");
+
+export async function clearDemoDrafts() {
+  const db = await openDraftDatabase("djcu-demo-drafts");
+  await db.clear("drafts");
+}
+
+export async function transport(url: string, options: RequestInit = {}) {
+  if (isDemoPath()) {
+    const { demoFetch } = await import("./demo/browser");
+    return demoFetch(url, options);
+  }
+  return fetch(url, {
+    ...options,
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+}
 export async function saveDraft(draft: LocalDraft) {
   const db = await database();
   await db.put("drafts", draft);
@@ -39,7 +61,7 @@ export async function request<T>(
   url: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(url, {
+  const response = await transport(url, {
     ...options,
     credentials: "same-origin",
     cache: "no-store",
@@ -57,6 +79,20 @@ export async function request<T>(
     throw new Error(body.error || `Request failed (${response.status})`);
   }
   return response.json();
+}
+
+export async function downloadReport(url: string) {
+  const response = await transport(url);
+  if (!response.ok)
+    throw new Error("The report could not be downloaded. Please try again.");
+  const href = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = href;
+  anchor.download = "djcu-demo-delivery-report.csv";
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(href), 1000);
 }
 const inFlight = new Map<string, Promise<string[]>>();
 export function synchroniseDraft(draft: LocalDraft): Promise<string[]> {

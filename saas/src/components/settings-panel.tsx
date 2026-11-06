@@ -189,12 +189,12 @@ export function SettingsPanel({
           }}
         >
           <h3>
-            {data.mode === "local"
+            {data.mode !== "supabase"
               ? "Add fictional employee"
               : "Assign an existing Auth user"}
           </h3>
           <p className="muted">
-            {data.mode === "local"
+            {data.mode !== "supabase"
               ? "Local accounts are for fictional demonstration only."
               : "Create or invite the Auth user with the operator provisioning script first. Their verified user ID is required."}
           </p>
@@ -206,7 +206,11 @@ export function SettingsPanel({
             Employee email
             <input name="email" type="email" required />
           </label>
-          {data.mode === "local" ? (
+          {data.mode === "demo" ? (
+            <p className="muted">
+              Sample team members do not receive invitations or passwords.
+            </p>
+          ) : data.mode === "local" ? (
             <label>
               Initial password
               <input
