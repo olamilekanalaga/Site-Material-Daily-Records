@@ -79,14 +79,19 @@ function db() {
 function seedMarshals() {
   // Add catalogue entries to existing local demo databases without resetting data.
   for (const s of all<Site>("site")) {
-    const names =
+    const profiles =
       s.company_id === C
-        ? ["B Traffic Marshal", "Olamilekan Alaga"]
-        : ["Other Demo Marshal"];
-    for (const name of names) {
-      const key = hash(`marshal:${s.id}:${name}`);
+        ? [
+            { seedName: "B Traffic Marshal", name: "B" },
+            { seedName: "Olamilekan Alaga", name: "Olamilekan Alaga" },
+          ]
+        : [{ seedName: "Other Demo Marshal", name: "Other Demo Marshal" }];
+    for (const { seedName, name } of profiles) {
+      // Display-name changes must preserve IDs referenced by saved deliveries.
+      const key = hash(`marshal:${s.id}:${seedName}`);
       const id = `${key.slice(0, 8)}-${key.slice(8, 12)}-4${key.slice(13, 16)}-8${key.slice(17, 20)}-${key.slice(20, 32)}`;
-      if (!get<Marshal>("marshal", id))
+      const existing = get<Marshal>("marshal", id);
+      if (!existing)
         put("marshal", {
           id,
           company_id: s.company_id,
@@ -94,6 +99,8 @@ function seedMarshals() {
           name,
           active: true,
         });
+      else if (existing.name === seedName && existing.name !== name)
+        put("marshal", { ...existing, name });
     }
   }
 }

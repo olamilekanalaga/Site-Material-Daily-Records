@@ -216,7 +216,7 @@ export function SimpleApp({
         <div>
           {demo ? (
             <>
-              <strong>Fictional demo</strong>
+              <strong>Demo workspace</strong>
               <span>Saved only in this browser.</span>
             </>
           ) : (
@@ -224,7 +224,7 @@ export function SimpleApp({
               <strong>{data.company.name}</strong>
               <span>
                 {data.mode === "local"
-                  ? "Fictional local workspace"
+                  ? "Local demo workspace"
                   : "Private workspace"}
               </span>
             </>

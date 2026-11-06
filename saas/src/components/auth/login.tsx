@@ -57,8 +57,7 @@ export function Login({
             Explore demo <ArrowRight size={18} />
           </a>
           <small>
-            Fictional records only. Demo changes and photos stay in your
-            browser.
+            Sample records. Demo changes and photos stay in your browser.
           </small>
         </div>
         {workspaceEnabled ? (
@@ -134,7 +133,7 @@ export function Login({
         {localDemo && (
           <details className="demo-logins">
             <summary>Local development accounts</summary>
-            <p>Fictional accounts for this local environment only.</p>
+            <p>Sample accounts for this local environment only.</p>
             <p>
               gate@demo.invalid · supervisor@demo.invalid · manager@demo.invalid
               · admin@demo.invalid

@@ -85,7 +85,11 @@ test("demo opens without credentials and uses only clearly fictional sample data
   );
   assert.equal(boot.historical.length, 0);
   assert.equal(Object.keys(state.files).length, 0);
-  assert(boot.suppliers.every((item) => item.name.includes("fictional")));
+  assert.deepEqual(
+    boot.suppliers.map((item) => item.name),
+    ["Example Aggregates", "Sample Quarry", "Demo Building Supplies"],
+  );
+  assert.equal(boot.sites[0].name, "Demonstration Site");
   assert.equal(
     (
       await call(state, "/api/auth/login", {
@@ -96,6 +100,121 @@ test("demo opens without credentials and uses only clearly fictional sample data
     404,
   );
   assert(!JSON.stringify(state).includes("real@example.com"));
+});
+
+test("ten fictional samples are split between the two named marshals with scoped views", async () => {
+  const state = createDemoState(new Date("2026-11-06T10:00:00Z"));
+  const b = demoBootstrap(state);
+  assert.equal(state.deliveries.length, 10);
+  assert.equal(new Set(state.deliveries.map((item) => item.id)).size, 10);
+  assert.equal(b.deliveries.length, 5);
+  assert(b.deliveries.every((item) => item.marshal_name === "B"));
+  await ok(call(state, "/api/demo/profile", { profile: "olamilekan" }));
+  const ola = demoBootstrap(state);
+  assert.equal(ola.deliveries.length, 5);
+  assert(
+    ola.deliveries.every((item) => item.marshal_name === "Olamilekan Alaga"),
+  );
+  assert(
+    ola.deliveries.every(
+      (item) =>
+        item.status === "Submitted" &&
+        item.accepted_quantity === null &&
+        item.reviews.length === 0 &&
+        item.notes.includes("Fictional"),
+    ),
+  );
+  await role(state, "supervisor");
+  const supervisor = demoBootstrap(state);
+  assert.equal(supervisor.deliveries.length, 10);
+  assert.deepEqual(
+    [...new Set(supervisor.deliveries.map((item) => item.marshal_name))].sort(),
+    ["B", "Olamilekan Alaga"],
+  );
+});
+
+test("five-row browser upgrades retain uploaded records and history while adding samples once", async () => {
+  const state = createDemoState(new Date("2026-11-06T10:00:00Z"));
+  const fields = input(state, { intent: "draft", ticket_number: "KEEP-THIS" });
+  const { delivery: draft } = await ok<{ delivery: Delivery }>(
+    call(state, "/api/deliveries", fields),
+  );
+  const upload = photo();
+  await ok(call(state, `/api/deliveries/${draft.id}/evidence`, upload));
+  await ok(
+    call(
+      state,
+      `/api/deliveries/${draft.id}`,
+      { ...fields, intent: "submit", version: draft.version },
+      "PATCH",
+    ),
+  );
+  // Recreate an earlier browser database: five fixtures plus an uploaded record.
+  const originalIds = new Set(
+    state.deliveries.slice(0, 5).map((item) => item.id),
+  );
+  originalIds.add(draft.id);
+  state.deliveries = state.deliveries.filter((item) =>
+    originalIds.has(item.id),
+  );
+  state.audit = state.audit.filter((event) => originalIds.has(event.entity_id));
+  state.members[0].name = "Alex · Demo gate";
+  state.sites[0].name = "Demonstration Site — fictional";
+  for (const supplier of state.suppliers) supplier.name += " — fictional";
+  const customSupplier = {
+    id: crypto.randomUUID(),
+    company_id: state.company.id,
+    name: "My fictional supplier",
+    active: true,
+  };
+  state.suppliers.push(customSupplier);
+  for (const delivery of state.deliveries) {
+    delivery.creator_name = "Alex · Demo gate";
+    delivery.marshal_id = state.members[0].id;
+    delivery.marshal_name = "B Traffic Marshal";
+    delivery.supplier_name = state.suppliers.find(
+      (supplier) => supplier.id === delivery.supplier_id,
+    )?.name;
+  }
+  delete state.sample_data_version;
+  const originals = structuredClone(state.deliveries);
+  const history = structuredClone(state.audit);
+  const originalFiles = state.files;
+  migrateDemoState(state);
+  migrateDemoState(state);
+  assert.equal(state.deliveries.length, 11);
+  assert.equal(new Set(state.deliveries.map((item) => item.id)).size, 11);
+  for (const original of originals)
+    assert.deepEqual(
+      state.deliveries.find((item) => item.id === original.id),
+      original,
+    );
+  assert.deepEqual(state.audit.slice(0, history.length), history);
+  assert.equal(state.audit.length, history.length + 5);
+  assert.equal(state.files, originalFiles);
+  assert.deepEqual(
+    new Uint8Array(await state.files[String(upload.get("id"))].arrayBuffer()),
+    new Uint8Array(await png.arrayBuffer()),
+  );
+  await role(state, "supervisor");
+  const upgraded = demoBootstrap(state);
+  const visible = upgraded.deliveries;
+  assert.equal(visible.length, 11);
+  assert.equal(upgraded.sites[0].name, "Demonstration Site");
+  assert.equal(upgraded.suppliers[0].name, "Example Aggregates");
+  assert.equal(upgraded.suppliers.at(-1)?.name, customSupplier.name);
+  assert(visible.every((item) => !item.supplier_name?.includes("fictional")));
+  assert.equal(visible.find((item) => item.id === draft.id)?.marshal_name, "B");
+  assert(
+    visible.every((item) =>
+      ["B", "Olamilekan Alaga"].includes(item.marshal_name!),
+    ),
+  );
+  assert(
+    visible.every((item) =>
+      ["B", "Olamilekan Alaga"].includes(item.creator_name),
+    ),
+  );
 });
 
 test("complete gate photo capture, supervisor receipt and manager reporting workflow stays local", async () => {
@@ -197,7 +316,7 @@ test("stable IDs protect repeated creation, photo upload and submission from dou
     ).length,
     1,
   );
-  assert.equal(summarise(state.deliveries).arrivals, 6);
+  assert.equal(summarise(state.deliveries).arrivals, 11);
 });
 
 test("duplicate supplier ticket numbers produce an investigation warning", async () => {
@@ -380,7 +499,7 @@ test("correction retains original input history, first submission time and a sin
     ),
   ));
   assert.equal(delivery.submitted_at, firstSubmitted);
-  assert.equal(summarise(state.deliveries).arrivals, 6);
+  assert.equal(summarise(state.deliveries).arrivals, 11);
   const correction = state.audit.find(
     (event) =>
       event.action === "delivery.corrected" && event.entity_id === fields.id,
@@ -541,7 +660,7 @@ test("administrator catalogues, sites and aggregates work without storing creden
     }),
   );
   assert.equal(state.historical.length, 1);
-  assert.equal(summarise(state.deliveries).arrivals, 5);
+  assert.equal(summarise(state.deliveries).arrivals, 10);
   await ok(
     call(state, "/api/admin", {
       action: "member",
@@ -576,12 +695,12 @@ test("unknown and external routes never escape to a real API", async () => {
 
 test("named marshal profiles have distinct gate identities and retain delivery attribution", async () => {
   assert.deepEqual(demoProfiles, [
-    { id: "b", name: "B Traffic Marshal", initials: "B" },
+    { id: "b", name: "B", initials: "B" },
     { id: "olamilekan", name: "Olamilekan Alaga", initials: "OA" },
   ]);
   const state = createDemoState();
   const firstActor = demoBootstrap(state).actor;
-  assert.equal(firstActor.name, "B Traffic Marshal");
+  assert.equal(firstActor.name, "B");
   const bInput = input(state, { intent: "draft", ticket_number: "B-DEMO" });
   const { delivery: bDraft } = await ok<{ delivery: Delivery }>(
     call(state, "/api/deliveries", bInput),
@@ -614,7 +733,7 @@ test("named marshal profiles have distinct gate identities and retain delivery a
   );
   assert.equal(olaDelivery.creator_name, "Olamilekan Alaga");
   assert.equal(olaDelivery.created_by, selected.actor.id);
-  assert.equal(bDraft.creator_name, "B Traffic Marshal");
+  assert.equal(bDraft.creator_name, "B");
   assert.equal(bDraft.created_by, firstActor.id);
   await ok(call(state, "/api/demo/profile", { profile: "b" }));
   assert.equal(demoBootstrap(state).actor.id, firstActor.id);
@@ -656,8 +775,8 @@ test("selected marshal survives role changes, logout and sample reset", async ()
   assert.equal(reset.actor.id, selected.actor.id);
   assert.equal(reset.actor.role, "gate");
   assert.equal(reset.actor.name, "Olamilekan Alaga");
-  assert.equal(reset.deliveries.length, 0);
-  assert.equal(state.deliveries.length, 5);
+  assert.equal(reset.deliveries.length, 5);
+  assert.equal(state.deliveries.length, 10);
   assert(!reset.deliveries.some((delivery) => delivery.id === captured.id));
   assert.equal(Object.keys(state.files).length, 0);
 });
@@ -682,7 +801,7 @@ test("legacy browser state migrates without changing old actor IDs, records, pho
   assert.equal(state.members.length, 5);
   assert.equal(state.gate_profile, "b");
   assert.equal(demoBootstrap(state).actor.id, oldGateId);
-  assert.equal(demoBootstrap(state).actor.name, "B Traffic Marshal");
+  assert.equal(demoBootstrap(state).actor.name, "B");
   assert.deepEqual(state.deliveries, oldDeliveries);
   assert.deepEqual(state.audit, oldHistory);
   assert.equal(state.files, filesBefore);
@@ -764,7 +883,7 @@ test("simple photo logging preserves chosen marshal, actual creator and supplier
   assert.equal(boot.marshals?.length, 2);
   assert.deepEqual(
     boot.marshals?.map((marshal) => marshal.name),
-    ["B Traffic Marshal", "Olamilekan Alaga"],
+    ["B", "Olamilekan Alaga"],
   );
   assert(
     boot.marshals?.every(
@@ -783,7 +902,7 @@ test("simple photo logging preserves chosen marshal, actual creator and supplier
   );
   assert.equal(draft.marshal_name, "Olamilekan Alaga");
   assert.equal(draft.created_by, boot.actor.id);
-  assert.equal(draft.creator_name, "B Traffic Marshal");
+  assert.equal(draft.creator_name, "B");
   assert.notEqual(draft.marshal_id, draft.created_by);
   assert.equal(draft.supplier_name, "Fictional Quarry");
   assert.equal(draft.capture_mode, "simple");
@@ -792,7 +911,7 @@ test("simple photo logging preserves chosen marshal, actual creator and supplier
   assert.equal(draft.ticket_number, "");
   assert.equal(draft.ticket_quantity, null);
   assert.equal(draft.ticket_unit, "loads");
-  assert.equal(summarise(state.deliveries).arrivals, 5);
+  assert.equal(summarise(state.deliveries).arrivals, 10);
   assert.equal(
     (
       await call(state, "/api/log-deliveries", {
@@ -825,7 +944,7 @@ test("simple photo logging preserves chosen marshal, actual creator and supplier
   assert.equal(delivery.supplier_name, "Fictional Quarry");
   assert.equal(delivery.accepted_quantity, null);
   assert.equal(delivery.accepted_unit, null);
-  assert.equal(summarise(state.deliveries).arrivals, 6);
+  assert.equal(summarise(state.deliveries).arrivals, 11);
   assert.equal(
     state.audit.find(
       (event) =>
@@ -910,7 +1029,7 @@ test("simple retries cannot duplicate arrivals or mutate saved fields, and legac
     ).length,
     1,
   );
-  assert.equal(summarise(state.deliveries).arrivals, 6);
+  assert.equal(summarise(state.deliveries).arrivals, 11);
 });
 
 test("simple logging rejects unassigned marshals, invalid suppliers, future times and image-free first submission", async () => {
@@ -963,7 +1082,7 @@ test("simple logging rejects unassigned marshals, invalid suppliers, future time
   );
   state.materials[0].active = false;
   assert.equal((await call(state, "/api/log-deliveries", fields)).status, 400);
-  assert.equal(state.deliveries.length, 5);
+  assert.equal(state.deliveries.length, 10);
 });
 
 test("gate sees only their own records and photos, no audit snapshots, while the supervisor sees the authorised site", async () => {
@@ -985,7 +1104,7 @@ test("gate sees only their own records and photos, no audit snapshots, while the
   );
   await ok(call(state, "/api/demo/profile", { profile: "olamilekan" }));
   const ola = demoBootstrap(state);
-  assert.equal(ola.deliveries.length, 0);
+  assert.equal(ola.deliveries.length, 5);
   assert.equal(ola.audit.length, 0);
   assert.equal((await call(state, `/api/evidence/${evidenceId}`)).status, 404);
   assert.equal((await call(state, "/api/log-deliveries", fields)).status, 404);

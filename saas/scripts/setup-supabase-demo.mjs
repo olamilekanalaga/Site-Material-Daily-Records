@@ -71,7 +71,7 @@ for (const [role, name] of [
 }
 await check(
   admin.from("traffic_marshals").insert(
-    ["B Traffic Marshal", "Olamilekan Alaga"].map((name) => ({
+    ["B", "Olamilekan Alaga"].map((name) => ({
       id: randomUUID(),
       company_id: company,
       site_id: site,
