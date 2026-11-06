@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 export const metadata: Metadata = {
-  title: "DJCU | Delivery Control",
+  title: "DJ Civils | Delivery Control",
   description:
-    "DJCU construction delivery log. Record deliveries, save photos and inspect clear site records.",
+    "DJ Civils construction delivery log. Record deliveries, save photos and inspect clear site records.",
   manifest: "/manifest.webmanifest",
   robots: { index: false, follow: false },
 };

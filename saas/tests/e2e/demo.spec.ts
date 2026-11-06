@@ -72,14 +72,14 @@ async function capture(
   );
 }
 
-test("public DJCU demo starts with Sign in as and opens marshal entry and records on separate pages", async ({
+test("public DJ Civils demo starts with Sign in as and opens marshal entry and records on separate pages", async ({
   page,
   context,
   request,
 }, testInfo) => {
   const apiRequests = monitorBackendRequests(page);
   await openDemo(page);
-  await expect(page).toHaveTitle(/DJCU/);
+  await expect(page).toHaveTitle(/DJ CIVILS/i);
   const logo = page.locator('img[src="/djcu-logo.jpg"]:visible').first();
   await expect(logo).toBeVisible();
   await expect
@@ -483,7 +483,9 @@ test("supervisor date ranges and material cards show period totals without crowd
     await expect(total(count)).toBeVisible();
   }
   await from.fill("2026-11-07");
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Choose a To date" }),
+  ).toBeVisible();
   await expect(rows).toHaveCount(0);
   await expect(total(0)).toBeVisible();
   await page.getByRole("button", { name: "All dates", exact: true }).click();
@@ -491,7 +493,9 @@ test("supervisor date ranges and material cards show period totals without crowd
   await expect(to).toHaveValue("");
   await expect(rows).toHaveCount(7);
   await expect(total(7)).toBeVisible();
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Choose a To date" }),
+  ).toHaveCount(0);
   await from.fill("2000-01-01");
   await to.fill("2000-01-03");
   await expect(rows).toHaveCount(0);

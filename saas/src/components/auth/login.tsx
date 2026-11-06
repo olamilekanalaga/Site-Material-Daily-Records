@@ -24,7 +24,7 @@ export function Login({
       <section className="login-story">
         <Brand />
         <div>
-          <span className="eyebrow">DJCU DELIVERY CONTROL</span>
+          <span className="eyebrow">DJ CIVILS DELIVERY CONTROL</span>
           <h1>
             Every arrival.
             <br />A clearer record.
@@ -43,8 +43,8 @@ export function Login({
         <small>Enabling · Groundworks · Civil Engineering</small>
       </section>
       <section className="login-form">
-        <div className="demo-pill">DJCU SOFTWARE</div>
-        <h2>Explore DJCU</h2>
+        <div className="demo-pill">DJ CIVILS SOFTWARE</div>
+        <h2>Explore DJ Civils</h2>
         <p>Quick delivery entry. Clear saved records.</p>
         <div className="demo-entry">
           <span className="eyebrow">INTERACTIVE SAMPLE WORKSPACE</span>

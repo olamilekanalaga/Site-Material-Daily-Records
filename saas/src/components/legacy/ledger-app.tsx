@@ -184,7 +184,7 @@ export function LedgerApp({
     return (
       <div className="loading">
         <HardHat size={36} />
-        <p>Opening DJCU…</p>
+        <p>Opening DJ Civils…</p>
       </div>
     );
   if (!data)
@@ -195,7 +195,7 @@ export function LedgerApp({
         <button className="primary" onClick={() => void load()}>
           Retry demo
         </button>
-        <a href="/">Back to DJCU</a>
+        <a href="/">Back to DJ Civils</a>
       </main>
     ) : (
       <Login
@@ -291,7 +291,7 @@ export function LedgerApp({
   return (
     <div className="app-shell">
       <aside className={`sidebar ${menu ? "open" : ""}`}>
-        <a href={demo ? "/demo" : "/"} aria-label="DJCU home">
+        <a href={demo ? "/demo" : "/"} aria-label="DJ Civils home">
           <Brand compact />
         </a>
         <div className="workspace-label">WORKSPACE</div>
@@ -370,7 +370,7 @@ export function LedgerApp({
           <a
             className="mobile-brand"
             href={demo ? "/demo" : "/"}
-            aria-label="DJCU home"
+            aria-label="DJ Civils home"
           >
             <img src="/djcu-logo.jpg" alt="DJ Civils Ltd" />
           </a>
@@ -417,9 +417,9 @@ export function LedgerApp({
           </span>
           <span>
             {data.mode === "demo"
-              ? "DJCU interactive demo · Fictional sample records. Changes and photos stay in this browser."
+              ? "DJ Civils interactive demo · Fictional sample records. Changes and photos stay in this browser."
               : data.mode === "local"
-                ? "DJCU sample workspace. All records are fictional. No company approval implied."
+                ? "DJ Civils sample workspace. All records are fictional. No company approval implied."
                 : `${data.company.name} · Private workspace.`}
           </span>
         </div>
@@ -427,7 +427,9 @@ export function LedgerApp({
           <div className="demo-toolbar">
             <div>
               <strong>
-                {data.actor.role === "gate" ? data.actor.name : "Explore DJCU"}
+                {data.actor.role === "gate"
+                  ? data.actor.name
+                  : "Explore DJ Civils"}
               </strong>
               <small>
                 Try each role to follow a delivery from gate to report.
@@ -816,7 +818,7 @@ export function LedgerApp({
           )}
           <footer className="footer">
             <span>
-              DJCU <span> / </span> Delivery accountability, from gate to
+              DJ Civils <span> / </span> Delivery accountability, from gate to
               report.
             </span>
             <span>

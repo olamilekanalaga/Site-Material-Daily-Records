@@ -136,7 +136,7 @@ export function SimpleApp({
     return (
       <main className="simple-loading">
         <Brand />
-        <p role="status">Opening DJCU…</p>
+        <p role="status">Opening DJ Civils…</p>
       </main>
     );
   }
@@ -191,7 +191,7 @@ export function SimpleApp({
       <header className="simple-header">
         <a
           href={demo ? (supervisorDemo ? "/demo/supervisor" : "/demo") : "/"}
-          aria-label="DJCU home"
+          aria-label="DJ Civils home"
         >
           <Brand compact />
         </a>
@@ -417,7 +417,7 @@ export function SimpleApp({
           )}
         </main>
       </div>
-      <footer className="simple-footer">DJCU · Delivery log</footer>
+      <footer className="simple-footer">DJ CIVILS · Delivery log</footer>
     </div>
   );
 }

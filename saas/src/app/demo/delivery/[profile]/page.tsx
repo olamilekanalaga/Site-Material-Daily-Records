@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { DemoAccess } from "@/components/demo/demo-access";
 
-export const metadata = { title: "DJCU | Record delivery demo" };
+export const metadata = { title: "DJ Civils | Record delivery demo" };
 
 export default async function DeliveryDemoPage({
   params,

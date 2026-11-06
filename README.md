@@ -1,4 +1,4 @@
-# DJCU delivery log
+# DJ Civils delivery log
 
 The active application lives in [`saas/`](saas/README.md). Traffic marshals start at **Sign in as**, choose their photo, record deliveries on a separate page and open **Delivery Records**. Supervisors have a separate entry directly into the records and photo viewer. The proposed DJ Civils pilot is unofficial; included delivery records are fictional.
 

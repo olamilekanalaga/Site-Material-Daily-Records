@@ -88,7 +88,7 @@ export async function downloadReport(url: string) {
   const href = URL.createObjectURL(await response.blob());
   const anchor = document.createElement("a");
   anchor.href = href;
-  anchor.download = "djcu-demo-delivery-report.csv";
+  anchor.download = "dj-civils-demo-delivery-report.csv";
   document.body.append(anchor);
   anchor.click();
   anchor.remove();

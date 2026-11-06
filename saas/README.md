@@ -1,8 +1,8 @@
-# DJCU — construction delivery management
+# DJ Civils — construction delivery management
 
-DJCU is a delivery log: traffic marshals choose their name, then record deliveries on a separate entry page, and supervisors inspect saved Delivery Records and private photos. The interface uses the supplied DJ Civils logo. The proposed pilot remains **unofficial and unauthorised**; all included supplier, ticket and delivery records are fictional. The named demo profiles are for demonstration only.
+DJ Civils is a delivery log: traffic marshals choose their name, then record deliveries on a separate entry page, and supervisors inspect saved Delivery Records and private photos. The interface uses the supplied DJ Civils logo. The proposed pilot remains **unofficial and unauthorised**; all included supplier, ticket and delivery records are fictional. The named demo profiles are for demonstration only.
 
-The original reporting app remains outside `saas/` and is not served by DJCU.
+The original reporting app remains outside `saas/` and is not served by DJ Civils.
 
 ## Explore the public demo
 
