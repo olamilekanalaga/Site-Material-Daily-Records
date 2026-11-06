@@ -10,11 +10,15 @@ The local adapter uses opaque random session tokens, server-side expiry, hashed 
 
 PostgreSQL Row Level Security scopes production reads to company membership and authorised site assignments. Composite foreign keys prevent linking a delivery, material, supplier or evidence row to another company's objects. Normal authenticated clients have no direct write permission to workflow tables. Checked transactional functions determine company identity from the session rather than accepting a tenant ID supplied by the client.
 
+The simple logger also restricts gate users to deliveries they created and their private images. Assigned supervisors retain site-wide read access. The selected marshal comes from a company/site-scoped catalogue; its name is snapshotted separately from the authenticated creator, so selecting a card cannot impersonate another account. Gate users receive no audit snapshots, including after a supervisor account is demoted. Notifications follow delivery read permissions.
+
 V1 permits one company membership per employee. Company administrators configure only their company; other roles need site assignments. Platform administrators have no automatic right to inspect company records or documents. Director/reporting roles cannot approve receipts or rewrite original evidence.
 
 There is no open registration or email-based role escalation. Initial company ownership and Supabase Auth users are created by an authorised operator. Subsequent administrator actions are checked and audited. Keep the service-role key in an operator-only environment: it is not a runtime application credential.
 
 ## Receipt decisions and originals
+
+The two-page interface records arrivals and displays saved records. Its save action never accepts or physically verifies a delivery. Existing review functions remain available for compatibility and historical audit, but are not exposed in this interface. Simple captures require a registered private image before submission; legacy APIs cannot alter or finalize a simple capture. Older legacy records may lack images and are labelled accordingly.
 
 Gate capture and supervisor receipt verification are different permissions. The supervisor must be assigned to the site and must not be the record creator. Version checks reject stale corrections and reviews. Only eligible statuses permit transitions; accepted/rejected records are not freely editable.
 
@@ -30,7 +34,7 @@ Uploads have a bounded request size and allow JPEG, PNG and WebP only, with file
 
 ## Browser and offline storage
 
-Authenticated API responses and evidence are excluded from service-worker caching. IndexedDB stores only explicitly saved local drafts and their photos, namespaced to the employee/company. Namespace separation is application behaviour, not encryption against someone controlling that browser profile. Signing out does not silently delete unsynchronised work. The user can discard local drafts; a managed shared-device retention policy is required before handling real company documents.
+Authenticated API responses and evidence are excluded from service-worker caching. IndexedDB stores explicitly attempted saves and their photos, namespaced to the employee/company/site/marshal. Namespace separation is application behaviour, not encryption against someone controlling that browser profile. Signing out does not silently delete unsynchronised work. The simplified form restores a pending attempt after the same marshal is selected; it has no discard/reset control. A managed shared-device retention policy is required before handling real company documents.
 
 An offline or pending record is never supervisor-approved locally. Acceptance requires a confirmed server response. Stable record IDs prevent a retry from counting a second vehicle arrival; photo IDs and content digests prevent silent replacement during upload recovery.
 
@@ -45,6 +49,6 @@ An offline or pending record is never supervisor-approved locally. Acceptance re
 
 ## Before an authorised live pilot
 
-Apply the migration to a dedicated Supabase project, configure HTTPS/origin and Auth settings, provision individual users with appropriate site assignments, and run a real Auth → upload → review → report smoke test. Verify the private bucket and RLS with a second company. Configure provider backups, a restore procedure, retention/deletion policy and secure operator access. Obtain company permission before collecting its records.
+Apply both migrations in order to a new Supabase project (only the additive migration on an existing pilot), configure HTTPS/origin and Auth settings, provision individual users with appropriate site assignments, and run a real login → marshal selection → image upload → save → supervisor record/photo inspection smoke test. Verify the private bucket and RLS with a second company. Configure provider backups, a restore procedure, retention/deletion policy and secure operator access. Obtain company permission before collecting its records.
 
 Automated local API/browser tests and PostgreSQL policy tests cover meaningful enforcement paths. They cannot establish the security of unconfigured hosted credentials, provider settings, backup access, personal devices or an unauthorised company deployment.

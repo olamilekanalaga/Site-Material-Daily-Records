@@ -24,7 +24,8 @@ export default defineConfig({
     env: {
       APP_MODE: "local",
       APP_ORIGIN: "http://127.0.0.1:3100",
-      LOCAL_DATA_DIR: ".local-data/e2e",
+      // Runtime SQLite/WAL writes must stay outside Turbopack's source watcher.
+      LOCAL_DATA_DIR: "/tmp/djcu-simple-e2e",
     },
   },
   projects: [

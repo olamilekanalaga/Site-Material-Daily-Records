@@ -1,4 +1,4 @@
-import { LedgerApp } from "@/components/ledger-app";
+import { SimpleApp } from "@/components/simple-app";
 export const dynamic = "force-dynamic";
 export default function Page() {
   const localDemo = process.env.APP_MODE === "local" && !process.env.VERCEL;
@@ -7,6 +7,6 @@ export default function Page() {
     (process.env.APP_MODE === "supabase" &&
       Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY));
   return (
-    <LedgerApp localDemo={localDemo} workspaceEnabled={workspaceEnabled} />
+    <SimpleApp localDemo={localDemo} workspaceEnabled={workspaceEnabled} />
   );
 }

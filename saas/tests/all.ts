@@ -3,3 +3,9 @@ import "./reporting.test";
 import "./database.test";
 import "./offline.test";
 import "./demo.test";
+
+import "./simple-database.test";
+
+import "./simple-local.test";
+
+import "./site-time.test";

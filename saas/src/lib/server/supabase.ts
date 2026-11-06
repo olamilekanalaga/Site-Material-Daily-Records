@@ -1,5 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Bootstrap, DeliveryInput, Evidence, ReviewInput } from "../types";
+import type {
+  Bootstrap,
+  DeliveryInput,
+  Evidence,
+  ReviewInput,
+  SimpleDeliveryInput,
+} from "../types";
 import { AppError, assert, uuid } from "./core";
 import { createHash } from "node:crypto";
 
@@ -23,7 +29,7 @@ function dbError(error: { message: string; code?: string } | null) {
         ? 403
         : error.code === "PGRST301"
           ? 401
-          : error.code === "23505"
+          : error.code === "23505" || error.code === "40001"
             ? 409
             : 400;
     throw new AppError(status, error.message);
@@ -78,6 +84,9 @@ export const remote = {
   },
   save(client: SupabaseClient, input: DeliveryInput) {
     return rpc(client, "save_delivery", { p_input: input });
+  },
+  log(client: SupabaseClient, input: SimpleDeliveryInput) {
+    return rpc(client, "log_delivery", { p_input: input });
   },
   review(client: SupabaseClient, id: string, input: ReviewInput) {
     return rpc(client, "review_delivery", { p_id: uuid(id), p_input: input });

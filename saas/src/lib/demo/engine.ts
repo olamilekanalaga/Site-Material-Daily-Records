@@ -10,6 +10,8 @@ import type {
   Review,
   ReviewInput,
   Role,
+  Marshal,
+  SimpleDeliveryInput,
   Site,
   Unit,
 } from "../types";
@@ -308,7 +310,9 @@ function record(state: DemoState, person: Actor, id: string): Delivery {
       canSite(person, item.site_id),
   );
   check(
-    found && (found.status !== "Draft" || found.created_by === person.id),
+    found &&
+      (person.role !== "gate" || found.created_by === person.id) &&
+      (found.status !== "Draft" || found.created_by === person.id),
     "Delivery not found",
     404,
   );
@@ -351,11 +355,16 @@ export function demoBootstrap(state: DemoState): Bootstrap {
     suppliers: state.suppliers.filter(
       (item) => item.company_id === person.company_id,
     ),
+    marshals: marshalCatalogue(state).filter(
+      (item) =>
+        item.company_id === person.company_id && canSite(person, item.site_id),
+    ),
     deliveries: state.deliveries
       .filter(
         (item) =>
           item.company_id === person.company_id &&
           canSite(person, item.site_id) &&
+          (person.role !== "gate" || item.created_by === person.id) &&
           (item.status !== "Draft" || item.created_by === person.id),
       )
       .sort((a, b) => b.arrival_at.localeCompare(a.arrival_at)),
@@ -363,6 +372,7 @@ export function demoBootstrap(state: DemoState): Bootstrap {
       .filter(
         (item) =>
           item.company_id === person.company_id &&
+          person.role !== "gate" &&
           (person.role === "company_admin" ||
             (item.site_id && canSite(person, item.site_id))),
       )
@@ -380,6 +390,203 @@ export function demoBootstrap(state: DemoState): Bootstrap {
         : [],
     mode: "demo",
   });
+}
+
+function marshalCatalogue(state: DemoState): Marshal[] {
+  const b = state.members.find(
+    (member) =>
+      member.role === "gate" &&
+      member.id !== olamilekanId &&
+      member.company_id === state.company.id,
+  );
+  const olamilekan = state.members.find(
+    (member) =>
+      member.id === olamilekanId &&
+      member.role === "gate" &&
+      member.company_id === state.company.id,
+  );
+  return [b, olamilekan].flatMap((member) =>
+    member
+      ? state.sites
+          .filter(
+            (item) =>
+              item.company_id === member.company_id &&
+              member.site_ids.includes(item.id),
+          )
+          .map((item) => ({
+            id: member.id,
+            name: member.name,
+            company_id: member.company_id,
+            site_id: item.id,
+            active: true,
+          }))
+      : [],
+  );
+}
+
+function parseSimpleDelivery(value: unknown): SimpleDeliveryInput {
+  const raw = object(value);
+  check(
+    raw.intent === "draft" || raw.intent === "submit",
+    "Invalid delivery intent",
+  );
+  check(
+    typeof raw.arrival_at === "string" &&
+      Number.isFinite(Date.parse(raw.arrival_at)) &&
+      Date.parse(raw.arrival_at) <= Date.now() + 300_000,
+    "Enter a valid arrival time that is not in the future",
+  );
+  check(
+    raw.version === undefined ||
+      (Number.isInteger(raw.version) && Number(raw.version) > 0),
+    "Invalid version",
+  );
+  return {
+    id: uuid(raw.id),
+    site_id: uuid(raw.site_id),
+    material_id: uuid(raw.material_id),
+    marshal_id: uuid(raw.marshal_id),
+    supplier_name: text(raw.supplier_name, 200, true),
+    arrival_at: new Date(raw.arrival_at).toISOString(),
+    intent: raw.intent,
+    version: raw.version as number | undefined,
+  };
+}
+
+function saveSimple(
+  state: DemoState,
+  person: Actor,
+  input: SimpleDeliveryInput,
+) {
+  check(
+    ["gate", "company_admin"].includes(person.role),
+    "You cannot record deliveries",
+    403,
+  );
+  site(state, person, input.site_id);
+  check(
+    state.materials.some(
+      (item) =>
+        item.id === input.material_id &&
+        item.company_id === person.company_id &&
+        item.active,
+    ),
+    "Material not available",
+  );
+  const marshal = marshalCatalogue(state).find(
+    (item) =>
+      item.id === input.marshal_id &&
+      item.company_id === person.company_id &&
+      item.site_id === input.site_id &&
+      item.active,
+  );
+  check(marshal, "Select an active traffic marshal assigned to this site");
+  const previous = state.deliveries.find((item) => item.id === input.id);
+  if (previous) {
+    check(
+      previous.company_id === person.company_id &&
+        canSite(person, previous.site_id) &&
+        previous.created_by === person.id,
+      "Delivery not found",
+      404,
+    );
+    check(
+      previous.capture_mode === "simple",
+      "This record uses the original capture workflow",
+      409,
+    );
+    check(
+      [
+        "site_id",
+        "material_id",
+        "marshal_id",
+        "supplier_name",
+        "arrival_at",
+      ].every(
+        (key) =>
+          previous[key as keyof Delivery] ===
+          input[key as keyof SimpleDeliveryInput],
+      ),
+      "This saved draft has different details. Start a new delivery to change them.",
+      409,
+    );
+    if (input.intent === "draft" || previous.submitted_at)
+      return { delivery: clone(previous) };
+    check(
+      previous.status === "Draft",
+      "Delivery cannot be submitted in this status",
+      409,
+    );
+    check(
+      input.version === previous.version,
+      "Record changed. Reload before submitting.",
+      409,
+    );
+    check(
+      previous.evidence.length > 0,
+      "Add a delivery image before submitting",
+    );
+    const before = clone(previous);
+    previous.status = "Submitted";
+    previous.submitted_at = now();
+    previous.updated_at = previous.submitted_at;
+    previous.version++;
+    audit(
+      state,
+      person,
+      "delivery.submitted",
+      previous.id,
+      previous.site_id,
+      before,
+      previous,
+    );
+    return { delivery: clone(previous) };
+  }
+  check(
+    input.intent === "draft",
+    "Save the draft and add a delivery image before submitting",
+  );
+  const stamp = now();
+  const delivery: Delivery = {
+    id: input.id,
+    company_id: person.company_id,
+    site_id: input.site_id,
+    material_id: input.material_id,
+    supplier_id: null,
+    supplier_name: input.supplier_name,
+    marshal_id: marshal.id,
+    marshal_name: marshal.name,
+    capture_mode: "simple",
+    vehicle: "",
+    ticket_number: "",
+    ticket_quantity: null,
+    ticket_unit: "loads",
+    arrival_at: input.arrival_at,
+    created_by: person.id,
+    creator_name: person.name,
+    created_at: stamp,
+    updated_at: stamp,
+    submitted_at: null,
+    status: "Draft",
+    commercial_status: "Not Linked",
+    notes: "",
+    accepted_quantity: null,
+    accepted_unit: null,
+    version: 1,
+    evidence: [],
+    reviews: [],
+  };
+  state.deliveries.push(delivery);
+  audit(
+    state,
+    person,
+    "delivery.created",
+    delivery.id,
+    delivery.site_id,
+    null,
+    delivery,
+  );
+  return { delivery: clone(delivery) };
 }
 function parseDelivery(value: unknown): DeliveryInput {
   const raw = object(value);
@@ -452,6 +659,11 @@ function save(
         canSite(person, previous.site_id),
       "Delivery not found",
       404,
+    );
+    check(
+      previous.capture_mode !== "simple",
+      "Use the simplified delivery form for this record",
+      409,
     );
     check(
       previous.created_by === person.id,
@@ -980,7 +1192,8 @@ function report(state: DemoState, person: Actor, params: URLSearchParams) {
     boot.sites.find((item) => item.id === delivery.site_id)?.name,
     delivery.arrival_at,
     boot.materials.find((item) => item.id === delivery.material_id)?.name,
-    boot.suppliers.find((item) => item.id === delivery.supplier_id)?.name,
+    delivery.supplier_name ??
+      boot.suppliers.find((item) => item.id === delivery.supplier_id)?.name,
     delivery.vehicle,
     delivery.ticket_number,
     delivery.status,
@@ -1079,6 +1292,8 @@ export async function dispatchDemo(
     }
     if (path === "/api/deliveries" && method === "POST")
       return json(save(state, person, parseDelivery(options.body), false));
+    if (path === "/api/log-deliveries" && method === "POST")
+      return json(saveSimple(state, person, parseSimpleDelivery(options.body)));
     const deliveryPath = path.match(
       /^\/api\/deliveries\/([^/]+)(?:\/(review|evidence))?$/,
     );

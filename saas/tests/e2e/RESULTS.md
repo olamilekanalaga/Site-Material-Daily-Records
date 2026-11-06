@@ -1,38 +1,28 @@
-# Browser and API verification
+# Browser and API verification — two-page logger
 
-Executed 5 November 2026 against the local Next.js application and persistent SQLite adapter using fictional records only.
+This update was tested locally with fictional data. **32/32 passed**: `npm run test:e2e` passed 26 tests (20 API and six authenticated browser scenarios); `npm run test:demo` passed six credential-free browser scenarios. See [VALIDATION.md](../../docs/VALIDATION.md) for release checks and limitations.
 
-Command: `npm run test:e2e`
+## Authenticated API coverage
 
-Result: **21 passed, 0 failed, 0 skipped** in 1.3 minutes.
+The suite retains the 15 legacy API regressions and adds five simple-logging checks:
 
-## API integration: 15 passed
+- Authenticated capture with material, company, marshal and site-local arrival time; automatic server submission timestamps.
+- Required private image before final save, stable IDs and repeated submissions without duplicates.
+- Marshal attribution remains separate from authenticated creator; client-supplied privileged fields cannot override server-owned values.
+- Company/site/creator access checks, including gate denial of another user's records and private images.
+- Immutable retries, legacy-endpoint bypass denial and invalid input handling.
 
-- Authentication, wrong-password denial, logout/session revocation and unauthenticated denial.
-- Manual capture persistence and idempotent submission with stable delivery IDs.
-- Private photo uploads, file signature validation, upload retries and interrupted-draft recovery.
-- Duplicate supplier/ticket warnings without discarding distinct arrivals.
-- Supervisor acceptance with independent accepted quantity; immutable ticket quantity; site manager visibility and audit history.
-- Rejection and flag reasons, optimistic version conflicts and invalid transition denial.
-- Correction history and resubmission without creating a duplicate arrival.
-- Tenant, site and material isolation, including known IDs from a second fictional company and an unassigned site.
-- Private document denial across companies and unassigned sites.
-- Directors cannot bypass capture or verification controls.
-- A recorder promoted to supervisor still cannot accept their own earlier record.
-- Quantities retain units, negative values are rejected and authorised CSV reports include separate ticket/accepted values.
-- Incomplete arrivals can be submitted while configured acceptance requirements remain enforced.
-- Cross-origin mutation denial.
-- Client-supplied tenant, creator, accepted status and server timestamp fields cannot override server-owned values.
+Legacy regressions continue covering authentication/logout, tenant isolation, file validation, duplicate-ticket warnings, original versus accepted quantities, supervisor review/corrections, audit history, reports and origin checks. Those older workflow screens are not part of the simplified interface.
 
-## Browser workflows: 6 passed
+## Authenticated browser coverage
 
-Two complete workflows passed at each viewport: iPhone 13 (390 CSS pixels), iPad Mini (768 CSS pixels), and desktop (1440 CSS pixels), using Chromium.
+Two scenarios run on iPhone 13 (390 px), iPad Mini (768 px) and desktop (1440 px), using Chromium:
 
-1. Gate login → material/manual entry → ticket photograph upload → submit → independent supervisor login → physical receipt checkbox and accepted quantity → server decision → independent manager login → daily report and export control.
-2. Gate entry → browser offline → save locally → resume local draft → queue while offline → reconnect → automatic retry → exactly one submitted record in register.
+1. Gate sign-in → square marshal cards → inline minimal form → camera/upload file → Save Delivery → form reset → persistence after refresh → independent supervisor sign-in → filtered six-column records → private photo inspection. The browser timezone differs from the site's timezone to check site-local time.
+2. Failed image upload → preserved attempt → refresh and reselect the marshal → retry → exactly one saved delivery. Missing/invalid images are checked before saving.
 
-Page width assertions passed for overview, capture form, filtered register and manager report. Overview and report screenshots were generated under the ignored `test-results/` directory; they are local verification artifacts, not public evidence or production records. The mobile overview screenshot was visually inspected and contained no horizontal page overflow.
+## Credential-free demo coverage
 
-## Boundaries
+Two scenarios run at the same three viewports. They cover named marshal selection, simple capture with a local photo, persistence after refresh, simulated supervisor record/photo viewing and filters. Network assertions confirm that this demo does not use company APIs or a real authenticated session.
 
-These are browser-emulation tests, not tests on physical phones/tablets or a hosted Supabase project. Camera capture is exercised through the actual file input with a synthetic PNG. Offline coverage starts from an authenticated loaded application and verifies draft storage/queue recovery; it does not claim a full offline authenticated reload. Hosted authentication, Storage and deployment still require the configured Supabase environment and operator smoke test documented in the setup instructions.
+Screenshots and traces are local ignored artifacts under `test-results/`. These are emulated-browser checks; real phone cameras, hosted Supabase Auth/Storage and a production deployment need separate verification. No live deployment is claimed.
