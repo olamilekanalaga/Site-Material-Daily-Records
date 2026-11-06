@@ -7,8 +7,8 @@ The proposed company pilot remains unofficial. Included deliveries and suppliers
 ## Record an arrival
 
 1. Open `/demo`, then choose **Bemigho Estano** or **Olamilekan Alaga**. Their existing records page opens.
-2. Choose **Record New Delivery**. Tap the item dropdown to open the full scrollable catalogue; optional **Search items** inside the dropdown helps find a name or alias.
-3. The dropdown shows item names only. Selecting a known item fills the separate category and entry-type boxes below it automatically.
+2. Choose **Record New Delivery**, then select **Category** first. The item dropdown is enabled for that category and shows only its items. Optional **Search items** inside the dropdown helps find a name or alias within that category.
+3. The item dropdown shows names only. Selecting a known item fills the separate entry-type box below it automatically. Changing category clears the previous item selection so an item from another category cannot remain selected.
 4. Add the company/supplier if known. Take or upload an image of the delivery evidence, such as a retained ticket where permitted. A truck photograph is not specifically required.
 5. Press **Save Delivery**. The app associates the selected marshal, records the timestamp and confirms the browser save. The known item remains selected for repeated arrivals; supplier and evidence are cleared for the next arrival.
 6. Choose **View Records** or **Back to Records** to inspect the saved row.
@@ -36,7 +36,7 @@ This workflow records **arrivals**. Waste-container delivery options do not intr
 
 ### Search and matching
 
-Search ignores capitalisation and normalises spacing and punctuation. Item names and explicit aliases provide matches; frequently used items are prioritised, and deterministic spelling suggestions help with minor typos. Examples include `type1` → **Type 1**, `wood` → **Timber**, `sweeper` → **Road sweeper**, and `10 mm` → **10mm shingles**.
+Search works within the selected category, ignores capitalisation and normalises spacing and punctuation. Item names and explicit aliases provide matches; frequently used items are prioritised, and deterministic spelling suggestions help with minor typos. Examples include `type1` → **Type 1** in Aggregates, `wood` → **Timber** in Timber, `sweeper` → **Road sweeper** in Site services, and `10 mm` → **10mm shingles** in Aggregates.
 
 Search suggestions require an explicit selection. An unfamiliar manually entered name is not assigned a category by fuzzy matching or an external model. Exact normalised names and registered aliases can reuse an existing item; spelling similarity alone cannot approve an unknown item.
 
@@ -44,7 +44,7 @@ Existing material IDs and names remain available. Ambiguous legacy names such as
 
 ## Unknown items and supervisor approval
 
-Choose **Other — Enter new item** and enter the item's name when no existing option fits. The app preserves that exact entered text on the arrival, sets the category to **Pending classification** and the entry type to **Pending review**, and saves without requiring classification first. Other normal save requirements, including evidence, still apply.
+Choose **Other / Not listed** in Category, or **Other — Enter new item** from any item list, and enter the item's name when no existing option fits. The manual-entry route preserves that exact entered text on the arrival, sets an unknown item's category to **Pending classification** and its entry type to **Pending review**, and saves without requiring classification first. A category used to browse the catalogue is not applied as a guess to a new item. Other normal save requirements, including evidence, still apply.
 
 The new name must contain at least one letter or number and be at most 160 characters. Whitespace-only or punctuation-only names are rejected with an editable validation error; valid unknown names do not need a guessed classification before saving.
 
@@ -56,7 +56,7 @@ To approve an item:
 2. Set the date range to include the affected arrivals. Expand **Pending classification** if necessary; each item shows its occurrence count in the selected period.
 3. Select an allowed category and either **Delivery** or **Service visit**.
 4. Choose **Approve item**. The demo engine checks the supervisor, site-manager or company-administrator role, validates both choices and records an audit event.
-5. Return to a marshal's form. The approved item becomes a normal searchable option and remains available after a refresh.
+5. Return to a marshal's form and select the approved category. The approved item becomes a normal searchable option within it and remains available after a refresh.
 
 Related rows and summaries use the item's current approved classification. Approval does not rewrite the original entered item text, creation timestamp, photos or delivery-review history. It does not create a new arrival and does not confirm physical receipt.
 

@@ -42,6 +42,12 @@ async function savedState(page: Page) {
 }
 const selector = (p: Page) =>
   p.getByRole("combobox", { name: "Item / material / activity", exact: true });
+const categorySelector = (p: Page) =>
+  p.getByRole("combobox", { name: "Category", exact: true });
+async function pickCategory(p: Page, category: string) {
+  if ((await categorySelector(p).inputValue()) !== category)
+    await categorySelector(p).selectOption({ value: category });
+}
 const rows = (p: Page) =>
   p
     .getByRole("table", { name: "Saved delivery records", exact: true })
@@ -51,11 +57,14 @@ async function entry(p: Page, profile = "olamilekan") {
   await expect(
     p.getByRole("heading", { name: "New Delivery", exact: true }),
   ).toBeVisible();
-  await expect(selector(p)).toBeEnabled();
+  await expect(categorySelector(p)).toBeEnabled();
+  await expect(selector(p)).toBeDisabled();
   await expect(p.getByText("Quick Record", { exact: true })).toHaveCount(0);
 }
+const itemList = (p: Page) =>
+  p.getByRole("listbox", { name: "Item / material / activity", exact: true });
 function itemOption(p: Page, name: string) {
-  return p.getByRole("option", { name, exact: true });
+  return itemList(p).getByRole("option", { name, exact: true });
 }
 async function search(p: Page, query: string) {
   if ((await selector(p).getAttribute("aria-expanded")) !== "true")
@@ -64,14 +73,16 @@ async function search(p: Page, query: string) {
     .getByRole("searchbox", { name: "Search items", exact: true })
     .fill(query);
 }
-async function choose(p: Page, query: string, name: string) {
+async function choose(p: Page, query: string, name: string, category: string) {
+  await pickCategory(p, category);
   await search(p, query);
   await itemOption(p, name).click();
 }
 async function classification(p: Page, category: string, type: string) {
+  await expect(categorySelector(p)).toHaveValue(category);
   await expect(
     p.locator('dl[aria-label="Automatic classification"] dd'),
-  ).toHaveText([category, type]);
+  ).toHaveText([type]);
 }
 async function attach(p: Page) {
   await p.getByLabel("Delivery image", { exact: true }).setInputFiles({
@@ -119,7 +130,7 @@ async function noOverflow(p: Page) {
   ).toBeLessThanOrEqual(1);
 }
 
-test("dropdown browsing and optional search derive categories; repeated arrivals use actual save timestamps", async ({
+test("category-first dropdown narrows items and repeated arrivals use actual save timestamps", async ({
   page,
 }, info) => {
   const observed = monitor(page);
@@ -127,19 +138,28 @@ test("dropdown browsing and optional search derive categories; repeated arrivals
   await entry(page);
   const baseline = await savedState(page);
   expect(baseline.deliveries).toHaveLength(30);
-  await expect(selector(page)).toHaveText("Choose an item");
+  await expect(selector(page)).toHaveText("Choose a category first");
   await expect(selector(page)).toHaveJSProperty("tagName", "BUTTON");
+  await expect(categorySelector(page)).toHaveValue("");
+  await pickCategory(page, "Aggregates");
+  await expect(selector(page)).toBeEnabled();
+  await expect(selector(page)).toHaveText("Choose an item");
   await selector(page).click();
   await expect(selector(page)).toHaveAttribute("aria-expanded", "true");
   await expect(
     page.getByRole("searchbox", { name: "Search items", exact: true }),
   ).toBeVisible();
   const approved = baseline.materials.filter(
-    (item) => item.active && item.approval_status === "Approved",
+    (item) =>
+      item.active &&
+      item.approval_status === "Approved" &&
+      item.category === "Aggregates",
   );
-  await expect(page.getByRole("option")).toHaveCount(approved.length + 1);
+  await expect(itemList(page).getByRole("option")).toHaveCount(
+    approved.length + 1,
+  );
   expect(
-    (await page.getByRole("option").allTextContents())
+    (await itemList(page).getByRole("option").allTextContents())
       .map((text) => text.trim())
       .sort(),
   ).toEqual(
@@ -152,7 +172,9 @@ test("dropdown browsing and optional search derive categories; repeated arrivals
   await expect(selector(page)).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByRole("listbox")).toHaveCount(0);
   await selector(page).click();
-  await expect(page.getByRole("option")).toHaveCount(approved.length + 1);
+  await expect(itemList(page).getByRole("option")).toHaveCount(
+    approved.length + 1,
+  );
   await page
     .getByRole("heading", { name: "New Delivery", exact: true })
     .click();
@@ -164,12 +186,16 @@ test("dropdown browsing and optional search derive categories; repeated arrivals
     path: info.outputPath("smart-dropdown-open.png"),
     fullPage: true,
   });
-  // A normal dropdown selection must work without typing or showing a keyboard.
-  await itemOption(page, "General building supplies").click();
-  await expect(selector(page)).toHaveText("General building supplies");
+  // Only the selected category's items are offered, and normal selection needs no typing.
+  await expect(itemOption(page, "Timber")).toHaveCount(0);
+  await expect(itemOption(page, "Concrete")).toHaveCount(0);
+  await itemOption(page, "6F5").click();
+  await expect(selector(page)).toHaveText("6F5");
   await expect(selector(page)).toHaveAttribute("aria-expanded", "false");
-  await classification(page, "Other construction supplies", "Delivery");
+  await classification(page, "Aggregates", "Delivery");
+  const categoryBox = (await categorySelector(page).boundingBox())!;
   const triggerBox = (await selector(page).boundingBox())!;
+  expect(categoryBox.y + categoryBox.height).toBeLessThanOrEqual(triggerBox.y);
   const boxes = await page
     .locator('dl[aria-label="Automatic classification"] dd')
     .evaluateAll((elements) =>
@@ -178,9 +204,9 @@ test("dropdown browsing and optional search derive categories; repeated arrivals
         return { x: box.x, y: box.y, width: box.width, height: box.height };
       }),
     );
-  expect(boxes).toHaveLength(2);
+  expect(boxes).toHaveLength(1);
   expect(boxes[0].y).toBeGreaterThanOrEqual(triggerBox.y + triggerBox.height);
-  expect(boxes[1].y).toBeGreaterThanOrEqual(boxes[0].y + boxes[0].height);
+  expect(Math.abs(categoryBox.width - triggerBox.width)).toBeLessThanOrEqual(2);
   for (const box of boxes) {
     expect(Math.abs(box.width - triggerBox.width)).toBeLessThanOrEqual(2);
     expect(Math.abs(box.x - triggerBox.x)).toBeLessThanOrEqual(2);
@@ -189,8 +215,17 @@ test("dropdown browsing and optional search derive categories; repeated arrivals
     path: info.outputPath("smart-selected-category.png"),
     fullPage: true,
   });
-  await choose(page, "6F5", "6F5");
-  await classification(page, "Aggregates", "Delivery");
+  await pickCategory(page, "Site services");
+  await expect(selector(page)).toHaveText("Choose an item");
+  await expect(
+    page.locator('dl[aria-label="Automatic classification"]'),
+  ).toHaveCount(0);
+  await selector(page).click();
+  await expect(itemOption(page, "6F5")).toHaveCount(0);
+  await expect(itemOption(page, "Road sweeper")).toHaveCount(1);
+  await expect(itemOption(page, "Toilet servicing")).toHaveCount(1);
+  await itemOption(page, "Road sweeper").click();
+  await classification(page, "Site services", "Service visit");
   expect((await savedState(page)).deliveries).toHaveLength(30);
   for (const [query, name, category, type] of [
     ["type1", "Type 1", "Aggregates", "Delivery"],
@@ -199,7 +234,7 @@ test("dropdown browsing and optional search derive categories; repeated arrivals
     ["toilet servicing", "Toilet servicing", "Site services", "Service visit"],
     ["10 mm", "10mm shingles", "Aggregates", "Delivery"],
   ]) {
-    await choose(page, query, name);
+    await choose(page, query, name, category);
     await classification(page, category, type);
   }
   await expect(page.getByLabel(/^Delivery time/)).toHaveCount(0);
@@ -209,7 +244,7 @@ test("dropdown browsing and optional search derive categories; repeated arrivals
   await expect(
     page.getByLabel(/tonnage|quantity|litres|cost|price/i),
   ).toHaveCount(0);
-  await choose(page, "6F5", "6F5");
+  await choose(page, "6F5", "6F5", "Aggregates");
   await page.clock.fastForward(7 * 60 * 1000);
   const before = await page.evaluate(() => Date.now());
   await attach(page);
@@ -241,8 +276,79 @@ test("dropdown browsing and optional search derive categories; repeated arrivals
   expect(new Set(twice.map((r) => r.id)).size).toBe(2);
   expect(new Set(twice.map((r) => r.material_id)).size).toBe(1);
   await page.reload();
-  await expect(selector(page)).toBeEnabled();
+  await expect(categorySelector(page)).toBeEnabled();
+  await expect(selector(page)).toBeDisabled();
   expect((await savedState(page)).deliveries).toHaveLength(32);
+
+  // A prepared immutable retry must recover its category before its controls lock.
+  const timber = baseline.materials.find((item) => item.name === "Timber")!;
+  const recoveredId = randomUUID();
+  const source = added[0];
+  await page.evaluate(
+    async ({ record, materialId, id, bytes, photoId }) => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const opening = indexedDB.open("djcu-simple-demo-drafts", 1);
+        opening.onsuccess = () => resolve(opening.result);
+        opening.onerror = () => reject(opening.error);
+      });
+      try {
+        const stamp = new Date().toISOString();
+        const key = `${record.company_id}:${record.created_by}:${record.site_id}:${record.marshal_id}`;
+        await new Promise<void>((resolve, reject) => {
+          const transaction = db.transaction("drafts", "readwrite");
+          transaction.objectStore("drafts").put({
+            key,
+            input: {
+              id,
+              site_id: record.site_id,
+              material_id: materialId,
+              marshal_id: record.marshal_id,
+              supplier_name: "Sample recovered Timber arrival",
+              arrival_at: stamp,
+              recorded_at: stamp,
+              capture_kind: "arrival",
+              intent: "draft",
+            },
+            photoId,
+            photo: new File([new Uint8Array(bytes)], "recovered-ticket.png", {
+              type: "image/png",
+            }),
+          });
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error);
+          transaction.onabort = () => reject(transaction.error);
+        });
+      } finally {
+        db.close();
+      }
+    },
+    {
+      record: source,
+      materialId: timber.id,
+      id: recoveredId,
+      bytes: Array.from(png),
+      photoId: randomUUID(),
+    },
+  );
+  await page.reload();
+  await expect(categorySelector(page)).toHaveValue("Timber");
+  await expect(categorySelector(page)).toBeDisabled();
+  await expect(selector(page)).toHaveText("Timber");
+  await expect(selector(page)).toBeDisabled();
+  await classification(page, "Timber", "Delivery");
+  await save(page, true);
+  const recovered = (await savedState(page)).deliveries.filter(
+    (record) => record.id === recoveredId,
+  );
+  expect(recovered).toHaveLength(1);
+  expect(recovered[0]).toMatchObject({
+    material_id: timber.id,
+    item_name: "Timber",
+    status: "Submitted",
+  });
+  await expect(categorySelector(page)).toBeEnabled();
+  await expect(selector(page)).toBeEnabled();
+  expect((await savedState(page)).deliveries).toHaveLength(33);
   if (info.project.name === "demo-mobile")
     await page.setViewportSize({ width: 320, height: 740 });
   await noOverflow(page);
@@ -262,7 +368,10 @@ test("unknown names deduplicate pending items and remain intact after supervisor
   const suffix = randomUUID().slice(0, 8),
     raw = `Trial  Gate Pump ${suffix}`,
     variant = raw.toLowerCase().replace(/\s+/g, " ");
+  await pickCategory(page, "Pending classification");
+  await expect(page.getByLabel("New item name", { exact: true })).toBeVisible();
   for (const name of [raw, variant]) {
+    await pickCategory(page, "Aggregates");
     await search(page, name);
     await page
       .getByRole("option", { name: "Other — Enter new item", exact: true })
@@ -339,7 +448,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
     fullPage: true,
   });
   await entry(page, "b");
-  await choose(page, suffix, raw.replace(/\s+/g, " "));
+  await choose(page, suffix, raw.replace(/\s+/g, " "), "Site services");
   await classification(page, "Site services", "Service visit");
   await expect(page.getByRole("button", { name: /^Approve / })).toHaveCount(0);
   expect(
@@ -354,8 +463,12 @@ test("supervisor filters and breakdowns reconcile deliveries, services and pendi
   const observed = monitor(page);
   await entry(page);
   const suffix = randomUUID().slice(0, 8);
-  for (const name of ["Road sweeper", "Toilet servicing", "Timber"]) {
-    await choose(page, name, name);
+  for (const [name, category] of [
+    ["Road sweeper", "Site services"],
+    ["Toilet servicing", "Site services"],
+    ["Timber", "Timber"],
+  ]) {
+    await choose(page, name, name, category);
     await page
       .getByLabel("Supplier / Company name", { exact: true })
       .fill(`Sample ${name} ${suffix}`);

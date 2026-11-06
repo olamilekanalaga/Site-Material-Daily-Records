@@ -51,7 +51,7 @@ This repository keeps the current DJ Civils delivery log and an earlier dashboar
 | ----------------------------------------------------- | -------------------------------------------------------------------------- |
 | Home, marshal selection or delivery entry             | `saas/src/components/delivery-log/`                                        |
 | Supervisor records and photo viewer                   | `saas/src/components/delivery-log/simple-records.tsx`                      |
-| Item dropdown and automatic classification            | `saas/src/components/delivery-log/item-selector.tsx` and `simple-form.tsx` |
+| Category-first item selection and entry type          | `saas/src/components/delivery-log/item-selector.tsx` and `simple-form.tsx` |
 | Supervisor catalogue approval controls                | `saas/src/components/delivery-log/classification-review.tsx`               |
 | Catalogue names, aliases and automatic classification | `saas/src/lib/catalogue.ts`                                                |
 | Login                                                 | `saas/src/components/auth/login.tsx`                                       |
