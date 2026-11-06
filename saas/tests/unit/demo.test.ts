@@ -7,14 +7,14 @@ import {
   migrateDemoState,
   type DemoState,
   type DemoRole,
-} from "../src/lib/demo/engine";
-import { summarise } from "../src/lib/reporting";
+} from "../../src/lib/demo/engine";
+import { summarise } from "../../src/lib/reporting";
 import type {
   Delivery,
   DeliveryInput,
   SimpleDeliveryInput,
-} from "../src/lib/types";
-import { demoProfiles } from "../src/lib/demo/profiles";
+} from "../../src/lib/types";
+import { demoProfiles } from "../../src/lib/demo/profiles";
 
 async function call(
   state: DemoState,

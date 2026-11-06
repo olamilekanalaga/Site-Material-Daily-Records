@@ -9,7 +9,7 @@ import {
   storeCapture,
   submitCapture,
   type CaptureDraft,
-} from "@/lib/simple-drafts";
+} from "@/lib/client/simple-drafts";
 
 const order = [
   "Type 1",

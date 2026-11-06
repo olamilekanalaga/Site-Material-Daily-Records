@@ -3,8 +3,5 @@ node_modules/
 .env*
 !.env.example
 source/dist/
-.DS_Store
-
-.vercel
-.env*
 source/.data-app-offline/
+.DS_Store

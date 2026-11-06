@@ -40,15 +40,15 @@ import {
   downloadReport,
   clearDemoDrafts,
   type LocalDraft,
-} from "@/lib/offline";
+} from "@/lib/client/offline";
 import { localDate, quantity, summarise } from "@/lib/reporting";
 import { DeliveryForm } from "./delivery-form";
 import { DeliveryDetail } from "./delivery-detail";
 import { SettingsPanel } from "./settings-panel";
 import { HistoricalPanel } from "./historical-panel";
-import { Brand } from "./brand";
-import { Login } from "./login";
-export { Login } from "./login";
+import { Brand } from "../shared/brand";
+import { Login } from "../auth/login";
+export { Login } from "../auth/login";
 import type { DemoProfileId } from "@/lib/demo/profiles";
 
 type View =

@@ -8,7 +8,7 @@ import type {
   ReviewInput,
   Unit,
 } from "@/lib/types";
-import { request } from "@/lib/offline";
+import { request } from "@/lib/client/offline";
 import { quantity } from "@/lib/reporting";
 import { Badge } from "./ledger-app";
 function EvidencePreview({

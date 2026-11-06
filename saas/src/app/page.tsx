@@ -1,4 +1,4 @@
-import { SimpleApp } from "@/components/simple-app";
+import { SimpleApp } from "@/components/delivery-log/simple-app";
 export const dynamic = "force-dynamic";
 export default function Page() {
   const localDemo = process.env.APP_MODE === "local" && !process.env.VERCEL;

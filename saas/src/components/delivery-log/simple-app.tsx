@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Check, LogOut, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import type { Bootstrap, Marshal } from "@/lib/types";
-import { request } from "@/lib/offline";
-import { Brand } from "./brand";
-import { Login } from "./login";
+import { request } from "@/lib/client/offline";
+import { Brand } from "../shared/brand";
+import { Login } from "../auth/login";
 import { SimpleForm } from "./simple-form";
 import { SimpleRecords } from "./simple-records";
 

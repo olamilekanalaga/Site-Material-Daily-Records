@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { Bootstrap } from "@/lib/types";
-import { request } from "@/lib/offline";
+import { request } from "@/lib/client/offline";
 import { Badge } from "./ledger-app";
 export function HistoricalPanel({
   data,

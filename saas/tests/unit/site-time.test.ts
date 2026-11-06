@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { siteArrival, siteClock } from "../src/lib/site-time";
+import { siteArrival, siteClock } from "../../src/lib/site-time";
 
 test("delivery clock follows the site timezone rather than the phone timezone", () => {
   assert.deepEqual(

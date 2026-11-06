@@ -1,14 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { summarise, localDate, quantity } from "../src/lib/reporting";
+import { summarise, localDate, quantity } from "../../src/lib/reporting";
 import {
   parseDelivery,
   parseReview,
   csvCell,
   sniffImage,
   validateTransition,
-} from "../src/lib/server/core";
-import type { Actor, Delivery, DeliveryInput, Site } from "../src/lib/types";
+} from "../../src/lib/server/core";
+import type { Actor, Delivery, DeliveryInput, Site } from "../../src/lib/types";
 const base = {
   id: "30000000-0000-4000-8000-000000000001",
   company_id: "c",
