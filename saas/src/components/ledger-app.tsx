@@ -37,6 +37,8 @@ import {
   request,
   saveDraft,
   synchroniseDraft,
+  downloadReport,
+  clearDemoDrafts,
   type LocalDraft,
 } from "@/lib/offline";
 import { localDate, quantity, summarise } from "@/lib/reporting";
@@ -44,6 +46,7 @@ import { DeliveryForm } from "./delivery-form";
 import { DeliveryDetail } from "./delivery-detail";
 import { SettingsPanel } from "./settings-panel";
 import { HistoricalPanel } from "./historical-panel";
+import { Brand } from "./brand";
 
 type View =
   | "overview"
@@ -65,7 +68,15 @@ export function Badge({ status }: { status: PhysicalStatus | string }) {
     </span>
   );
 }
-export function LedgerApp({ localDemo = false }: { localDemo?: boolean }) {
+export function LedgerApp({
+  localDemo = false,
+  demo = false,
+  workspaceEnabled = true,
+}: {
+  localDemo?: boolean;
+  demo?: boolean;
+  workspaceEnabled?: boolean;
+}) {
   const [data, setData] = useState<Bootstrap | null>(null),
     [loaded, setLoaded] = useState(false),
     [view, setView] = useState<View>("overview"),
@@ -80,6 +91,10 @@ export function LedgerApp({ localDemo = false }: { localDemo?: boolean }) {
     [menu, setMenu] = useState(false);
   const owner = data ? `${data.actor.company_id}:${data.actor.id}` : "";
   const load = useCallback(async () => {
+    if (!demo && !workspaceEnabled) {
+      setLoaded(true);
+      return;
+    }
     try {
       const d = await request<Bootstrap>("/api/bootstrap");
       setData(d);
@@ -89,11 +104,11 @@ export function LedgerApp({ localDemo = false }: { localDemo?: boolean }) {
       setError("");
     } catch (e) {
       if (!data) setData(null);
-      else setError((e as Error).message);
+      setError((e as Error).message);
     } finally {
       setLoaded(true);
     }
-  }, [data]);
+  }, [data, demo, workspaceEnabled]);
   useEffect(() => {
     void load();
     setOnline(navigator.onLine);
@@ -150,7 +165,9 @@ export function LedgerApp({ localDemo = false }: { localDemo?: boolean }) {
       if (count) {
         await load();
         notify(
-          `${count} delivery ${count === 1 ? "submitted" : "records submitted"} to server. Awaiting verification.`,
+          demo
+            ? `${count} sample delivery ${count === 1 ? "record saved" : "records saved"}. Switch to Supervisor to review.`
+            : `${count} delivery ${count === 1 ? "submitted" : "records submitted"} to server. Awaiting verification.`,
         );
       }
     } finally {
@@ -164,10 +181,27 @@ export function LedgerApp({ localDemo = false }: { localDemo?: boolean }) {
     return (
       <div className="loading">
         <HardHat size={36} />
-        <p>Opening Site Ledger…</p>
+        <p>Opening DJCU…</p>
       </div>
     );
-  if (!data) return <Login onLogin={load} localDemo={localDemo} />;
+  if (!data)
+    return demo ? (
+      <main className="loading">
+        <Brand />
+        <p role="alert">{error || "Opening the sample workspace…"}</p>
+        <button className="primary" onClick={() => void load()}>
+          Retry demo
+        </button>
+        <a href="/">Back to DJCU</a>
+      </main>
+    ) : (
+      <Login
+        onLogin={load}
+        localDemo={localDemo}
+        workspaceEnabled={workspaceEnabled}
+        startupError={error}
+      />
+    );
   const currentSite = data.sites.find((s) => s.id === site),
     records = data.deliveries.filter((d) => d.site_id === site),
     today = localDate(new Date().toISOString(), currentSite?.timezone || "UTC");
@@ -254,14 +288,8 @@ export function LedgerApp({ localDemo = false }: { localDemo?: boolean }) {
   return (
     <div className="app-shell">
       <aside className={`sidebar ${menu ? "open" : ""}`}>
-        <a href="/" className="brand">
-          <span className="brand-icon">
-            <HardHat size={24} />
-          </span>
-          <span>
-            site<span className="brand-light">ledger</span>
-            <small>CONSTRUCTION OPERATIONS</small>
-          </span>
+        <a href={demo ? "/demo" : "/"} aria-label="DJCU home">
+          <Brand compact />
         </a>
         <div className="workspace-label">WORKSPACE</div>
         <div className="workspace-card">
@@ -269,8 +297,8 @@ export function LedgerApp({ localDemo = false }: { localDemo?: boolean }) {
           <div>
             <strong>{data.company.name}</strong>
             <small>
-              {data.mode === "local"
-                ? "Unofficial prototype"
+              {data.mode !== "supabase"
+                ? "Sample workspace"
                 : "Private workspace"}
             </small>
           </div>
@@ -302,6 +330,10 @@ export function LedgerApp({ localDemo = false }: { localDemo?: boolean }) {
             className="profile"
             onClick={async () => {
               await request("/api/auth/logout", { method: "POST" });
+              if (demo) {
+                window.location.assign("/");
+                return;
+              }
               setData(null);
               setDrafts([]);
               setDetail(null);
@@ -332,6 +364,13 @@ export function LedgerApp({ localDemo = false }: { localDemo?: boolean }) {
           >
             <Menu />
           </button>
+          <a
+            className="mobile-brand"
+            href={demo ? "/demo" : "/"}
+            aria-label="DJCU home"
+          >
+            <img src="/djcu-logo.jpg" alt="DJ Civils Ltd" />
+          </a>
           <div className="site-switch">
             <span className="site-dot" />
             <select
@@ -371,14 +410,78 @@ export function LedgerApp({ localDemo = false }: { localDemo?: boolean }) {
         </header>
         <div className="demo-banner">
           <span className="demo-pill">
-            {data.mode === "local" ? "DEMO" : "PILOT"}
+            {data.mode !== "supabase" ? "DEMO" : "WORKSPACE"}
           </span>
           <span>
-            {data.mode === "local"
-              ? "DJ Civils Demo — Unofficial Prototype. All records are fictional. No company approval implied."
-              : `${data.company.name} · Private workspace.`}
+            {data.mode === "demo"
+              ? "DJCU interactive demo · Fictional sample records. Changes and photos stay in this browser."
+              : data.mode === "local"
+                ? "DJCU sample workspace. All records are fictional. No company approval implied."
+                : `${data.company.name} · Private workspace.`}
           </span>
         </div>
+        {demo && (
+          <div className="demo-toolbar">
+            <div>
+              <strong>Explore DJCU</strong>
+              <small>
+                Try each role to follow a delivery from gate to report.
+              </small>
+            </div>
+            <div className="demo-actions">
+              <label className="demo-role-switch">
+                Demo role
+                <select
+                  aria-label="Demo role"
+                  value={data.actor.role}
+                  onChange={async (e) => {
+                    try {
+                      await request("/api/demo/role", {
+                        method: "POST",
+                        body: JSON.stringify({ role: e.target.value }),
+                      });
+                      await load();
+                      navigate("overview");
+                    } catch (e) {
+                      setError((e as Error).message);
+                    }
+                  }}
+                >
+                  <option value="gate">Gate staff</option>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="site_manager">Site manager</option>
+                  <option value="company_admin">Administrator</option>
+                </select>
+              </label>
+              <button
+                className="secondary"
+                onClick={async () => {
+                  if (
+                    !confirm(
+                      "Reset all sample records and demo photos in this browser?",
+                    )
+                  )
+                    return;
+                  try {
+                    await request("/api/demo/reset", { method: "POST" });
+                    await clearDemoDrafts();
+                    setDrafts([]);
+                    await load();
+                    navigate("overview");
+                    notify("Demo reset. Fresh fictional records are ready.");
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+              >
+                Reset demo
+              </button>
+              <a className="text-button" href="/">
+                Exit demo
+              </a>
+            </div>
+          </div>
+        )}
         <main>
           <div className="page-heading">
             <div>
@@ -705,13 +808,15 @@ export function LedgerApp({ localDemo = false }: { localDemo?: boolean }) {
           )}
           <footer className="footer">
             <span>
-              Site Ledger <span> / </span> Delivery accountability, from gate to
+              DJCU <span> / </span> Delivery accountability, from gate to
               report.
             </span>
             <span>
-              {data.mode === "local"
-                ? "Local demo · persistent on this server"
-                : "Supabase · private workspace"}
+              {data.mode === "demo"
+                ? "Interactive demo · saved in this browser"
+                : data.mode === "local"
+                  ? "Local demo · persistent on this server"
+                  : "Supabase · private workspace"}
             </span>
           </footer>
         </main>
@@ -724,7 +829,11 @@ export function LedgerApp({ localDemo = false }: { localDemo?: boolean }) {
           onReviewed={async () => {
             await load();
             setDetail(null);
-            notify("Supervisor decision saved to server.");
+            notify(
+              demo
+                ? "Sample supervisor decision saved in this browser."
+                : "Supervisor decision saved to server.",
+            );
           }}
           onCorrect={(d) => {
             setEditing({
@@ -789,9 +898,13 @@ export function Empty({ text }: { text: string }) {
 function Login({
   onLogin,
   localDemo,
+  workspaceEnabled,
+  startupError,
 }: {
   onLogin: () => Promise<void>;
   localDemo: boolean;
+  workspaceEnabled: boolean;
+  startupError: string;
 }) {
   const [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
@@ -800,22 +913,17 @@ function Login({
   return (
     <main className="login-layout">
       <section className="login-story">
-        <div className="brand">
-          <HardHat />
-          <span>
-            site<span className="brand-light">ledger</span>
-          </span>
-        </div>
+        <Brand />
         <div>
-          <span className="eyebrow">FROM GATE TO REPORT</span>
+          <span className="eyebrow">DJCU DELIVERY CONTROL</span>
           <h1>
             Every arrival.
             <br />A clearer record.
           </h1>
           <p>
-            Simple delivery capture. Independent receipt checks.
+            Built for the gate. Connected to your site team.
             <br />
-            One traceable record for your site team.
+            Capture deliveries, verify receipt and keep the trail clear.
           </p>
           <div className="login-steps">
             <span>01 / Capture</span>
@@ -823,92 +931,110 @@ function Login({
             <span>03 / Report</span>
           </div>
         </div>
-        <small>
-          {localDemo
-            ? "DJ Civils Demo — Unofficial Prototype"
-            : "Construction delivery management"}
-        </small>
+        <small>Enabling · Groundworks · Civil Engineering</small>
       </section>
       <section className="login-form">
-        <div className="demo-pill">UNOFFICIAL PROTOTYPE</div>
-        <h2>Welcome to your site</h2>
-        <p>Sign in to your assigned workspace.</p>
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy(true);
-            setError("");
-            try {
-              await request("/api/auth/login", {
-                method: "POST",
-                body: JSON.stringify({ email, password }),
-              });
-              await onLogin();
-            } catch (e) {
-              setError((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <label>
-            Email address
-            <input
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-          <label>
-            Password
-            <input
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          {error && (
-            <p role="alert" className="error-text">
-              {error}
+        <div className="demo-pill">DJCU SOFTWARE</div>
+        <h2>Explore DJCU</h2>
+        <p>Your site operations, from gate to report.</p>
+        <div className="demo-entry">
+          <span className="eyebrow">INTERACTIVE SAMPLE WORKSPACE</span>
+          <h3>Take a look around.</h3>
+          <p>
+            No account, email or password needed. Try delivery capture, switch
+            to Supervisor to review a load, then open the site manager’s report.
+          </p>
+          <a href="/demo" className="primary">
+            Explore demo <ArrowRight size={18} />
+          </a>
+          <small>
+            Fictional records only. Demo changes and photos stay in your
+            browser.
+          </small>
+        </div>
+        {workspaceEnabled ? (
+          <>
+            <div className="login-divider">Team sign-in</div>
+            <p>Use your assigned workspace account.</p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setBusy(true);
+                setError("");
+                try {
+                  await request("/api/auth/login", {
+                    method: "POST",
+                    body: JSON.stringify({ email, password }),
+                  });
+                  await onLogin();
+                } catch (e) {
+                  const message = (e as Error).message;
+                  setError(
+                    /APP_MODE|Supabase|Local demo storage|Configure/.test(
+                      message,
+                    )
+                      ? "Team sign-in is not available yet. You can explore the demo above."
+                      : message,
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <label>
+                Email address
+                <input
+                  type="email"
+                  autoComplete="username"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </label>
+              <label>
+                Password
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </label>
+              {(error || startupError) && (
+                <p role="alert" className="error-text">
+                  {error ||
+                    "Your team session is unavailable. Sign in again or explore the demo."}
+                </p>
+              )}
+              <button className="primary" disabled={busy}>
+                {busy ? "Signing in…" : "Sign in"}
+                <ArrowRight size={18} />
+              </button>
+            </form>
+          </>
+        ) : (
+          <div className="workspace-note">
+            <ShieldCheck size={19} />
+            <p>
+              Private team sign-in will be available when your workspace is
+              connected. The sample demo is ready to explore now.
             </p>
-          )}
-          <button className="primary" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
-            <ArrowRight size={18} />
-          </button>
-        </form>
+          </div>
+        )}
         {localDemo && (
           <details className="demo-logins">
-            <summary>Local demonstration accounts</summary>
+            <summary>Local development accounts</summary>
+            <p>Fictional accounts for this local environment only.</p>
             <p>
-              For the explicitly enabled local demo only. All records are
-              fictional.
-            </p>
-            <p>
-              Gate: gate@demo.invalid
-              <br />
-              Supervisor: supervisor@demo.invalid
-              <br />
-              Manager: manager@demo.invalid
-              <br />
-              Admin: admin@demo.invalid
+              gate@demo.invalid · supervisor@demo.invalid · manager@demo.invalid
+              · admin@demo.invalid
             </p>
             <p>
               Password: <code>DemoPass123!</code>
             </p>
           </details>
         )}
-        <div className="evidence-note">
-          <ShieldCheck size={20} />
-          <p>
-            No company approval implied. Do not upload real company documents
-            into the demo.
-          </p>
-        </div>
       </section>
     </main>
   );
@@ -1116,7 +1242,19 @@ function Report({
         </label>
         <a
           className="secondary"
-          href={`/api/reports?${new URLSearchParams({ date, site_id: site, supplier_id: supplier, material_id: material, format: "csv" })}`}
+          href={
+            data.mode === "demo"
+              ? "#"
+              : `/api/reports?${new URLSearchParams({ date, site_id: site, supplier_id: supplier, material_id: material, format: "csv" })}`
+          }
+          onClick={(e) => {
+            if (data.mode === "demo") {
+              e.preventDefault();
+              void downloadReport(
+                `/api/reports?${new URLSearchParams({ date, site_id: site, supplier_id: supplier, material_id: material, format: "csv" })}`,
+              ).catch((error) => window.alert(error.message));
+            }
+          }}
         >
           <FileText size={17} />
           Export CSV

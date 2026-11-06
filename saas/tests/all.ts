@@ -2,3 +2,4 @@
 import "./reporting.test";
 import "./database.test";
 import "./offline.test";
+import "./demo.test";

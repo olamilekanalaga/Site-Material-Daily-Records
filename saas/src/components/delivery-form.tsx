@@ -84,7 +84,9 @@ export function DeliveryForm({
       await saveDraft(makeDraft("saved"));
       setSaved(true);
       await onSaved(
-        "Saved locally on this device. Not submitted to the server.",
+        data.mode === "demo"
+          ? "Sample draft saved on this device."
+          : "Saved locally on this device. Not submitted to the server.",
       );
     } catch {
       setError(
@@ -112,7 +114,9 @@ export function DeliveryForm({
       const warnings = await synchroniseDraft(local);
       await removeDraft(input.id, owner);
       await onSubmitted(
-        `Delivery submitted to server. Awaiting supervisor verification. ${warnings.join(" ")}`,
+        data.mode === "demo"
+          ? `Sample delivery saved. Switch to Supervisor to review it. ${warnings.join(" ")}`
+          : `Delivery submitted to server. Awaiting supervisor verification. ${warnings.join(" ")}`,
       );
     } catch (e) {
       const text = (e as Error).message;
@@ -403,9 +407,8 @@ export function DeliveryForm({
           rules apply at acceptance; incomplete arrivals may still be submitted.
         </div>
         <p className="muted">
-          Use fictional photographs only in this unofficial demo. A document
-          image is supporting evidence, not independent proof of physical
-          arrival.
+          Use fictional photographs only in the demo. A document image is
+          supporting evidence, not independent proof of physical arrival.
         </p>
       </aside>
     </form>

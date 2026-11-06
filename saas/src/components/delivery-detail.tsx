@@ -1,10 +1,55 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { X, ShieldCheck } from "lucide-react";
-import type { Bootstrap, Delivery, ReviewInput, Unit } from "@/lib/types";
+import type {
+  Bootstrap,
+  Delivery,
+  Evidence,
+  ReviewInput,
+  Unit,
+} from "@/lib/types";
 import { request } from "@/lib/offline";
 import { quantity } from "@/lib/reporting";
 import { Badge } from "./ledger-app";
+function EvidencePreview({
+  evidence,
+  demo,
+}: {
+  evidence: Evidence;
+  demo: boolean;
+}) {
+  const [url, setUrl] = useState(demo ? "" : `/api/evidence/${evidence.id}`);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!demo) return;
+    let active = true,
+      objectUrl = "";
+    void import("@/lib/demo/browser")
+      .then((module) => module.demoEvidenceUrl(evidence.id))
+      .then((value) => {
+        objectUrl = value;
+        if (active) setUrl(value);
+        else URL.revokeObjectURL(value);
+      })
+      .catch(() => {
+        if (active) setError("This sample photograph is no longer available.");
+      });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [demo, evidence.id]);
+  if (!url)
+    return <p className="muted">{error || "Opening sample photograph…"}</p>;
+  return (
+    <a href={url} target="_blank" rel="noreferrer">
+      <img src={url} alt={`${evidence.kind} evidence: ${evidence.name}`} />
+      <span>
+        {evidence.kind} · {evidence.name}
+      </span>
+    </a>
+  );
+}
 export function DeliveryDetail({
   delivery: d,
   data,
@@ -105,7 +150,9 @@ export function DeliveryDetail({
             </dd>
           </div>
           <div>
-            <dt>Recorded on server</dt>
+            <dt>
+              {data.mode === "demo" ? "Saved in demo" : "Recorded on server"}
+            </dt>
             <dd>{new Date(d.created_at).toLocaleString("en-GB")}</dd>
           </div>
           <div>
@@ -125,27 +172,22 @@ export function DeliveryDetail({
         )}
         <h3>Gate notes</h3>
         <p className="note-block">{d.notes || "No additional notes."}</p>
-        <h3>Private supporting evidence</h3>
+        <h3>
+          {data.mode === "demo"
+            ? "Demo photographs · this browser only"
+            : "Private supporting evidence"}
+        </h3>
         <p className="muted">
           A photographed ticket is evidence of a document, not independent proof
           of arrival.
         </p>
         <div className="evidence-gallery">
           {d.evidence.map((e) => (
-            <a
+            <EvidencePreview
               key={e.id}
-              href={`/api/evidence/${e.id}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <img
-                src={`/api/evidence/${e.id}`}
-                alt={`${e.kind} evidence: ${e.name}`}
-              />
-              <span>
-                {e.kind} · {e.name}
-              </span>
-            </a>
+              evidence={e}
+              demo={data.mode === "demo"}
+            />
           ))}
         </div>
         {!d.evidence.length && (
@@ -210,6 +252,12 @@ export function DeliveryDetail({
             <h3>
               <ShieldCheck size={20} /> Supervisor receipt decision
             </h3>
+            {data.mode === "demo" && (
+              <p className="muted">
+                This is a sample decision in the demo, not a real delivery
+                verification.
+              </p>
+            )}
             <label>
               Decision
               <select

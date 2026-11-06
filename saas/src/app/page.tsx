@@ -1,5 +1,12 @@
 import { LedgerApp } from "@/components/ledger-app";
 export const dynamic = "force-dynamic";
 export default function Page() {
-  return <LedgerApp localDemo={process.env.APP_MODE === "local"} />;
+  const localDemo = process.env.APP_MODE === "local" && !process.env.VERCEL;
+  const workspaceEnabled =
+    localDemo ||
+    (process.env.APP_MODE === "supabase" &&
+      Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY));
+  return (
+    <LedgerApp localDemo={localDemo} workspaceEnabled={workspaceEnabled} />
+  );
 }
