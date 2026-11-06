@@ -53,17 +53,24 @@ async function entry(p: Page, profile = "olamilekan") {
   ).toBeVisible();
   await expect(selector(p)).toBeEnabled();
 }
-async function choose(p: Page, query: string, name: string) {
-  await selector(p).fill(query);
+function itemOption(p: Page, name: string) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return p.getByRole("option").filter({
+    has: p.locator("span").filter({
+      hasText: new RegExp(`^${escaped.split(/\s+/).join("\\s+")}$`),
+    }),
+  });
+}
+async function search(p: Page, query: string) {
+  if ((await selector(p).getAttribute("aria-expanded")) !== "true")
+    await selector(p).click();
   await p
-    .getByRole("option")
-    .filter({
-      has: p.locator("span").filter({
-        hasText: new RegExp(`^${escaped.split(/\s+/).join("\\s+")}$`),
-      }),
-    })
-    .click();
+    .getByRole("searchbox", { name: "Search items", exact: true })
+    .fill(query);
+}
+async function choose(p: Page, query: string, name: string) {
+  await search(p, query);
+  await itemOption(p, name).click();
 }
 async function classification(p: Page, category: string, type: string) {
   await expect(
@@ -116,7 +123,7 @@ async function noOverflow(p: Page) {
   ).toBeLessThanOrEqual(1);
 }
 
-test("smart search derives categories; quick choices need confirmation and repeated arrivals use actual save timestamps", async ({
+test("dropdown browsing and optional search derive categories; quick choices save repeated arrivals with actual timestamps", async ({
   page,
 }, info) => {
   const observed = monitor(page);
@@ -124,6 +131,41 @@ test("smart search derives categories; quick choices need confirmation and repea
   await entry(page);
   const baseline = await savedState(page);
   expect(baseline.deliveries).toHaveLength(30);
+  await expect(selector(page)).toHaveText("Choose an item");
+  await expect(selector(page)).toHaveJSProperty("tagName", "BUTTON");
+  await selector(page).click();
+  await expect(selector(page)).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    page.getByRole("searchbox", { name: "Search items", exact: true }),
+  ).toBeVisible();
+  const approved = baseline.materials.filter(
+    (item) => item.active && item.approval_status === "Approved",
+  );
+  await expect(page.getByRole("option")).toHaveCount(approved.length + 1);
+  await expect(
+    page.getByRole("searchbox", { name: "Search items", exact: true }),
+  ).not.toBeFocused();
+  await selector(page).press("Escape");
+  await expect(selector(page)).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+  await selector(page).click();
+  await expect(page.getByRole("option")).toHaveCount(approved.length + 1);
+  await page
+    .getByRole("heading", { name: "New Delivery", exact: true })
+    .click();
+  await expect(selector(page)).toHaveAttribute("aria-expanded", "false");
+  await selector(page).click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  await noOverflow(page);
+  await page.screenshot({
+    path: info.outputPath("smart-dropdown-open.png"),
+    fullPage: true,
+  });
+  // A normal dropdown selection must work without typing or showing a keyboard.
+  await itemOption(page, "General building supplies").click();
+  await expect(selector(page)).toHaveText("General building supplies");
+  await expect(selector(page)).toHaveAttribute("aria-expanded", "false");
+  await classification(page, "Other construction supplies", "Delivery");
   const quick = page.getByRole("region", { name: "Quick Record", exact: true });
   for (const name of [
     "6F5",
@@ -177,7 +219,7 @@ test("smart search derives categories; quick choices need confirmation and repea
     status: "Submitted",
   });
   expect(added[0].evidence).toHaveLength(1);
-  await expect(selector(page)).toHaveValue("6F5");
+  await expect(selector(page)).toHaveText("6F5");
   await page.clock.fastForward(60_000);
   await attach(page);
   await save(page, true);
@@ -210,7 +252,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
     raw = `Trial  Gate Pump ${suffix}`,
     variant = raw.toLowerCase().replace(/\s+/g, " ");
   for (const name of [raw, variant]) {
-    await selector(page).fill(name);
+    await search(page, name);
     await page
       .getByRole("option", { name: "Other — Enter new item", exact: true })
       .click();
