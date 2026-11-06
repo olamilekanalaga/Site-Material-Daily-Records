@@ -47,12 +47,7 @@ async function cleanLayout(page: Page) {
     /Demonstration Site|Demo workspace|Saved only in this browser|DJ CIVILS · Delivery log/,
   );
 }
-async function capture(
-  page: Page,
-  marshal: string,
-  supplier: string,
-  time?: string,
-) {
+async function capture(page: Page, marshal: string, supplier: string) {
   await page.getByRole("button", { name: marshal, exact: true }).click();
   const profile = marshal === "Bemigho Estano" ? "b" : "olamilekan";
   await expect(page).toHaveURL(
@@ -77,12 +72,12 @@ async function capture(
   ).toBeVisible();
   await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
   await page
-    .getByRole("combobox", { name: "Material name", exact: true })
-    .selectOption({ label: "6F5" });
+    .getByRole("region", { name: "Quick Record", exact: true })
+    .getByRole("button", { name: "6F5", exact: true })
+    .click();
   await page
     .getByLabel("Supplier / Company name", { exact: true })
     .fill(supplier);
-  if (time) await page.getByLabel(/^Delivery time/).fill(time);
   await page.getByLabel("Delivery image", { exact: true }).setInputFiles({
     name: "fictional-load.png",
     mimeType: "image/png",
@@ -176,7 +171,7 @@ test("public DJ Civils photo selection opens clean marshal records with separate
   await page.goto("/demo/supervisor");
   const sampleRows = page.locator(".simple-table tbody tr");
   await expect(sampleRows).toHaveCount(30);
-  const marshalCells = sampleRows.locator("td:nth-child(5)");
+  const marshalCells = sampleRows.locator("td:nth-child(7)");
   await expect(
     marshalCells.filter({ hasText: /^Bemigho Estano$/ }),
   ).toHaveCount(20);
@@ -201,7 +196,7 @@ test("public DJ Civils photo selection opens clean marshal records with separate
   await expect(
     page
       .getByRole("region", { name: "Delivery summaries", exact: true })
-      .getByRole("button", { name: "Total deliveries: 30", exact: true }),
+      .getByRole("button", { name: "Total arrivals: 30", exact: true }),
   ).toBeVisible();
   await expect(page.locator("body")).not.toContainText(
     /Demo gate|B Traffic Marshal|fictional/i,
@@ -238,7 +233,7 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   const suffix = randomUUID().slice(0, 8);
   const earlySupplier = `Fictional early ${suffix}`;
   const recentSupplier = `Fictional recent ${suffix}`;
-  await capture(page, "Bemigho Estano", earlySupplier, "00:00");
+  await capture(page, "Bemigho Estano", earlySupplier);
   await page.getByRole("button", { name: "View Records", exact: true }).click();
   await expect(page).toHaveURL(/\/demo\/records(?:\?|$)/);
   await expect(
@@ -263,16 +258,21 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   expect(rows.findIndex((row) => row.includes(recentSupplier))).toBeLessThan(
     rows.findIndex((row) => row.includes(earlySupplier)),
   );
-  const headers = (await page.getByRole("columnheader").allTextContents()).map(
-    (text) => text.replace(/\s/g, "").toLowerCase(),
-  );
+  const headers = (
+    await page
+      .getByRole("table", { name: "Saved delivery records", exact: true })
+      .getByRole("columnheader")
+      .allTextContents()
+  ).map((text) => text.replace(/\s/g, "").toLowerCase());
   expect(headers).toEqual([
     "date",
     "time",
-    "material",
-    "supplier/company",
-    "trafficmarshal",
-    "photo",
+    "item",
+    "category",
+    "entrytype",
+    "company/supplier",
+    "recordedby",
+    "photo/ticketevidence",
   ]);
   await recentRow
     .getByRole("button", { name: "View photo", exact: true })
@@ -282,11 +282,11 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   await expect(photo).toHaveJSProperty("naturalWidth", 1);
   await page.getByRole("button", { name: "Close photo", exact: true }).click();
   await page
-    .getByRole("combobox", { name: "Material", exact: true })
+    .getByRole("combobox", { name: "Item", exact: true })
     .selectOption({ label: "G1" });
   await expect(recentRow).toHaveCount(0);
   await page
-    .getByRole("combobox", { name: "Material", exact: true })
+    .getByRole("combobox", { name: "Item", exact: true })
     .selectOption({ label: "6F5" });
   await expect(recentRow).toHaveCount(1);
   await page.getByLabel("From date", { exact: true }).fill("2000-01-01");
@@ -503,6 +503,10 @@ test("supervisor date ranges and material cards show period totals without crowd
         id: crypto.randomUUID(),
         supplier_name: supplier,
         material_id: saved.materials.find((item) => item.name === material)!.id,
+        item_name: material,
+        category: undefined,
+        entry_type: undefined,
+        recorded_at: undefined,
         arrival_at: arrival,
         created_at: arrival,
         submitted_at: arrival,
@@ -532,12 +536,12 @@ test("supervisor date ranges and material cards show period totals without crowd
   const to = page.getByLabel("To date", { exact: true });
   const total = (count: number) =>
     summary.getByRole("button", {
-      name: `Total deliveries: ${count}`,
+      name: `Total arrivals: ${count}`,
       exact: true,
     });
   const material = (name: string, count: number) =>
     summary.getByRole("button", {
-      name: `${name}: ${count} deliveries`,
+      name: `${name}: ${count} arrivals`,
       exact: true,
     });
   await expect(rows).toHaveCount(7);

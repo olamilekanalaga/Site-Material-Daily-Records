@@ -1,8 +1,17 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Upload, Check } from "lucide-react";
 import type { Bootstrap, Marshal, Site } from "@/lib/types";
 import { siteArrival, siteClock } from "@/lib/site-time";
+import {
+  findExactCatalogueItem,
+  normaliseItemName,
+  PENDING_CATEGORY,
+  PENDING_ENTRY_TYPE,
+  QUICK_ITEMS,
+} from "@/lib/catalogue";
+import { ItemSelector } from "./item-selector";
+import styles from "./smart-entry.module.css";
 import {
   readCapture,
   removeCapture,
@@ -34,7 +43,10 @@ export function SimpleForm({
   onSaved: () => Promise<void>;
   onViewRecords: () => void;
 }) {
+  const demo = data.mode === "demo";
   const [material, setMaterial] = useState("");
+  const [custom, setCustom] = useState(false);
+  const [customName, setCustomName] = useState("");
   const [supplier, setSupplier] = useState("");
   const [clock, setClock] = useState(() =>
     siteClock(new Date(), site.timezone),
@@ -57,6 +69,8 @@ export function SimpleForm({
         if (!live || !saved) return;
         setPending(saved);
         setMaterial(saved.input.material_id);
+        setCustom(Boolean(saved.input.custom_item_name));
+        setCustomName(saved.input.custom_item_name || "");
         setSupplier(saved.input.supplier_name);
         setPhoto(saved.photo);
         setClock(siteClock(new Date(saved.input.arrival_at), site.timezone));
@@ -86,6 +100,21 @@ export function SimpleForm({
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [photo]);
+  const usage = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const delivery of data.deliveries) {
+      if (delivery.submitted_at && delivery.status !== "Draft")
+        result[delivery.material_id] = (result[delivery.material_id] || 0) + 1;
+    }
+    return result;
+  }, [data.deliveries]);
+  const selectedItem = custom
+    ? findExactCatalogueItem(data.materials, customName)
+    : data.materials.find((item) => item.id === material);
+  const category = selectedItem?.category || PENDING_CATEGORY;
+  const entryType = selectedItem?.entry_type || PENDING_ENTRY_TYPE;
+  const hasItem = Boolean(material || (custom && customName.trim()));
+
   const choosePhoto = (file: File | undefined, element: HTMLInputElement) => {
     setError("");
     setNotice("");
@@ -106,16 +135,25 @@ export function SimpleForm({
   };
   async function save() {
     if (active.current || restoring) return;
+    const recordedAt = pending?.input.recorded_at || new Date().toISOString();
     active.current = true;
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      if (!material || !supplier.trim() || !photo)
+      if (
+        (!material && !(demo && custom && customName.trim())) ||
+        (!demo && !supplier.trim()) ||
+        !photo
+      )
         throw new Error(
-          "Choose a material, enter the supplier/company name and add a delivery image.",
+          demo
+            ? "Choose an item or enter a new item name, and add a ticket or delivery image."
+            : "Choose a material, enter the supplier/company name and add a delivery image.",
         );
       if (!pending) {
+        if (demo && custom && !normaliseItemName(customName).length)
+          throw new Error("Enter an item name containing letters or numbers.");
         const bytes = new Uint8Array(await photo.slice(0, 16).arrayBuffer());
         const png =
           [137, 80, 78, 71, 13, 10, 26, 10].every((b, i) => bytes[i] === b) &&
@@ -138,13 +176,16 @@ export function SimpleForm({
             "The selected file is not a valid JPEG, PNG or WebP image. Choose another image.",
           );
         // Reject correctable input before freezing an idempotent upload attempt.
-        const arrival = siteArrival(clock.date, clock.time, site.timezone);
+        const arrival = demo
+          ? recordedAt
+          : siteArrival(clock.date, clock.time, site.timezone);
         if (Date.parse(arrival) > Date.now() + 300000)
           throw new Error(
             "Delivery time cannot be in the future. Check the site time.",
           );
       }
-      const draft = pending || {
+      // A retry retains this save attempt's identity and original timestamp.
+      const draft: CaptureDraft = pending || {
         key,
         photo,
         photoId: crypto.randomUUID(),
@@ -154,7 +195,16 @@ export function SimpleForm({
           material_id: material,
           marshal_id: marshal.id,
           supplier_name: supplier.trim(),
-          arrival_at: siteArrival(clock.date, clock.time, site.timezone),
+          arrival_at: demo
+            ? recordedAt
+            : siteArrival(clock.date, clock.time, site.timezone),
+          ...(demo
+            ? {
+                capture_kind: "arrival" as const,
+                recorded_at: recordedAt,
+                ...(custom ? { custom_item_name: customName } : {}),
+              }
+            : {}),
           intent: "draft" as const,
         },
       };
@@ -164,19 +214,19 @@ export function SimpleForm({
         throw new Error(
           "You’re offline. This delivery is kept on this device and has not been submitted. Reconnect and click Save Delivery.",
         );
-      await submitCapture(draft);
+      const saved = await submitCapture(draft);
       // A lost cleanup or response is safe: this same ID is retried, never another arrival.
       await removeCapture(key);
       setPending(null);
-      setMaterial("");
+      if (!demo) setMaterial("");
       setSupplier("");
       setPhoto(null);
       setClock(siteClock(new Date(), site.timezone));
       if (upload.current) upload.current.value = "";
       if (camera.current) camera.current.value = "";
       setNotice(
-        data.mode === "demo"
-          ? "Delivery saved in this browser. Ready for the next delivery."
+        demo
+          ? `Delivery saved in this browser. Recorded at ${siteClock(new Date(saved.recorded_at || saved.arrival_at), "Europe/London").time}. Ready for the next arrival.`
           : "Delivery saved. Ready for the next delivery.",
       );
       await onSaved();
@@ -202,6 +252,32 @@ export function SimpleForm({
           </p>
         </div>
       </div>
+      {demo && (
+        <section className={styles.quick} aria-label="Quick Record">
+          <h3>Quick Record</h3>
+          <p>Choose an item, then confirm the arrival below.</p>
+          <div className={styles.quickButtons}>
+            {QUICK_ITEMS.map((name) => {
+              const item = findExactCatalogueItem(data.materials, name);
+              return item ? (
+                <button
+                  key={name}
+                  type="button"
+                  disabled={busy || !!pending || restoring}
+                  aria-pressed={!custom && material === item.id}
+                  onClick={() => {
+                    setMaterial(item.id);
+                    setCustom(false);
+                    setError("");
+                  }}
+                >
+                  {name}
+                </button>
+              ) : null;
+            })}
+          </div>
+        </section>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -209,35 +285,72 @@ export function SimpleForm({
         }}
       >
         <fieldset disabled={busy || !!pending || restoring}>
-          <label>
-            Material name
-            <select
-              required
-              value={material}
-              onChange={(e) => setMaterial(e.target.value)}
-            >
-              <option value="">Select material</option>
-              {data.materials
-                .filter((m) => m.active)
-                .sort(
-                  (a, b) =>
-                    (order.indexOf(a.name) < 0 ? 99 : order.indexOf(a.name)) -
-                    (order.indexOf(b.name) < 0 ? 99 : order.indexOf(b.name)),
-                )
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-            </select>
-          </label>
+          {demo ? (
+            <>
+              <ItemSelector
+                items={data.materials}
+                value={material}
+                custom={custom}
+                customName={customName}
+                usage={usage}
+                disabled={busy || !!pending || restoring}
+                onSelect={setMaterial}
+                onCustom={setCustom}
+                onCustomName={setCustomName}
+              />
+              {hasItem && (
+                <dl
+                  className={styles.classification}
+                  aria-label="Automatic classification"
+                >
+                  <div>
+                    <dt>Category</dt>
+                    <dd>{category}</dd>
+                  </div>
+                  <div>
+                    <dt>Entry type</dt>
+                    <dd>{entryType}</dd>
+                  </div>
+                </dl>
+              )}
+              {hasItem && category === PENDING_CATEGORY && (
+                <p className={styles.pending}>
+                  This arrival can be saved now. A supervisor will review its
+                  classification.
+                </p>
+              )}
+            </>
+          ) : (
+            <label>
+              Material name
+              <select
+                required
+                value={material}
+                onChange={(e) => setMaterial(e.target.value)}
+              >
+                <option value="">Select material</option>
+                {data.materials
+                  .filter((m) => m.active)
+                  .sort(
+                    (a, b) =>
+                      (order.indexOf(a.name) < 0 ? 99 : order.indexOf(a.name)) -
+                      (order.indexOf(b.name) < 0 ? 99 : order.indexOf(b.name)),
+                  )
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
           <label>
             Supplier / Company name
             <input
-              required
+              required={!demo}
               maxLength={200}
               autoComplete="off"
-              placeholder="Enter company name"
+              placeholder={demo ? "If known" : "Enter company name"}
               value={supplier}
               onChange={(e) => setSupplier(e.target.value)}
               list="known-suppliers"
@@ -250,20 +363,28 @@ export function SimpleForm({
                 ))}
             </datalist>
           </label>
-          <label>
-            Delivery time
-            <input
-              required
-              type="time"
-              value={clock.time}
-              onChange={(e) =>
-                setClock((c) => ({ ...c, time: e.target.value }))
-              }
-            />
-            <small>
-              Site time · {site.timezone} · {clock.date}
-            </small>
-          </label>
+          {demo ? (
+            <div className={styles.automaticTime}>
+              <strong>Recorded at</strong>
+              The current date and time are captured when you save ·
+              Europe/London
+            </div>
+          ) : (
+            <label>
+              Delivery time
+              <input
+                required
+                type="time"
+                value={clock.time}
+                onChange={(e) =>
+                  setClock((c) => ({ ...c, time: e.target.value }))
+                }
+              />
+              <small>
+                Site time · {site.timezone} · {clock.date}
+              </small>
+            </label>
+          )}
           <div className="simple-upload">
             <label htmlFor="delivery-image">Delivery image</label>
             <div className="simple-image-controls">
@@ -300,7 +421,10 @@ export function SimpleForm({
                 onChange={(e) => choosePhoto(e.target.files?.[0], e.target)}
               />
             </div>
-            <small>Required · JPEG, PNG or WebP · up to 3 MiB</small>
+            <small>
+              Required · Ticket or delivery image · JPEG, PNG or WebP · up to 3
+              MiB
+            </small>
             {preview && (
               <div className="simple-image-preview">
                 <img src={preview} alt="Selected delivery image" />

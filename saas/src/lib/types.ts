@@ -19,6 +19,8 @@ export type Role =
   | "director"
   | "platform_admin";
 export type Unit = "tonnes" | "m³" | "loads" | "kg";
+export type EntryType = "Delivery" | "Service visit" | "Pending review";
+export type ApprovalStatus = "Approved" | "Pending";
 export type Actor = {
   id: string;
   name: string;
@@ -40,6 +42,11 @@ export type CatalogueItem = {
   company_id: string;
   name: string;
   active: boolean;
+  normalised_name?: string;
+  category?: string;
+  entry_type?: EntryType;
+  approval_status?: ApprovalStatus;
+  synonyms?: string[];
 };
 export type Marshal = {
   id: string;
@@ -78,6 +85,11 @@ export type Delivery = {
   marshal_id?: string;
   marshal_name?: string;
   capture_mode?: "simple" | "legacy";
+  item_name?: string;
+  category?: string;
+  entry_type?: EntryType;
+  recorded_at?: string;
+  catalogue_status?: ApprovalStatus;
   vehicle: string;
   ticket_number: string;
   ticket_quantity: number | null;
@@ -106,6 +118,9 @@ export type SimpleDeliveryInput = {
   arrival_at: string;
   intent: "draft" | "submit";
   version?: number;
+  custom_item_name?: string;
+  recorded_at?: string;
+  capture_kind?: "arrival";
 };
 export type DeliveryInput = {
   id: string;

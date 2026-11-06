@@ -16,6 +16,18 @@ import type {
   Unit,
 } from "../types";
 import { localDate } from "../reporting";
+import { periodDeliveries } from "../delivery-records";
+import { siteClock } from "../site-time";
+import {
+  CATEGORIES,
+  ENTRY_TYPES,
+  PENDING_CATEGORY,
+  PENDING_ENTRY_TYPE,
+  findExactCatalogueItem,
+  itemDetails,
+  normaliseItemName,
+  upgradeCatalogue,
+} from "../catalogue";
 import { demoProfiles, type DemoProfileId } from "./profiles";
 
 /** Fictional, per-browser playground. No server, credentials or production data. */
@@ -298,6 +310,7 @@ export function migrateDemoState(state: DemoState): DemoState {
   if (state.sample_data_version !== 3)
     addMixedMarshalSamples(state, firstGate, secondGate);
   state.sample_data_version = 3;
+  state.materials = upgradeCatalogue(state.materials, state.company.id);
   return state;
 }
 
@@ -559,6 +572,8 @@ export function demoBootstrap(state: DemoState): Bootstrap {
           creator_name: creator?.name ?? item.creator_name,
           marshal_name: selected?.name ?? item.marshal_name,
           supplier_name: cleanSampleSupplierSnapshot(item),
+          category: itemDetails(item, state.materials).category,
+          entry_type: itemDetails(item, state.materials).entry_type,
         };
       }),
     audit: state.audit
@@ -629,30 +644,54 @@ function marshalCatalogue(state: DemoState): Marshal[] {
 
 function parseSimpleDelivery(value: unknown): SimpleDeliveryInput {
   const raw = object(value);
+  const smart = raw.capture_kind === "arrival";
+  check(raw.capture_kind === undefined || smart, "Invalid capture kind");
   check(
     raw.intent === "draft" || raw.intent === "submit",
     "Invalid delivery intent",
   );
-  check(
-    typeof raw.arrival_at === "string" &&
-      Number.isFinite(Date.parse(raw.arrival_at)) &&
-      Date.parse(raw.arrival_at) <= Date.now() + 300_000,
-    "Enter a valid arrival time that is not in the future",
-  );
+  if (!smart)
+    check(
+      typeof raw.arrival_at === "string" &&
+        Number.isFinite(Date.parse(raw.arrival_at)) &&
+        Date.parse(raw.arrival_at) <= Date.now() + 300_000,
+      "Enter a valid arrival time that is not in the future",
+    );
   check(
     raw.version === undefined ||
       (Number.isInteger(raw.version) && Number(raw.version) > 0),
     "Invalid version",
   );
+  const custom =
+    smart && raw.custom_item_name !== undefined
+      ? raw.custom_item_name
+      : undefined;
+  if (custom !== undefined)
+    check(
+      typeof custom === "string" &&
+        custom.trim().length > 0 &&
+        custom.length <= 160,
+      "Enter an item name up to 160 characters",
+    );
+  if (typeof custom === "string")
+    check(
+      normaliseItemName(custom).length > 0,
+      "Enter an item name containing letters or numbers",
+    );
   return {
     id: uuid(raw.id),
     site_id: uuid(raw.site_id),
-    material_id: uuid(raw.material_id),
+    material_id:
+      custom !== undefined && !raw.material_id ? "" : uuid(raw.material_id),
     marshal_id: uuid(raw.marshal_id),
-    supplier_name: text(raw.supplier_name, 200, true),
-    arrival_at: new Date(raw.arrival_at).toISOString(),
+    supplier_name: text(raw.supplier_name ?? "", 200, !smart),
+    arrival_at: smart
+      ? now()
+      : new Date(raw.arrival_at as string).toISOString(),
     intent: raw.intent,
     version: raw.version as number | undefined,
+    ...(smart ? { capture_kind: "arrival" as const } : {}),
+    ...(custom !== undefined ? { custom_item_name: custom as string } : {}),
   };
 }
 
@@ -667,15 +706,13 @@ function saveSimple(
     403,
   );
   site(state, person, input.site_id);
-  check(
-    state.materials.some(
-      (item) =>
-        item.id === input.material_id &&
-        item.company_id === person.company_id &&
-        item.active,
-    ),
-    "Material not available",
-  );
+  const smart = input.capture_kind === "arrival";
+  if (smart && person.role === "gate")
+    check(
+      input.marshal_id === person.id,
+      "Record the arrival as your signed-in marshal",
+      403,
+    );
   const marshal = marshalCatalogue(state).find(
     (item) =>
       item.id === input.marshal_id &&
@@ -699,17 +736,23 @@ function saveSimple(
       409,
     );
     check(
-      [
-        "site_id",
-        "material_id",
-        "marshal_id",
-        "supplier_name",
-        "arrival_at",
-      ].every(
+      Boolean(previous.recorded_at) === smart,
+      "This saved draft uses a different capture method",
+      409,
+    );
+    const frozenFields = smart
+      ? ["site_id", "marshal_id", "supplier_name"]
+      : ["site_id", "material_id", "marshal_id", "supplier_name", "arrival_at"];
+    check(
+      frozenFields.every(
         (key) =>
           previous[key as keyof Delivery] ===
           input[key as keyof SimpleDeliveryInput],
-      ),
+      ) &&
+        (!smart ||
+          (input.custom_item_name !== undefined
+            ? previous.item_name === input.custom_item_name
+            : previous.material_id === input.material_id)),
       "This saved draft has different details. Start a new delivery to change them.",
       409,
     );
@@ -749,12 +792,56 @@ function saveSimple(
     input.intent === "draft",
     "Save the draft and add a delivery image before submitting",
   );
+  let material: CatalogueItem | undefined;
+  if (smart && input.custom_item_name !== undefined) {
+    material = findExactCatalogueItem(
+      state.materials.filter((item) => item.company_id === person.company_id),
+      input.custom_item_name,
+    );
+    if (!material) {
+      material = {
+        id: uid(),
+        company_id: person.company_id,
+        name: input.custom_item_name,
+        normalised_name: normaliseItemName(input.custom_item_name),
+        category: PENDING_CATEGORY,
+        entry_type: PENDING_ENTRY_TYPE,
+        approval_status: "Pending",
+        synonyms: [],
+        active: true,
+      };
+      state.materials.push(material);
+      audit(
+        state,
+        person,
+        "catalogue.item.pending",
+        material.id,
+        input.site_id,
+        null,
+        material,
+      );
+    }
+  } else {
+    material = state.materials.find(
+      (item) =>
+        item.id === input.material_id &&
+        item.company_id === person.company_id &&
+        item.active,
+    );
+  }
+  check(material, "Material not available");
+  if (smart && input.custom_item_name === undefined)
+    check(
+      normaliseItemName(material.name) !== normaliseItemName("Other") ||
+        material.approval_status === "Approved",
+      "Enter the new item name",
+    );
   const stamp = now();
   const delivery: Delivery = {
     id: input.id,
     company_id: person.company_id,
     site_id: input.site_id,
-    material_id: input.material_id,
+    material_id: material.id,
     supplier_id: null,
     supplier_name: input.supplier_name,
     marshal_id: marshal.id,
@@ -764,7 +851,7 @@ function saveSimple(
     ticket_number: "",
     ticket_quantity: null,
     ticket_unit: "loads",
-    arrival_at: input.arrival_at,
+    arrival_at: smart ? stamp : input.arrival_at,
     created_by: person.id,
     creator_name: person.name,
     created_at: stamp,
@@ -778,6 +865,14 @@ function saveSimple(
     version: 1,
     evidence: [],
     reviews: [],
+    ...(smart
+      ? {
+          item_name: input.custom_item_name ?? material.name,
+          recorded_at: stamp,
+          category: material.category ?? PENDING_CATEGORY,
+          entry_type: material.entry_type ?? PENDING_ENTRY_TYPE,
+        }
+      : {}),
   };
   state.deliveries.push(delivery);
   audit(
@@ -790,6 +885,75 @@ function saveSimple(
     delivery,
   );
   return { delivery: clone(delivery) };
+}
+
+function classifyCatalogueItem(
+  state: DemoState,
+  person: Actor,
+  value: unknown,
+) {
+  check(
+    ["supervisor", "site_manager", "company_admin"].includes(person.role),
+    "Supervisor classification permission required",
+    403,
+  );
+  const input = object(value);
+  const item = state.materials.find(
+    (candidate) =>
+      candidate.id === uuid(input.item_id) &&
+      candidate.company_id === person.company_id,
+  );
+  check(item, "Catalogue item not found", 404);
+  check(
+    person.role === "company_admin" ||
+      state.deliveries.some(
+        (delivery) =>
+          delivery.material_id === item.id &&
+          delivery.company_id === person.company_id &&
+          delivery.submitted_at &&
+          canSite(person, delivery.site_id),
+      ),
+    "No submitted arrivals are authorised for this item",
+    403,
+  );
+  const category = text(input.category, 100, true);
+  const entryType = text(input.entry_type, 40, true);
+  check(
+    (CATEGORIES as readonly string[]).includes(category),
+    "Select a valid category",
+  );
+  check(
+    (ENTRY_TYPES as readonly string[]).includes(entryType),
+    "Select Delivery or Service visit",
+  );
+  if (item.approval_status === "Approved") {
+    check(
+      item.category === category && item.entry_type === entryType,
+      "This item is already classified",
+      409,
+    );
+    return { item: clone(item) };
+  }
+  const before = clone(item);
+  item.category = category;
+  item.entry_type = entryType as CatalogueItem["entry_type"];
+  item.approval_status = "Approved";
+  item.normalised_name = normaliseItemName(item.name);
+  const auditSite =
+    state.deliveries.find(
+      (delivery) =>
+        delivery.material_id === item.id && canSite(person, delivery.site_id),
+    )?.site_id ?? null;
+  audit(
+    state,
+    person,
+    "catalogue.item.approved",
+    item.id,
+    auditSite,
+    before,
+    item,
+  );
+  return { item: clone(item) };
 }
 function parseDelivery(value: unknown): DeliveryInput {
   const raw = object(value);
@@ -1344,6 +1508,114 @@ function csvCell(value: unknown) {
   if (/^(\s*[=+\-@]|[\t\r\n])/.test(cell)) cell = "'" + cell;
   return '"' + cell.replaceAll('"', '""') + '"';
 }
+/** Arrival-only export shares the table's inclusive site-day filters. */
+function arrivalsReport(
+  state: DemoState,
+  person: Actor,
+  params: URLSearchParams,
+  boot: Bootstrap,
+  siteId: string | null,
+  date: string | null,
+) {
+  const from = params.get("from") || date || "";
+  const to = params.get("to") || date || "";
+  for (const bound of [from, to])
+    check(
+      !bound || /^\d{4}-\d{2}-\d{2}$/.test(bound),
+      "Invalid report date range",
+    );
+  check(
+    !from || !to || from <= to,
+    "The start date must not follow the end date",
+  );
+  const classification = params.get("classification");
+  check(
+    !classification || ["Approved", "Pending"].includes(classification),
+    "Invalid classification filter",
+  );
+  const rows = boot.sites
+    .filter((item) => !siteId || item.id === siteId)
+    .flatMap((item) =>
+      periodDeliveries(boot.deliveries, item.id, item.timezone, { from, to }),
+    )
+    .filter((delivery) => {
+      const details = itemDetails(delivery, boot.materials);
+      return (
+        (!params.get("material_id") ||
+          delivery.material_id === params.get("material_id")) &&
+        (!params.get("category") ||
+          details.category === params.get("category")) &&
+        (!params.get("entry_type") ||
+          details.entry_type === params.get("entry_type")) &&
+        (!params.get("marshal_id") ||
+          (delivery.marshal_id ?? delivery.created_by) ===
+            params.get("marshal_id")) &&
+        (!classification || details.approval_status === classification)
+      );
+    })
+    .sort((a, b) => Date.parse(b.arrival_at) - Date.parse(a.arrival_at));
+  const header = [
+    "Date",
+    "Time",
+    "Item",
+    "Category",
+    "Entry type",
+    "Company/supplier",
+    "Recorded by",
+    "Evidence status",
+    "Recorded at ISO",
+    "Original created ISO",
+    "Record ID",
+  ];
+  const body = rows.map((delivery) => {
+    const details = itemDetails(delivery, boot.materials);
+    const timezone =
+      boot.sites.find((item) => item.id === delivery.site_id)?.timezone ??
+      "Europe/London";
+    const clock = siteClock(
+      new Date(delivery.recorded_at ?? delivery.arrival_at),
+      timezone,
+    );
+    return [
+      clock.date,
+      clock.time,
+      details.name,
+      details.category,
+      details.entry_type,
+      delivery.supplier_name ??
+        boot.suppliers.find((item) => item.id === delivery.supplier_id)?.name,
+      delivery.marshal_name ?? delivery.creator_name,
+      delivery.evidence.length > 0 ? "Attached" : "No evidence",
+      delivery.recorded_at ?? "",
+      delivery.created_at,
+      delivery.id,
+    ];
+  });
+  audit(state, person, "report.exported", person.company_id, siteId, null, {
+    view: "arrivals",
+    from,
+    to,
+    count: rows.length,
+    material_id: params.get("material_id"),
+    category: params.get("category"),
+    entry_type: params.get("entry_type"),
+    marshal_id: params.get("marshal_id"),
+    classification,
+    fictional: true,
+  });
+  return new Response(
+    "\uFEFF" +
+      [header, ...body].map((row) => row.map(csvCell).join(",")).join("\r\n"),
+    {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition":
+          'attachment; filename="dj-civils-demo-arrivals.csv"',
+        "Cache-Control": "no-store",
+      },
+    },
+  );
+}
 function report(state: DemoState, person: Actor, params: URLSearchParams) {
   check(
     ["site_manager", "company_admin", "supervisor"].includes(person.role),
@@ -1355,6 +1627,8 @@ function report(state: DemoState, person: Actor, params: URLSearchParams) {
   check(!date || /^\d{4}-\d{2}-\d{2}$/.test(date), "Invalid report date");
   if (siteId) site(state, person, siteId);
   const boot = demoBootstrap(state);
+  if (params.get("view") === "arrivals")
+    return arrivalsReport(state, person, params, boot, siteId, date);
   const rows = boot.deliveries.filter(
     (delivery) =>
       delivery.submitted_at &&
@@ -1448,6 +1722,8 @@ export async function dispatchDemo(
     const path = target.pathname,
       method = (options.method ?? "GET").toUpperCase();
     const person = actor(state);
+    if (path === "/api/demo/catalogue/review" && method === "POST")
+      return json(classifyCatalogueItem(state, person, options.body));
     if (path === "/api/bootstrap" && method === "GET")
       return json(demoBootstrap(state));
     if (path === "/api/demo/profile" && method === "POST") {

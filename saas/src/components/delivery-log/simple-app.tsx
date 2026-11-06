@@ -330,7 +330,12 @@ export function SimpleApp({
               administrator to assign a site.
             </section>
           ) : recordsPage ? (
-            <SimpleRecords key={site.id} data={data} siteId={site.id} />
+            <SimpleRecords
+              key={site.id}
+              data={data}
+              siteId={site.id}
+              onRefresh={load}
+            />
           ) : (
             <>
               {page === "home" && (

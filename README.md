@@ -1,6 +1,6 @@
 # DJ Civils delivery log
 
-The active application lives in [`saas/`](saas/README.md). Traffic marshals start at **Sign in as**, choose their photo to open **Delivery Records**, then use **Record New Delivery** for the entry form. Supervisors have a separate entry directly into the records and photo viewer. The proposed DJ Civils pilot is unofficial; included delivery records are fictional.
+The active application lives in [`saas/`](saas/README.md). Traffic marshals start at **Sign in as**, choose their photo to open **Delivery Records**, then use **Record New Delivery** for the entry form. The browser demo now supports searchable delivery and service items, automatic classification, Quick Record shortcuts and supervisor review of unknown items. The proposed DJ Civils pilot is unofficial; included delivery records are fictional.
 
 ## Run the SaaS
 
@@ -12,7 +12,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000/demo` for the demo without an email or password. Demo records and photos persist in that browser only. See the [SaaS guide](saas/README.md) for authenticated development and Supabase setup.
+Open `http://localhost:3000/demo` for the demo without an email or password, or `/demo/supervisor` for combined records and catalogue review. Demo records, photos and catalogue approvals persist in that browser only; they are not shared across devices. See the [smart arrivals guide](saas/docs/SMART-ARRIVALS.md) for capture, classification and reporting, and the [SaaS guide](saas/README.md) for authenticated development and existing Supabase infrastructure.
 
 ## Repository map
 
@@ -36,7 +36,8 @@ npm run typecheck
 npm test
 npm run build
 npm run test:demo
-npm run test:e2e
+npx playwright test tests/e2e/ui.spec.ts
+npx playwright test tests/e2e/simple-api.spec.ts tests/e2e/portal-api.spec.ts --project=api
 ```
 
 Vercel's SaaS project uses **`saas` as its root directory** and `saas/vercel.json`. Keep that deployment root in place. The root `package.json`, `vercel.json`, `public/` and `source/` belong to the independent earlier dashboard; root `npm test`, `npm run lint` and `npm run build` continue to check that dashboard. Root build verifies the existing snapshot rather than compiling the SaaS.

@@ -10,7 +10,7 @@ This repository keeps the current DJ Civils delivery log and an earlier dashboar
 │   ├── archive/                  # Earlier handoff and project brief
 │   └── screenshots/              # Preserved earlier dashboard screenshots
 ├── saas/                         # Current Next.js application; Vercel root
-│   ├── docs/                     # Deployment, security and validation
+│   ├── docs/                     # Smart arrivals, deployment, security and validation
 │   ├── public/                   # Logo, marshal photos, icons and PWA files
 │   ├── scripts/                  # Supabase demo provisioning
 │   ├── src/
@@ -25,7 +25,9 @@ This repository keeps the current DJ Civils delivery log and an earlier dashboar
 │   │       ├── client/           # Browser transport and pending drafts
 │   │       ├── demo/             # Fictional demo engine and browser storage
 │   │       ├── server/           # Validation, sessions and backend adapters
-│   │       ├── reporting.ts      # Shared tally and quantity helpers
+│   │       ├── catalogue.ts      # Central items, aliases and classification helpers
+│   │       ├── delivery-records.ts # Filtered arrival counts and record helpers
+│   │       ├── reporting.ts      # Existing tally and quantity helpers
 │   │       ├── site-time.ts      # Site timezone conversion
 │   │       └── types.ts          # Shared data contracts
 │   ├── supabase/migrations/      # Ordered database and RLS migrations
@@ -45,20 +47,26 @@ This repository keeps the current DJ Civils delivery log and an earlier dashboar
 
 ## Where to make changes
 
-| Task                                                  | Location                                               |
-| ----------------------------------------------------- | ------------------------------------------------------ |
-| Home, marshal selection or delivery entry             | `saas/src/components/delivery-log/`                    |
-| Supervisor records and photo viewer                   | `saas/src/components/delivery-log/simple-records.tsx`  |
-| Login                                                 | `saas/src/components/auth/login.tsx`                   |
-| Demo entry screen                                     | `saas/src/components/demo/`                            |
-| Demo sample data or simulated API                     | `saas/src/lib/demo/`                                   |
-| Pending attempts, upload retries or browser transport | `saas/src/lib/client/`                                 |
-| Authenticated API endpoints                           | `saas/src/app/api/`                                    |
-| Sessions, permissions, persistence or validation      | `saas/src/lib/server/`                                 |
-| Database changes                                      | A new ordered migration in `saas/supabase/migrations/` |
-| Production setup                                      | `saas/docs/DEPLOYMENT.md` and `saas/.env.example`      |
+| Task                                                  | Location                                                                   |
+| ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| Home, marshal selection or delivery entry             | `saas/src/components/delivery-log/`                                        |
+| Supervisor records and photo viewer                   | `saas/src/components/delivery-log/simple-records.tsx`                      |
+| Searchable item selection and Quick Record            | `saas/src/components/delivery-log/item-selector.tsx` and `simple-form.tsx` |
+| Supervisor catalogue approval controls                | `saas/src/components/delivery-log/classification-review.tsx`               |
+| Catalogue names, aliases and automatic classification | `saas/src/lib/catalogue.ts`                                                |
+| Login                                                 | `saas/src/components/auth/login.tsx`                                       |
+| Demo entry screen                                     | `saas/src/components/demo/`                                                |
+| Demo sample data or simulated API                     | `saas/src/lib/demo/`                                                       |
+| Pending attempts, upload retries or browser transport | `saas/src/lib/client/`                                                     |
+| Authenticated API endpoints                           | `saas/src/app/api/`                                                        |
+| Sessions, permissions, persistence or validation      | `saas/src/lib/server/`                                                     |
+| Database changes                                      | A new ordered migration in `saas/supabase/migrations/`                     |
+| Production setup                                      | `saas/docs/DEPLOYMENT.md` and `saas/.env.example`                          |
+| Browser demo capture, classification and limitations  | `saas/docs/SMART-ARRIVALS.md`                                              |
 
 The team entrypoint is `saas/src/app/page.tsx`. Demo entrypoints under `saas/src/app/demo/` cover marshal selection, `delivery/[profile]/`, `records/` and the separate `supervisor/` records view. Components under `components/legacy/` retain the earlier pilot interface for reference and compatibility; active pages do not import them. Existing backend routes and historical records remain available.
+
+The smart arrivals upgrade operates within the browser demo. `lib/catalogue.ts` is a shared, deterministic catalogue; `lib/demo/engine.ts` applies demo capture and supervisor classification decisions, and `lib/demo/browser.ts` persists them through the existing IndexedDB store. The existing authenticated APIs, storage adapters, applied SQL migrations and independent earlier dashboard are preserved. See the [smart arrivals guide](../saas/docs/SMART-ARRIVALS.md) before changing demo data or catalogue migration behaviour.
 
 ## Conventions
 
