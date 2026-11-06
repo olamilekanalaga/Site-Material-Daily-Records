@@ -14,7 +14,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000/demo` and click one of the two square profile cards: **B** or **Olamilekan Alaga**. Olamilekan's card uses the supplied portrait; B retains a placeholder. The demo includes 10 fictional sample deliveries, five for each marshal. Select **View as supervisor** to see all ten together. Existing browser records and photos are kept when the sample data is updated. The first page says **Sign in as**. Choosing a square photo opens the next page with the selected marshal’s delivery form. **View Records** opens the saved table. Reloading keeps your current demo session; select a marshal again to resume any pending save.
+Open `http://localhost:3000/demo` and click one of the two square profile cards: **Bemigho Estano** or **Olamilekan Alaga**. Both marshal cards use their supplied portraits. The demo includes 10 fictional sample deliveries, five for each marshal. Select **View as supervisor** to see all ten together. Existing browser records and photos are kept when the sample data is updated. The first page says **Sign in as**. Choosing a square photo opens the next page with the selected marshal’s delivery form. **View Records** opens the saved table. Reloading keeps your current demo session; select a marshal again to resume any pending save.
 
 **No email, password, Supabase project, environment variables or backend session are needed for `/demo`.** The landing page and interactive demo also work on a deployment with no team backend configured.
 
@@ -27,7 +27,7 @@ Open `http://localhost:3000/demo` and click one of the two square profile cards:
 
 ### Supervisor entry
 
-Open `/demo/supervisor` directly, or choose **Supervisor demo** on the landing page. It opens the records table and photo viewer with no marshal cards or delivery form. `/demo/records?profile=b` is B’s own saved table; `/demo/delivery/b` and `/demo/delivery/olamilekan` are their entry pages. Supervisor and marshal tabs use their own view roles while sharing this browser’s saved demo data. Another device needs the authenticated shared backend to see these deliveries.
+Open `/demo/supervisor` directly, or choose **Supervisor demo** on the landing page. It opens the records table and photo viewer with no marshal cards or delivery form. `/demo/records?profile=b` is Bemigho’s own saved table; `/demo/delivery/b` and `/demo/delivery/olamilekan` are their entry pages. Supervisor and marshal tabs use their own view roles while sharing this browser’s saved demo data. Another device needs the authenticated shared backend to see these deliveries.
 
 Material names display as plain text. The seeded material catalogue uses **6F5**; existing demo entries keep their material IDs when the old GF5 spelling is corrected.
 

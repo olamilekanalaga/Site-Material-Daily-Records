@@ -1375,7 +1375,7 @@ export async function dispatchDemo(
       const profile = object(options.body).profile;
       check(
         demoProfiles.some((item) => item.id === profile),
-        "Select B or Olamilekan Alaga",
+        `Select ${demoProfiles.map((profile) => profile.name).join(" or ")}`,
       );
       const before = { profile: state.gate_profile, role: state.role };
       state.gate_profile = profile as DemoProfileId;

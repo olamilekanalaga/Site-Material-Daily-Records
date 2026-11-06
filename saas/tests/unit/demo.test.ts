@@ -108,7 +108,7 @@ test("ten fictional samples are split between the two named marshals with scoped
   assert.equal(state.deliveries.length, 10);
   assert.equal(new Set(state.deliveries.map((item) => item.id)).size, 10);
   assert.equal(b.deliveries.length, 5);
-  assert(b.deliveries.every((item) => item.marshal_name === "B"));
+  assert(b.deliveries.every((item) => item.marshal_name === "Bemigho Estano"));
   await ok(call(state, "/api/demo/profile", { profile: "olamilekan" }));
   const ola = demoBootstrap(state);
   assert.equal(ola.deliveries.length, 5);
@@ -129,7 +129,7 @@ test("ten fictional samples are split between the two named marshals with scoped
   assert.equal(supervisor.deliveries.length, 10);
   assert.deepEqual(
     [...new Set(supervisor.deliveries.map((item) => item.marshal_name))].sort(),
-    ["B", "Olamilekan Alaga"],
+    ["Bemigho Estano", "Olamilekan Alaga"],
   );
 });
 
@@ -254,15 +254,18 @@ test("five-row browser upgrades retain uploaded records and history while adding
   assert.equal(upgraded.suppliers[0].name, "Example Aggregates");
   assert.equal(upgraded.suppliers.at(-1)?.name, customSupplier.name);
   assert(visible.every((item) => !item.supplier_name?.includes("fictional")));
-  assert.equal(visible.find((item) => item.id === draft.id)?.marshal_name, "B");
+  assert.equal(
+    visible.find((item) => item.id === draft.id)?.marshal_name,
+    "Bemigho Estano",
+  );
   assert(
     visible.every((item) =>
-      ["B", "Olamilekan Alaga"].includes(item.marshal_name!),
+      ["Bemigho Estano", "Olamilekan Alaga"].includes(item.marshal_name!),
     ),
   );
   assert(
     visible.every((item) =>
-      ["B", "Olamilekan Alaga"].includes(item.creator_name),
+      ["Bemigho Estano", "Olamilekan Alaga"].includes(item.creator_name),
     ),
   );
 });
@@ -745,12 +748,12 @@ test("unknown and external routes never escape to a real API", async () => {
 
 test("named marshal profiles have distinct gate identities and retain delivery attribution", async () => {
   assert.deepEqual(demoProfiles, [
-    { id: "b", name: "B", initials: "B" },
+    { id: "b", name: "Bemigho Estano", initials: "BE" },
     { id: "olamilekan", name: "Olamilekan Alaga", initials: "OA" },
   ]);
   const state = createDemoState();
   const firstActor = demoBootstrap(state).actor;
-  assert.equal(firstActor.name, "B");
+  assert.equal(firstActor.name, "Bemigho Estano");
   const bInput = input(state, { intent: "draft", ticket_number: "B-DEMO" });
   const { delivery: bDraft } = await ok<{ delivery: Delivery }>(
     call(state, "/api/deliveries", bInput),
@@ -783,7 +786,7 @@ test("named marshal profiles have distinct gate identities and retain delivery a
   );
   assert.equal(olaDelivery.creator_name, "Olamilekan Alaga");
   assert.equal(olaDelivery.created_by, selected.actor.id);
-  assert.equal(bDraft.creator_name, "B");
+  assert.equal(bDraft.creator_name, "Bemigho Estano");
   assert.equal(bDraft.created_by, firstActor.id);
   await ok(call(state, "/api/demo/profile", { profile: "b" }));
   assert.equal(demoBootstrap(state).actor.id, firstActor.id);
@@ -851,7 +854,7 @@ test("legacy browser state migrates without changing old actor IDs, records, pho
   assert.equal(state.members.length, 5);
   assert.equal(state.gate_profile, "b");
   assert.equal(demoBootstrap(state).actor.id, oldGateId);
-  assert.equal(demoBootstrap(state).actor.name, "B");
+  assert.equal(demoBootstrap(state).actor.name, "Bemigho Estano");
   assert.deepEqual(state.deliveries, oldDeliveries);
   assert.deepEqual(state.audit, oldHistory);
   assert.equal(state.files, filesBefore);
@@ -933,7 +936,7 @@ test("simple photo logging preserves chosen marshal, actual creator and supplier
   assert.equal(boot.marshals?.length, 2);
   assert.deepEqual(
     boot.marshals?.map((marshal) => marshal.name),
-    ["B", "Olamilekan Alaga"],
+    ["Bemigho Estano", "Olamilekan Alaga"],
   );
   assert(
     boot.marshals?.every(
@@ -952,7 +955,7 @@ test("simple photo logging preserves chosen marshal, actual creator and supplier
   );
   assert.equal(draft.marshal_name, "Olamilekan Alaga");
   assert.equal(draft.created_by, boot.actor.id);
-  assert.equal(draft.creator_name, "B");
+  assert.equal(draft.creator_name, "Bemigho Estano");
   assert.notEqual(draft.marshal_id, draft.created_by);
   assert.equal(draft.supplier_name, "Fictional Quarry");
   assert.equal(draft.capture_mode, "simple");

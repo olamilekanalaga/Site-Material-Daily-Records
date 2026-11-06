@@ -92,7 +92,7 @@ function seedMarshals() {
     const profiles =
       s.company_id === C
         ? [
-            { seedName: "B Traffic Marshal", name: "B" },
+            { seedName: "B Traffic Marshal", name: "Bemigho Estano" },
             { seedName: "Olamilekan Alaga", name: "Olamilekan Alaga" },
           ]
         : [{ seedName: "Other Demo Marshal", name: "Other Demo Marshal" }];
@@ -109,7 +109,11 @@ function seedMarshals() {
           name,
           active: true,
         });
-      else if (existing.name === seedName && existing.name !== name)
+      else if (
+        (existing.name === seedName ||
+          (seedName === "B Traffic Marshal" && existing.name === "B")) &&
+        existing.name !== name
+      )
         put("marshal", { ...existing, name });
     }
   }
@@ -381,8 +385,13 @@ function site(actor: Actor, id: string) {
   return s;
 }
 function hydrate(d: Delivery): Delivery {
+  const marshal = d.marshal_id
+    ? get<Marshal>("marshal", d.marshal_id)
+    : undefined;
   return {
     ...d,
+    marshal_name:
+      marshal?.company_id === d.company_id ? marshal.name : d.marshal_name,
     evidence: all<StoredEvidence>("evidence", d.company_id)
       .filter((x) => x.delivery_id === d.id)
       .map(({ id, delivery_id, kind, name, mime, size, created_at }) => ({

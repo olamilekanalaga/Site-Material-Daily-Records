@@ -24,7 +24,7 @@ function delivery(
     ticket_unit: "loads",
     arrival_at: arrival,
     created_by: "marshal",
-    creator_name: "B",
+    creator_name: "Bemigho Estano",
     created_at: arrival,
     updated_at: arrival,
     submitted_at: arrival,

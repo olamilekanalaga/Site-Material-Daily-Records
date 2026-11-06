@@ -158,7 +158,7 @@ test("simple logging retries are idempotent and cannot finalize altered or photo
 
 test("marshal catalogues stay company/site scoped and capture roles remain enforced", () => {
   assert.deepEqual(boot.marshals!.map((m) => m.name).sort(), [
-    "B",
+    "Bemigho Estano",
     "Olamilekan Alaga",
   ]);
   assert.equal(local.bootstrap(gate).marshals!.length, 2);
@@ -172,22 +172,22 @@ test("marshal catalogues stay company/site scoped and capture roles remain enfor
 });
 
 test("renaming the original local marshal keeps saved delivery references intact", () => {
-  const marshal = boot.marshals!.find((m) => m.name === "B")!;
+  const marshal = boot.marshals!.find((m) => m.name === "Bemigho Estano")!;
   const saved = local.log(gate, input({ marshal_id: marshal.id })).delivery;
   const connection = new DatabaseSync(join(folder, "pilot.sqlite"));
   try {
     connection
       .prepare("UPDATE objects SET body=? WHERE kind='marshal' AND id=?")
-      .run(
-        JSON.stringify({ ...marshal, name: "B Traffic Marshal" }),
-        marshal.id,
-      );
+      .run(JSON.stringify({ ...marshal, name: "B" }), marshal.id);
   } finally {
     connection.close();
   }
   const migrated = local.bootstrap(gate);
   assert.equal(migrated.marshals!.length, 2);
-  assert.equal(migrated.marshals!.find((m) => m.id === marshal.id)?.name, "B");
+  assert.equal(
+    migrated.marshals!.find((m) => m.id === marshal.id)?.name,
+    "Bemigho Estano",
+  );
   assert.equal(
     migrated.deliveries.find((d) => d.id === saved.id)?.marshal_id,
     marshal.id,

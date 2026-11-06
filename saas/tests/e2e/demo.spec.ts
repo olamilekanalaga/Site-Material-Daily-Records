@@ -36,7 +36,9 @@ async function capture(
 ) {
   await page.getByRole("button", { name: marshal, exact: true }).click();
   await expect(page).toHaveURL(
-    new RegExp(`/demo/delivery/${marshal === "B" ? "b" : "olamilekan"}$`),
+    new RegExp(
+      `/demo/delivery/${marshal === "Bemigho Estano" ? "b" : "olamilekan"}$`,
+    ),
   );
   await expect(
     page.getByRole("heading", { name: "Record Delivery", exact: true }),
@@ -87,7 +89,7 @@ test("public DJ Civils demo starts with Sign in as and opens marshal entry and r
       logo.evaluate((image) => (image as HTMLImageElement).naturalWidth),
     )
     .toBeGreaterThan(0);
-  for (const name of ["B", "Olamilekan Alaga"]) {
+  for (const name of ["Bemigho Estano", "Olamilekan Alaga"]) {
     const photo = page
       .getByRole("button", { name, exact: true })
       .locator("img");
@@ -134,7 +136,9 @@ test("public DJ Civils demo starts with Sign in as and opens marshal entry and r
   const sampleRows = page.locator(".simple-table tbody tr");
   await expect(sampleRows).toHaveCount(10);
   const marshalCells = sampleRows.locator("td:nth-child(5)");
-  await expect(marshalCells.filter({ hasText: /^B$/ })).toHaveCount(5);
+  await expect(
+    marshalCells.filter({ hasText: /^Bemigho Estano$/ }),
+  ).toHaveCount(5);
   await expect(
     marshalCells.filter({ hasText: /^Olamilekan Alaga$/ }),
   ).toHaveCount(5);
@@ -143,6 +147,10 @@ test("public DJ Civils demo starts with Sign in as and opens marshal entry and r
   );
   await page.reload();
   await expect(sampleRows).toHaveCount(10);
+  await page.screenshot({
+    path: testInfo.outputPath("simple-demo-ten-summary.png"),
+    fullPage: true,
+  });
   await page.goto("/demo");
   await page.getByRole("link", { name: "Home", exact: true }).click();
   await expect(
@@ -166,7 +174,7 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   const suffix = randomUUID().slice(0, 8);
   const earlySupplier = `Fictional early ${suffix}`;
   const recentSupplier = `Fictional recent ${suffix}`;
-  await capture(page, "B", earlySupplier, "00:00");
+  await capture(page, "Bemigho Estano", earlySupplier, "00:00");
   await page.getByRole("button", { name: "View Records", exact: true }).click();
   await expect(page).toHaveURL(/\/demo\/records(?:\?|$)/);
   await expect(
@@ -187,7 +195,7 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
     page.getByRole("heading", { name: "Delivery Records", exact: true }),
   ).toBeVisible();
   await expect(earlyRow).toHaveCount(1);
-  await expect(earlyRow).toContainText("B");
+  await expect(earlyRow).toContainText("Bemigho Estano");
   await expect(recentRow).toContainText("Olamilekan Alaga");
   const rows = await page.getByRole("row").allTextContents();
   expect(rows.findIndex((row) => row.includes(recentSupplier))).toBeLessThan(
@@ -320,7 +328,9 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
   const bRequests = monitorBackendRequests(bPage);
   bPage.on("pageerror", (error) => pageErrors.push(error.message));
   await openDemo(bPage);
-  await bPage.getByRole("button", { name: "B", exact: true }).click();
+  await bPage
+    .getByRole("button", { name: "Bemigho Estano", exact: true })
+    .click();
   await expect(bPage).toHaveURL(/\/demo\/delivery\/b$/);
   await bPage
     .getByRole("button", { name: "View Records", exact: true })

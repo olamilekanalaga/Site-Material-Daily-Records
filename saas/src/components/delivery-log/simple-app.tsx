@@ -371,13 +371,26 @@ export function SimpleApp({
                       onClick={() => void selectMarshal(marshal)}
                     >
                       {(demo || data.mode === "local") &&
-                      marshal.name === "Olamilekan Alaga" ? (
+                      (marshal.name === "Olamilekan Alaga" ||
+                        marshal.name === "Bemigho Estano") ? (
                         <Image
-                          src="/marshals/olamilekan-alaga.jpg"
+                          src={
+                            marshal.name === "Bemigho Estano"
+                              ? "/marshals/bemigho-estano.jpg"
+                              : "/marshals/olamilekan-alaga.jpg"
+                          }
                           alt=""
                           fill
                           sizes="(max-width: 650px) 45vw, 230px"
-                          style={{ objectPosition: "50% 65%" }}
+                          style={
+                            marshal.name === "Bemigho Estano"
+                              ? {
+                                  objectFit: "contain",
+                                  objectPosition: "center top",
+                                  backgroundColor: "#0b0b0b",
+                                }
+                              : { objectPosition: "50% 65%" }
+                          }
                         />
                       ) : (
                         <img src="/marshal-placeholder.svg" alt="" />
