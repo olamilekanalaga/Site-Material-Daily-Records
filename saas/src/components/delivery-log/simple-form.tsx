@@ -8,7 +8,6 @@ import {
   normaliseItemName,
   PENDING_CATEGORY,
   PENDING_ENTRY_TYPE,
-  QUICK_ITEMS,
 } from "@/lib/catalogue";
 import { ItemSelector } from "./item-selector";
 import styles from "./smart-entry.module.css";
@@ -252,32 +251,6 @@ export function SimpleForm({
           </p>
         </div>
       </div>
-      {demo && (
-        <section className={styles.quick} aria-label="Quick Record">
-          <h3>Quick Record</h3>
-          <p>Choose an item, then confirm the arrival below.</p>
-          <div className={styles.quickButtons}>
-            {QUICK_ITEMS.map((name) => {
-              const item = findExactCatalogueItem(data.materials, name);
-              return item ? (
-                <button
-                  key={name}
-                  type="button"
-                  disabled={busy || !!pending || restoring}
-                  aria-pressed={!custom && material === item.id}
-                  onClick={() => {
-                    setMaterial(item.id);
-                    setCustom(false);
-                    setError("");
-                  }}
-                >
-                  {name}
-                </button>
-              ) : null;
-            })}
-          </div>
-        </section>
-      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();

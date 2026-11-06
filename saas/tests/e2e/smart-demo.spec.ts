@@ -52,14 +52,10 @@ async function entry(p: Page, profile = "olamilekan") {
     p.getByRole("heading", { name: "New Delivery", exact: true }),
   ).toBeVisible();
   await expect(selector(p)).toBeEnabled();
+  await expect(p.getByText("Quick Record", { exact: true })).toHaveCount(0);
 }
 function itemOption(p: Page, name: string) {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return p.getByRole("option").filter({
-    has: p.locator("span").filter({
-      hasText: new RegExp(`^${escaped.split(/\s+/).join("\\s+")}$`),
-    }),
-  });
+  return p.getByRole("option", { name, exact: true });
 }
 async function search(p: Page, query: string) {
   if ((await selector(p).getAttribute("aria-expanded")) !== "true")
@@ -123,7 +119,7 @@ async function noOverflow(p: Page) {
   ).toBeLessThanOrEqual(1);
 }
 
-test("dropdown browsing and optional search derive categories; quick choices save repeated arrivals with actual timestamps", async ({
+test("dropdown browsing and optional search derive categories; repeated arrivals use actual save timestamps", async ({
   page,
 }, info) => {
   const observed = monitor(page);
@@ -142,6 +138,13 @@ test("dropdown browsing and optional search derive categories; quick choices sav
     (item) => item.active && item.approval_status === "Approved",
   );
   await expect(page.getByRole("option")).toHaveCount(approved.length + 1);
+  expect(
+    (await page.getByRole("option").allTextContents())
+      .map((text) => text.trim())
+      .sort(),
+  ).toEqual(
+    [...approved.map((item) => item.name), "Other — Enter new item"].sort(),
+  );
   await expect(
     page.getByRole("searchbox", { name: "Search items", exact: true }),
   ).not.toBeFocused();
@@ -166,19 +169,27 @@ test("dropdown browsing and optional search derive categories; quick choices sav
   await expect(selector(page)).toHaveText("General building supplies");
   await expect(selector(page)).toHaveAttribute("aria-expanded", "false");
   await classification(page, "Other construction supplies", "Delivery");
-  const quick = page.getByRole("region", { name: "Quick Record", exact: true });
-  for (const name of [
-    "6F5",
-    "Type 1",
-    "Sand",
-    "10mm shingles",
-    "20mm shingles",
-    "Concrete",
-  ])
-    await expect(
-      quick.getByRole("button", { name, exact: true }),
-    ).toBeVisible();
-  await quick.getByRole("button", { name: "6F5", exact: true }).click();
+  const triggerBox = (await selector(page).boundingBox())!;
+  const boxes = await page
+    .locator('dl[aria-label="Automatic classification"] dd')
+    .evaluateAll((elements) =>
+      elements.map((element) => {
+        const box = element.getBoundingClientRect();
+        return { x: box.x, y: box.y, width: box.width, height: box.height };
+      }),
+    );
+  expect(boxes).toHaveLength(2);
+  expect(boxes[0].y).toBeGreaterThanOrEqual(triggerBox.y + triggerBox.height);
+  expect(boxes[1].y).toBeGreaterThanOrEqual(boxes[0].y + boxes[0].height);
+  for (const box of boxes) {
+    expect(Math.abs(box.width - triggerBox.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(box.x - triggerBox.x)).toBeLessThanOrEqual(2);
+  }
+  await page.screenshot({
+    path: info.outputPath("smart-selected-category.png"),
+    fullPage: true,
+  });
+  await choose(page, "6F5", "6F5");
   await classification(page, "Aggregates", "Delivery");
   expect((await savedState(page)).deliveries).toHaveLength(30);
   for (const [query, name, category, type] of [
@@ -198,7 +209,7 @@ test("dropdown browsing and optional search derive categories; quick choices sav
   await expect(
     page.getByLabel(/tonnage|quantity|litres|cost|price/i),
   ).toHaveCount(0);
-  await quick.getByRole("button", { name: "6F5", exact: true }).click();
+  await choose(page, "6F5", "6F5");
   await page.clock.fastForward(7 * 60 * 1000);
   const before = await page.evaluate(() => Date.now());
   await attach(page);
