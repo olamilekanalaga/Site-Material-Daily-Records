@@ -184,7 +184,28 @@ export function SimpleRecords({
   siteId: string;
   onRefresh?: () => Promise<unknown>;
 }) {
-  const [range, setRange] = useState<DateRange>({ from: "", to: "" });
+  const timezone =
+    data.sites.find((s) => s.id === siteId)?.timezone || "Europe/London";
+  const [today, setToday] = useState(
+    () => siteClock(new Date(), timezone).date,
+  );
+  const [customRange, setCustomRange] = useState<DateRange | null>(null);
+  useEffect(() => {
+    const refreshDay = () => setToday(siteClock(new Date(), timezone).date);
+    refreshDay();
+    const timer = window.setInterval(refreshDay, 15_000);
+    const resume = () => {
+      if (document.visibilityState === "visible") refreshDay();
+    };
+    window.addEventListener("focus", refreshDay);
+    document.addEventListener("visibilitychange", resume);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshDay);
+      document.removeEventListener("visibilitychange", resume);
+    };
+  }, [timezone]);
+  const range = customRange || { from: today, to: today };
   const [material, setMaterial] = useState("");
   const [category, setCategory] = useState("");
   const [entryType, setEntryType] = useState("");
@@ -193,8 +214,6 @@ export function SimpleRecords({
   const [viewing, setViewing] = useState<Delivery | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
-  const timezone =
-    data.sites.find((s) => s.id === siteId)?.timezone || "Europe/London";
   const invalidRange = Boolean(range.from && range.to && range.from > range.to);
   const periodRecords = periodDeliveries(
     data.deliveries,
@@ -307,6 +326,10 @@ export function SimpleRecords({
 
   return (
     <section className="simple-panel simple-records-panel">
+      <p className={styles.periodNote}>
+        {customRange ? "Custom date range" : "Today · updates automatically"}
+        {" · "}Site time: {timezone}
+      </p>
       <div className="simple-filters">
         <label className="simple-date-filter">
           From date
@@ -316,8 +339,8 @@ export function SimpleRecords({
             max={range.to || undefined}
             aria-invalid={invalidRange}
             onChange={(event) =>
-              setRange((previous) => ({
-                ...previous,
+              setCustomRange((previous) => ({
+                ...(previous || { from: today, to: today }),
                 from: event.target.value,
               }))
             }
@@ -331,7 +354,10 @@ export function SimpleRecords({
             min={range.from || undefined}
             aria-invalid={invalidRange}
             onChange={(event) =>
-              setRange((previous) => ({ ...previous, to: event.target.value }))
+              setCustomRange((previous) => ({
+                ...(previous || { from: today, to: today }),
+                to: event.target.value,
+              }))
             }
           />
         </label>
@@ -352,7 +378,8 @@ export function SimpleRecords({
         <button
           className="secondary simple-clear-filters"
           onClick={() => {
-            setRange({ from: "", to: "" });
+            setToday(siteClock(new Date(), timezone).date);
+            setCustomRange(null);
             selectSummary();
             setExportError("");
           }}
@@ -579,7 +606,6 @@ export function SimpleRecords({
               <th scope="col">Time</th>
               <th scope="col">Item</th>
               <th scope="col">Category</th>
-              <th scope="col">Entry type</th>
               <th scope="col">Company/supplier</th>
               <th scope="col">Recorded by</th>
               <th scope="col">Photo/ticket evidence</th>
@@ -610,7 +636,6 @@ export function SimpleRecords({
                   >
                     {item.category}
                   </td>
-                  <td>{item.entry_type}</td>
                   <td>
                     {record.supplier_name ||
                       data.suppliers.find(

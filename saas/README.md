@@ -18,10 +18,10 @@ Open `http://localhost:3000/demo` and click one of the two square profile cards:
 
 **No email, password, Supabase project, environment variables or backend session are needed for `/demo`.** The landing page and interactive demo also work on a deployment with no team backend configured.
 
-1. Select a marshal to open their delivery records. Choose **Record New Delivery**, then choose **Category** first. The item dropdown shows only that category's items; use **Search items** inside it if needed. Selecting a known item fills its entry type automatically. Changing category clears the previous item selection.
+1. Select a marshal to open their delivery records. Choose **Record New Delivery**, then choose **Category** first. The item dropdown shows only that category's items; use **Search items** inside it if needed. Known items are classified internally. Changing category clears the previous item selection.
 2. Add a sample supplier/company if known and take or upload a delivery image or retained ticket. Choose **Other / Not listed** as the category, or **Other — Enter new item** from an item list, when no catalogue option fits. The exact entered name can be saved with a pending classification.
 3. Press **Save Delivery** explicitly. **Recorded at** is generated at save time and displayed in Europe/London time. The selected known item stays ready for repeated arrivals while supplier and evidence are cleared. No manual time, vehicle registration, quantity or ticket number is required in the smart demo form.
-4. Choose **View Records** or **Back to Records** to return to saved rows, newest first. Filter by dates, item, category, entry type, marshal or pending classification.
+4. Choose **View Records** or **Back to Records** to return to **Daily Records**, initially showing the current site day's saved rows, newest first. Filter by dates, item, category, entry type, marshal or pending classification.
 5. Open `/demo/supervisor` to inspect combined site records, photos and breakdowns, and approve pending catalogue items. Open `/demo` to return to marshal selection.
 
 **Sign out** returns to the landing page. Records, catalogue changes and approvals persist across page reloads until browser site storage is cleared. The smart demo adds catalogue review and arrival breakdowns to the existing records view. Earlier physical-verification workflows and administration screens remain outside this simplified interface; their historical data and compatible backend routes remain intact.
@@ -32,11 +32,15 @@ The working pages use the DJ Civils logo with **Traffic Marshal Unit** beneath t
 
 Open `/demo/supervisor` directly, or choose **Supervisor demo** on the landing page. It opens combined records, the photo viewer, arrival summaries and pending catalogue review, with no marshal cards or delivery form. `/demo/records?profile=b` is Bemigho’s own saved table; `/demo/delivery/b` and `/demo/delivery/olamilekan` are their entry pages. Supervisor and marshal tabs use their own view roles while sharing this browser’s saved demo data. These browser-local records are not available on another device.
 
+The seven-column records table shows Date, Time, Item, Category, Company/supplier, Recorded by and Photo/ticket evidence. Entry type is retained internally for delivery/service totals, filtering and supervisor catalogue approval; it has no delivery-form field, records-table column or arrival-CSV column.
+
 Item names display as plain text. The central catalogue includes initial options across ten construction categories, preserves existing item IDs and ambiguous historical names such as **G1** and **6I**, and uses **6F5** for the seeded aggregate. Unknown names retain their entered text and wait for classification rather than being guessed. See [smart arrivals](docs/SMART-ARRIVALS.md) for catalogue matching and supervisor approval.
 
 ### Date ranges and arrival totals
 
-Delivery Records supports inclusive **From date** and **To date** filters, such as 1–30 October. Choose any custom date range using the site timezone. Clear filters restores all dates.
+**Daily Records** defaults to the current Europe/London site day, from site midnight to the following midnight. The automatic view moves to the new day at midnight. Editing **From date** or **To date** selects a custom range, such as 1–30 October; that range stays fixed across midnight while the records view remains open. **Clear filters** restores the automatic current-day view. Reopening the page starts with today.
+
+The table, summary cards and arrival CSV use the same effective dates. Earlier arrivals remain stored and can be viewed through custom ranges; changing the day does not delete records.
 
 Summary and material cards count recorded arrivals in the selected dates and remain horizontally scrollable. Total arrivals includes deliveries, service visits and unclassified items. Delivery, service-visit and pending totals stay separate. Select an item card to narrow the table; card counts continue to show the full selected period so items remain comparable. Additional filters cover category, entry type, marshal and classification status. Supervisor breakdowns show arrivals by item, category, service, time and marshal.
 

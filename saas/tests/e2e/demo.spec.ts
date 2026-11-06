@@ -40,7 +40,7 @@ async function cleanLayout(page: Page) {
       page.getByRole(role, { name: "Home", exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole(role, { name: "Delivery Records", exact: true }),
+      page.getByRole(role, { name: "Daily Records", exact: true }),
     ).toHaveCount(0);
   }
   await expect(page.locator("body")).not.toContainText(
@@ -54,7 +54,7 @@ async function capture(page: Page, marshal: string, supplier: string) {
     new RegExp(`/demo/records[?]profile=${profile}$`),
   );
   await expect(
-    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+    page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "New Delivery", exact: true }),
@@ -173,12 +173,12 @@ test("public DJ Civils photo selection opens clean marshal records with separate
     fullPage: false,
   });
   await expect(
-    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+    page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
   await page.goto("/demo/supervisor");
   const sampleRows = page.locator(".simple-table tbody tr");
   await expect(sampleRows).toHaveCount(30);
-  const marshalCells = sampleRows.locator("td:nth-child(7)");
+  const marshalCells = sampleRows.locator("td:nth-child(6)");
   await expect(
     marshalCells.filter({ hasText: /^Bemigho Estano$/ }),
   ).toHaveCount(20);
@@ -256,7 +256,7 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   await expect(recentRow).toHaveCount(1);
   await page.goto("/demo/supervisor");
   await expect(
-    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+    page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
   await expect(earlyRow).toHaveCount(1);
   await expect(earlyRow).toContainText("Bemigho Estano");
@@ -276,7 +276,6 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
     "time",
     "item",
     "category",
-    "entrytype",
     "company/supplier",
     "recordedby",
     "photo/ticketevidence",
@@ -303,7 +302,7 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   await page.getByLabel("To date", { exact: true }).fill("");
   await expect(recentRow).toHaveCount(1);
   await expect(
-    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+    page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
   await expect(recentRow).toHaveCount(1);
   await expect(
@@ -354,7 +353,7 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
   await page.goto("/demo/supervisor");
   await expect(page).toHaveTitle(/Supervisor demo/);
   await expect(
-    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+    page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".simple-table tbody tr")).toHaveCount(30);
   await cleanLayout(page);
@@ -459,7 +458,7 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
   await bPage.close();
 });
 
-test("supervisor date ranges and material cards show period totals without crowding the page", async ({
+test("daily records roll over at London midnight while custom ranges retain period totals", async ({
   page,
 }, testInfo) => {
   const apiRequests = monitorBackendRequests(page);
@@ -551,12 +550,28 @@ test("supervisor date ranges and material cards show period totals without crowd
       name: `${name}: ${count} arrivals`,
       exact: true,
     });
-  await expect(rows).toHaveCount(7);
+  await expect(from).toHaveValue("2026-11-06");
+  await expect(to).toHaveValue("2026-11-06");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("Today arrival");
+  await expect(total(1)).toBeVisible();
+  // The automatic period follows the site's calendar day, not the preceding 24 hours.
+  await page.clock.fastForward(12 * 60 * 60 * 1000 + 15_000);
+  await expect(from).toHaveValue("2026-11-07");
+  await expect(to).toHaveValue("2026-11-07");
+  await expect(rows).toHaveCount(0);
+  await expect(total(0)).toBeVisible();
   await from.fill("2026-10-01");
   await to.fill("2026-10-30");
   await expect(rows).toHaveCount(2);
   await expect(rows.filter({ hasText: "October first" })).toHaveCount(1);
   await expect(rows.filter({ hasText: "October last" })).toHaveCount(1);
+  await expect(total(2)).toBeVisible();
+  // A manually selected historical period stays fixed over the next midnight.
+  await page.clock.fastForward(24 * 60 * 60 * 1000 + 15_000);
+  await expect(from).toHaveValue("2026-10-01");
+  await expect(to).toHaveValue("2026-10-30");
+  await expect(rows).toHaveCount(2);
   await expect(total(2)).toBeVisible();
   await expect(material("6F5", 1)).toBeVisible();
   await material("6F5", 1).click();
@@ -580,13 +595,18 @@ test("supervisor date ranges and material cards show period totals without crowd
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
-  await expect(from).toHaveValue("");
-  await expect(to).toHaveValue("");
-  await expect(rows).toHaveCount(7);
-  await expect(total(7)).toBeVisible();
+  await expect(from).toHaveValue("2026-11-08");
+  await expect(to).toHaveValue("2026-11-08");
+  await expect(rows).toHaveCount(0);
+  await expect(total(0)).toBeVisible();
   await expect(
     page.getByRole("alert").filter({ hasText: "Choose a To date" }),
   ).toHaveCount(0);
+  // History is retained and can still be viewed through an explicit open range.
+  await from.fill("");
+  await to.fill("");
+  await expect(rows).toHaveCount(7);
+  await expect(total(7)).toBeVisible();
   await from.fill("2000-01-01");
   await to.fill("2000-01-03");
   await expect(rows).toHaveCount(0);
@@ -597,6 +617,9 @@ test("supervisor date ranges and material cards show period totals without crowd
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
+  await expect(from).toHaveValue("2026-11-08");
+  await expect(to).toHaveValue("2026-11-08");
+  await expect(total(0)).toBeVisible();
 
   const dimensions = await summary.evaluate((element) => {
     const buttons = [...element.querySelectorAll("button")];

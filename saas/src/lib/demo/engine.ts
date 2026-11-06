@@ -1559,7 +1559,6 @@ function arrivalsReport(
     "Time",
     "Item",
     "Category",
-    "Entry type",
     "Company/supplier",
     "Recorded by",
     "Evidence status",
@@ -1581,7 +1580,6 @@ function arrivalsReport(
       clock.time,
       details.name,
       details.category,
-      details.entry_type,
       delivery.supplier_name ??
         boot.suppliers.find((item) => item.id === delivery.supplier_id)?.name,
       delivery.marshal_name ?? delivery.creator_name,

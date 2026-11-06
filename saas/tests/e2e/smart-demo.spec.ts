@@ -78,11 +78,9 @@ async function choose(p: Page, query: string, name: string, category: string) {
   await search(p, query);
   await itemOption(p, name).click();
 }
-async function classification(p: Page, category: string, type: string) {
+async function selectedCategory(p: Page, category: string) {
   await expect(categorySelector(p)).toHaveValue(category);
-  await expect(
-    p.locator('dl[aria-label="Automatic classification"] dd'),
-  ).toHaveText([type]);
+  await expect(p.getByText("Entry type", { exact: true })).toHaveCount(0);
 }
 async function attach(p: Page) {
   await p.getByLabel("Delivery image", { exact: true }).setInputFiles({
@@ -192,25 +190,12 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
   await itemOption(page, "6F5").click();
   await expect(selector(page)).toHaveText("6F5");
   await expect(selector(page)).toHaveAttribute("aria-expanded", "false");
-  await classification(page, "Aggregates", "Delivery");
+  await selectedCategory(page, "Aggregates");
   const categoryBox = (await categorySelector(page).boundingBox())!;
   const triggerBox = (await selector(page).boundingBox())!;
   expect(categoryBox.y + categoryBox.height).toBeLessThanOrEqual(triggerBox.y);
-  const boxes = await page
-    .locator('dl[aria-label="Automatic classification"] dd')
-    .evaluateAll((elements) =>
-      elements.map((element) => {
-        const box = element.getBoundingClientRect();
-        return { x: box.x, y: box.y, width: box.width, height: box.height };
-      }),
-    );
-  expect(boxes).toHaveLength(1);
-  expect(boxes[0].y).toBeGreaterThanOrEqual(triggerBox.y + triggerBox.height);
   expect(Math.abs(categoryBox.width - triggerBox.width)).toBeLessThanOrEqual(2);
-  for (const box of boxes) {
-    expect(Math.abs(box.width - triggerBox.width)).toBeLessThanOrEqual(2);
-    expect(Math.abs(box.x - triggerBox.x)).toBeLessThanOrEqual(2);
-  }
+  expect(Math.abs(categoryBox.x - triggerBox.x)).toBeLessThanOrEqual(2);
   await page.screenshot({
     path: info.outputPath("smart-selected-category.png"),
     fullPage: true,
@@ -225,17 +210,17 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
   await expect(itemOption(page, "Road sweeper")).toHaveCount(1);
   await expect(itemOption(page, "Toilet servicing")).toHaveCount(1);
   await itemOption(page, "Road sweeper").click();
-  await classification(page, "Site services", "Service visit");
+  await selectedCategory(page, "Site services");
   expect((await savedState(page)).deliveries).toHaveLength(30);
-  for (const [query, name, category, type] of [
-    ["type1", "Type 1", "Aggregates", "Delivery"],
-    ["wood", "Timber", "Timber", "Delivery"],
-    ["sweeper", "Road sweeper", "Site services", "Service visit"],
-    ["toilet servicing", "Toilet servicing", "Site services", "Service visit"],
-    ["10 mm", "10mm shingles", "Aggregates", "Delivery"],
+  for (const [query, name, category] of [
+    ["type1", "Type 1", "Aggregates"],
+    ["wood", "Timber", "Timber"],
+    ["sweeper", "Road sweeper", "Site services"],
+    ["toilet servicing", "Toilet servicing", "Site services"],
+    ["10 mm", "10mm shingles", "Aggregates"],
   ]) {
     await choose(page, query, name, category);
-    await classification(page, category, type);
+    await selectedCategory(page, category);
   }
   await expect(page.getByLabel(/^Delivery time/)).toHaveCount(0);
   await expect(
@@ -262,6 +247,7 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
     item_name: "6F5",
     marshal_name: "Olamilekan Alaga",
     supplier_name: "",
+    entry_type: "Delivery",
     status: "Submitted",
   });
   expect(added[0].evidence).toHaveLength(1);
@@ -335,7 +321,7 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
   await expect(categorySelector(page)).toBeDisabled();
   await expect(selector(page)).toHaveText("Timber");
   await expect(selector(page)).toBeDisabled();
-  await classification(page, "Timber", "Delivery");
+  await selectedCategory(page, "Timber");
   await save(page, true);
   const recovered = (await savedState(page)).deliveries.filter(
     (record) => record.id === recoveredId,
@@ -344,6 +330,7 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
   expect(recovered[0]).toMatchObject({
     material_id: timber.id,
     item_name: "Timber",
+    entry_type: "Delivery",
     status: "Submitted",
   });
   await expect(categorySelector(page)).toBeEnabled();
@@ -377,7 +364,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
       .getByRole("option", { name: "Other — Enter new item", exact: true })
       .click();
     await page.getByLabel("New item name", { exact: true }).fill(name);
-    await classification(page, "Pending classification", "Pending review");
+    await selectedCategory(page, "Pending classification");
     await attach(page);
     await save(page);
   }
@@ -385,6 +372,9 @@ test("unknown names deduplicate pending items and remain intact after supervisor
     added = pending.deliveries.filter((r) => r.item_name?.includes(suffix));
   expect(added).toHaveLength(2);
   expect(added.map((r) => r.item_name).sort()).toEqual([raw, variant].sort());
+  expect(added.every((record) => record.entry_type === "Pending review")).toBe(
+    true,
+  );
   expect(new Set(added.map((r) => r.material_id)).size).toBe(1);
   const candidates = pending.materials.filter((i) => i.name.includes(suffix));
   expect(candidates).toHaveLength(1);
@@ -449,7 +439,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
   });
   await entry(page, "b");
   await choose(page, suffix, raw.replace(/\s+/g, " "), "Site services");
-  await classification(page, "Site services", "Service visit");
+  await selectedCategory(page, "Site services");
   await expect(page.getByRole("button", { name: /^Approve / })).toHaveCount(0);
   expect(
     (await context.cookies()).some((c) => c.name === "delivery_session"),
@@ -502,6 +492,7 @@ test("supervisor filters and breakdowns reconcile deliveries, services and pendi
   expect(download.suggestedFilename()).toMatch(/\.csv$/);
   const csv = await readFile((await download.path())!, "utf8");
   expect(csv).toContain("Recorded at ISO");
+  expect(csv.split(/\r?\n/)[0]).not.toContain('"Entry type"');
   expect(csv.split(/\r?\n/)).toHaveLength(3);
   expect(csv).toContain("Road sweeper");
   expect(csv).toContain("Toilet servicing");

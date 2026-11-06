@@ -237,7 +237,7 @@ export function SimpleApp({
             <div>
               <h1>
                 {recordsPage
-                  ? "Delivery Records"
+                  ? "Daily Records"
                   : page === "entry"
                     ? "Record Delivery"
                     : "Sign in as"}

@@ -23,7 +23,7 @@ async function login(page: Page, role: "gate" | "supervisor" = "gate") {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
-      name: role === "gate" ? "Sign in as" : "Delivery Records",
+      name: role === "gate" ? "Sign in as" : "Daily Records",
       exact: true,
     }),
   ).toBeVisible();
@@ -42,7 +42,7 @@ async function selectMarshal(page: Page) {
     .getByRole("button", { name: "Olamilekan Alaga", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+    page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "New Delivery", exact: true }),
@@ -110,7 +110,7 @@ test("marshal selection opens clean records before a separate delivery form with
     page.getByRole("button", { name: "Home", exact: true }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Delivery Records", exact: true }),
+    page.getByRole("button", { name: "Daily Records", exact: true }),
   ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Verification queue" }),
@@ -307,7 +307,7 @@ test("failed photo upload retries one persisted record that an authenticated sup
     .getByRole("button", { name: "Olamilekan Alaga", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+    page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("row").filter({ hasText: supplier })).toHaveCount(
     1,
@@ -342,14 +342,14 @@ test("separate staff sign-in forms enforce the chosen entrance and open the assi
     ),
   ).toBe(false);
   await expect(
-    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+    page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toHaveCount(0);
   await page
     .getByLabel("Email address", { exact: true })
     .fill("supervisor@demo.invalid");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+    page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Record New Delivery", exact: true }),
@@ -372,7 +372,7 @@ test("separate staff sign-in forms enforce the chosen entrance and open the assi
     .getByRole("button", { name: "Olamilekan Alaga", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+    page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Record New Delivery", exact: true }),
