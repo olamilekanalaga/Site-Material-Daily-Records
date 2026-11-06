@@ -106,11 +106,11 @@ export function SimpleApp({
           );
         const { selectDemoProfile } = await import("@/lib/demo/browser");
         await selectDemoProfile(profile.id);
-        window.location.assign(`/demo/records?profile=${profile.id}`);
+        window.location.assign(`/demo/delivery/${profile.id}`);
         return;
       }
       setMarshalId(marshal.id);
-      setPage("records");
+      setPage("entry");
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
@@ -192,6 +192,13 @@ export function SimpleApp({
     (item) => item.name === data.actor.name,
   );
   const demoRecordsHref = `/demo/records?profile=${demoProfile?.id || "b"}`;
+  const homeHref = demo
+    ? supervisorDemo
+      ? "/demo/supervisor"
+      : page === "home"
+        ? "/demo"
+        : `/demo/delivery/${demoProfile?.id || "b"}`
+    : "/";
 
   function showRecords() {
     if (demo) window.location.assign(demoRecordsHref);
@@ -212,8 +219,22 @@ export function SimpleApp({
     <div className="simple-app">
       <header className="simple-header">
         <a
-          href={demo ? (supervisorDemo ? "/demo/supervisor" : "/demo") : "/"}
+          href={homeHref}
           aria-label="DJ Civils home"
+          onClick={(event) => {
+            if (
+              canRecord &&
+              selected &&
+              !event.metaKey &&
+              !event.ctrlKey &&
+              !event.shiftKey &&
+              !event.altKey &&
+              event.button === 0
+            ) {
+              event.preventDefault();
+              setPage("entry");
+            }
+          }}
         >
           <Brand compact />
         </a>
@@ -247,7 +268,7 @@ export function SimpleApp({
                   ? "Saved deliveries for your site."
                   : page === "entry"
                     ? "Enter the delivery details below."
-                    : "Choose your name to view delivery records."}
+                    : "Choose your name to record a delivery."}
               </p>
             </div>
             {page !== "home" || !canRecord ? (

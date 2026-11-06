@@ -42,15 +42,6 @@ async function selectMarshal(page: Page) {
     .getByRole("button", { name: "Olamilekan Alaga", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Daily Records", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "New Delivery", exact: true }),
-  ).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Record New Delivery", exact: true })
-    .click();
-  await expect(
     page.getByRole("heading", { name: "Record Delivery", exact: true }),
   ).toBeVisible();
   await expect(
@@ -73,7 +64,7 @@ async function fillDelivery(page: Page, supplier: string) {
   });
 }
 
-test("marshal selection opens clean records before a separate delivery form with validation", async ({
+test("marshal selection opens delivery input first with explicit records access and validation", async ({
   page,
 }, testInfo) => {
   const creations: string[] = [];
@@ -123,6 +114,18 @@ test("marshal selection opens clean records before a separate delivery form with
     fullPage: true,
   });
   await selectMarshal(page);
+  await expect(page.locator(".simple-table")).toHaveCount(0);
+  await page.getByRole("button", { name: "View Records", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Daily Records", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "DJ Civils home", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "New Delivery", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Recording for Olamilekan Alaga", { exact: true }),
+  ).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("simple-delivery-form.png"),
     fullPage: true,
@@ -152,6 +155,10 @@ test("marshal selection opens clean records before a separate delivery form with
   await page
     .getByLabel("Supplier / Company name", { exact: true })
     .fill("Fictional validation supplier");
+  await page.getByRole("link", { name: "DJ Civils home", exact: true }).click();
+  await expect(
+    page.getByLabel("Supplier / Company name", { exact: true }),
+  ).toHaveValue("Fictional validation supplier");
   await page
     .getByRole("button", { name: "Save Delivery", exact: true })
     .click();
@@ -307,6 +314,10 @@ test("failed photo upload retries one persisted record that an authenticated sup
     .getByRole("button", { name: "Olamilekan Alaga", exact: true })
     .click();
   await expect(
+    page.getByRole("heading", { name: "New Delivery", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "View Records", exact: true }).click();
+  await expect(
     page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("row").filter({ hasText: supplier })).toHaveCount(
@@ -371,6 +382,11 @@ test("separate staff sign-in forms enforce the chosen entrance and open the assi
   await page
     .getByRole("button", { name: "Olamilekan Alaga", exact: true })
     .click();
+  await expect(
+    page.getByRole("heading", { name: "New Delivery", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".simple-table")).toHaveCount(0);
+  await page.getByRole("button", { name: "View Records", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
