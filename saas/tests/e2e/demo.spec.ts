@@ -134,22 +134,45 @@ test("public DJ Civils demo starts with Sign in as and opens marshal entry and r
     .getByRole("link", { name: "View as supervisor", exact: true })
     .click();
   const sampleRows = page.locator(".simple-table tbody tr");
-  await expect(sampleRows).toHaveCount(10);
+  await expect(sampleRows).toHaveCount(30);
   const marshalCells = sampleRows.locator("td:nth-child(5)");
   await expect(
     marshalCells.filter({ hasText: /^Bemigho Estano$/ }),
-  ).toHaveCount(5);
+  ).toHaveCount(20);
   await expect(
     marshalCells.filter({ hasText: /^Olamilekan Alaga$/ }),
-  ).toHaveCount(5);
+  ).toHaveCount(10);
+  const names = await marshalCells.allTextContents();
+  const nameChanges = names.reduce(
+    (changes, name, index) =>
+      changes + (index > 0 && name !== names[index - 1] ? 1 : 0),
+    0,
+  );
+  expect(nameChanges).toBeGreaterThan(1);
+  const arrivalClocks = await sampleRows.evaluateAll((rows) =>
+    rows.map(
+      (row) => `${row.children[0].textContent} ${row.children[1].textContent}`,
+    ),
+  );
+  expect(arrivalClocks).toEqual(
+    [...arrivalClocks].sort((a, b) => b.localeCompare(a)),
+  );
+  await expect(
+    page
+      .getByRole("region", { name: "Delivery summaries", exact: true })
+      .getByRole("button", { name: "Total deliveries: 30", exact: true }),
+  ).toBeVisible();
   await expect(page.locator("body")).not.toContainText(
     /Demo gate|B Traffic Marshal|fictional/i,
   );
   await page.reload();
-  await expect(sampleRows).toHaveCount(10);
+  await expect(sampleRows).toHaveCount(30);
+  await page
+    .locator(".simple-records-panel")
+    .evaluate((element) => element.scrollIntoView({ block: "start" }));
   await page.screenshot({
-    path: testInfo.outputPath("simple-demo-ten-summary.png"),
-    fullPage: true,
+    path: testInfo.outputPath("simple-demo-thirty-summary.png"),
+    fullPage: false,
   });
   await page.goto("/demo");
   await page.getByRole("link", { name: "Home", exact: true }).click();
@@ -288,7 +311,7 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
   await expect(
     page.getByRole("heading", { name: "Delivery Records", exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".simple-table tbody tr")).toHaveCount(10);
+  await expect(page.locator(".simple-table tbody tr")).toHaveCount(30);
   await expect(
     page.getByRole("link", { name: "Home", exact: true }),
   ).toHaveCount(0);
@@ -321,7 +344,7 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
   const uploadedRow = page.getByRole("row").filter({ hasText: supplier });
   await expect(uploadedRow).toContainText("Olamilekan Alaga");
   await expect(uploadedRow).toContainText("6F5");
-  await expect(page.locator(".simple-table tbody tr")).toHaveCount(11);
+  await expect(page.locator(".simple-table tbody tr")).toHaveCount(31);
 
   // Each marshal and the supervisor retain their own view across tabs.
   const bPage = await context.newPage();
@@ -345,7 +368,7 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
     marshalPage.getByText("Recording for Olamilekan Alaga", { exact: true }),
   ).toBeVisible();
   await bPage.getByRole("button", { name: "Refresh deliveries" }).click();
-  await expect(bPage.locator(".simple-table tbody tr")).toHaveCount(5);
+  await expect(bPage.locator(".simple-table tbody tr")).toHaveCount(20);
   await expect(
     bPage.getByRole("row").filter({ hasText: supplier }),
   ).toHaveCount(0);
@@ -358,7 +381,7 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
   await expect(photo).toHaveJSProperty("naturalWidth", 1);
   await page.getByRole("button", { name: "Close photo", exact: true }).click();
   await page.reload();
-  await expect(page.locator(".simple-table tbody tr")).toHaveCount(11);
+  await expect(page.locator(".simple-table tbody tr")).toHaveCount(31);
   await expect(uploadedRow).toBeVisible();
   await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
   await noOverflow(page);
@@ -391,7 +414,18 @@ test("supervisor date ranges and material cards show period totals without crowd
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.clock.install({ time: new Date("2026-11-06T12:00:00Z") });
   await page.goto("/demo/supervisor");
-  await expect(page.locator(".simple-table tbody tr")).toHaveCount(10);
+  await expect(page.locator(".simple-table tbody tr")).toHaveCount(30);
+  for (const label of [
+    "All dates",
+    "Today",
+    "Last 3 days",
+    "Last 7 days",
+    "This month",
+  ]) {
+    await expect(
+      page.getByRole("button", { name: label, exact: true }),
+    ).toHaveCount(0);
+  }
   // Simulate saved arrivals at the London date boundaries. This changes only
   // this test browser's demo database, including the final millisecond of Oct30.
   await page.evaluate(async () => {
@@ -480,25 +514,15 @@ test("supervisor date ranges and material cards show period totals without crowd
   await expect(from).toHaveValue("2026-10-01");
   await expect(to).toHaveValue("2026-10-30");
 
-  for (const [label, first, last, count] of [
-    ["Today", "2026-11-06", "2026-11-06", 1],
-    ["Last 3 days", "2026-11-04", "2026-11-06", 2],
-    ["Last 7 days", "2026-10-31", "2026-11-06", 4],
-    ["This month", "2026-11-01", "2026-11-06", 3],
-  ] as const) {
-    await page.getByRole("button", { name: label, exact: true }).click();
-    await expect(from).toHaveValue(first);
-    await expect(to).toHaveValue(last);
-    await expect(rows).toHaveCount(count);
-    await expect(total(count)).toBeVisible();
-  }
   await from.fill("2026-11-07");
   await expect(
     page.getByRole("alert").filter({ hasText: "Choose a To date" }),
   ).toBeVisible();
   await expect(rows).toHaveCount(0);
   await expect(total(0)).toBeVisible();
-  await page.getByRole("button", { name: "All dates", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
   await expect(from).toHaveValue("");
   await expect(to).toHaveValue("");
   await expect(rows).toHaveCount(7);
@@ -513,7 +537,9 @@ test("supervisor date ranges and material cards show period totals without crowd
     page.getByText("No saved deliveries match these filters."),
   ).toBeVisible();
   await expect(total(0)).toBeVisible();
-  await page.getByRole("button", { name: "All dates", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
 
   const dimensions = await summary.evaluate((element) => {
     const buttons = [...element.querySelectorAll("button")];

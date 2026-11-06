@@ -6,18 +6,8 @@ import { siteClock } from "@/lib/site-time";
 import {
   arrivalCounts,
   periodDeliveries,
-  periodRange,
   type DateRange,
-  type PeriodPreset,
 } from "@/lib/delivery-records";
-
-const periods: { id: PeriodPreset; label: string }[] = [
-  { id: "all", label: "All dates" },
-  { id: "today", label: "Today" },
-  { id: "3days", label: "Last 3 days" },
-  { id: "7days", label: "Last 7 days" },
-  { id: "month", label: "This month" },
-];
 
 function Photo({
   evidence,
@@ -117,7 +107,6 @@ export function SimpleRecords({
   siteId: string;
 }) {
   const [range, setRange] = useState<DateRange>({ from: "", to: "" });
-  const [preset, setPreset] = useState<PeriodPreset | "custom">("all");
   const [material, setMaterial] = useState("");
   const [viewing, setViewing] = useState<Delivery | null>(null);
   const timezone = data.sites.find((s) => s.id === siteId)?.timezone || "UTC";
@@ -137,25 +126,6 @@ export function SimpleRecords({
   );
   return (
     <section className="simple-panel simple-records-panel">
-      <div
-        className="simple-period-shortcuts"
-        role="group"
-        aria-label="Date shortcuts"
-      >
-        {periods.map((period) => (
-          <button
-            key={period.id}
-            type="button"
-            aria-pressed={preset === period.id}
-            onClick={() => {
-              setRange(periodRange(period.id, timezone));
-              setPreset(period.id);
-            }}
-          >
-            {period.label}
-          </button>
-        ))}
-      </div>
       <div className="simple-filters">
         <label className="simple-date-filter">
           From date
@@ -166,7 +136,6 @@ export function SimpleRecords({
             aria-invalid={invalidRange}
             onChange={(e) => {
               setRange((previous) => ({ ...previous, from: e.target.value }));
-              setPreset("custom");
             }}
           />
         </label>
@@ -179,7 +148,6 @@ export function SimpleRecords({
             aria-invalid={invalidRange}
             onChange={(e) => {
               setRange((previous) => ({ ...previous, to: e.target.value }));
-              setPreset("custom");
             }}
           />
         </label>
@@ -201,7 +169,6 @@ export function SimpleRecords({
           className="secondary simple-clear-filters"
           onClick={() => {
             setRange({ from: "", to: "" });
-            setPreset("all");
             setMaterial("");
           }}
         >

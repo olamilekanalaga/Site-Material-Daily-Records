@@ -4,7 +4,6 @@ import type { Delivery } from "../../src/lib/types";
 import {
   arrivalCounts,
   periodDeliveries,
-  periodRange,
 } from "../../src/lib/delivery-records";
 
 function delivery(
@@ -62,47 +61,6 @@ test("October date range includes entire site-local endpoint days and excludes d
     ["last", "first"],
   );
   assert.deepEqual(data, before, "Filtering must not mutate saved records");
-});
-
-test("presets use the site's current date with inclusive three and seven calendar days", () => {
-  const reference = new Date("2026-10-01T00:30:00Z");
-  assert.deepEqual(periodRange("today", "America/Los_Angeles", reference), {
-    from: "2026-09-30",
-    to: "2026-09-30",
-  });
-  assert.deepEqual(periodRange("3days", "Europe/London", reference), {
-    from: "2026-09-29",
-    to: "2026-10-01",
-  });
-  assert.deepEqual(periodRange("7days", "Europe/London", reference), {
-    from: "2026-09-25",
-    to: "2026-10-01",
-  });
-  assert.deepEqual(periodRange("month", "Europe/London", reference), {
-    from: "2026-10-01",
-    to: "2026-10-01",
-  });
-  assert.deepEqual(periodRange("all", "Europe/London", reference), {
-    from: "",
-    to: "",
-  });
-});
-
-test("calendar presets stay stable across spring and autumn clock changes", () => {
-  for (const [instant, threeFrom, sevenFrom, end] of [
-    ["2026-03-29T23:30:00Z", "2026-03-28", "2026-03-24", "2026-03-30"],
-    ["2026-10-25T23:30:00Z", "2026-10-23", "2026-10-19", "2026-10-25"],
-  ]) {
-    const reference = new Date(instant);
-    assert.deepEqual(periodRange("3days", "Europe/London", reference), {
-      from: threeFrom,
-      to: end,
-    });
-    assert.deepEqual(periodRange("7days", "Europe/London", reference), {
-      from: sevenFrom,
-      to: end,
-    });
-  }
 });
 
 test("open ranges include future arrivals when in range and reversed ranges return no records", () => {

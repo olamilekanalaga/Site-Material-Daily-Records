@@ -30,7 +30,7 @@ export type DemoState = {
   schema: 1;
   role: DemoRole;
   gate_profile?: DemoProfileId;
-  sample_data_version?: 2;
+  sample_data_version?: 2 | 3;
   company: Bootstrap["company"];
   sites: Site[];
   members: Actor[];
@@ -292,11 +292,90 @@ export function migrateDemoState(state: DemoState): DemoState {
     (member) => member.id === olamilekanId,
   )!;
   secondGate.name = demoProfiles[1].name;
-  if (state.sample_data_version !== 2) {
+  if (state.sample_data_version !== 2 && state.sample_data_version !== 3) {
     addSecondMarshalSamples(state, secondGate);
-    state.sample_data_version = 2;
   }
+  if (state.sample_data_version !== 3)
+    addMixedMarshalSamples(state, firstGate, secondGate);
+  state.sample_data_version = 3;
   return state;
+}
+
+function addMixedMarshalSamples(
+  state: DemoState,
+  bemigho: Actor,
+  olamilekan: Actor,
+) {
+  const sampleSite = state.sites.find(
+    (item) => item.id === siteId && item.company_id === state.company.id,
+  );
+  if (!sampleSite) return;
+  const previousSampleIds = new Set(
+    Array.from({ length: 10 }, (_, index) => fixtureId("6", index + 1)),
+  );
+  const previousTimes = state.deliveries
+    .filter((item) => previousSampleIds.has(item.id))
+    .map((item) => Date.parse(item.arrival_at))
+    .filter(Number.isFinite);
+  const latest = previousTimes.length ? Math.max(...previousTimes) : Date.now();
+  for (let index = 0; index < 20; index++) {
+    const id = fixtureId("6", index + 11);
+    if (state.deliveries.some((item) => item.id === id)) continue;
+    const marshal = index % 4 === 3 ? olamilekan : bemigho;
+    const material = state.materials.find(
+      (item) =>
+        item.id === fixtureId("4", (index % 6) + 1) &&
+        item.company_id === state.company.id,
+    );
+    const supplier = state.suppliers.find(
+      (item) =>
+        item.id === fixtureId("5", (index % 3) + 1) &&
+        item.company_id === state.company.id,
+    );
+    if (!material || !supplier) continue;
+    // Mix the new samples just before the newest original arrival. Existing
+    // timestamps are untouched, and no new sample is dated into the future.
+    const arrival = new Date(latest - (20 - index) * 30_000).toISOString();
+    const delivery: Delivery = {
+      id,
+      company_id: state.company.id,
+      site_id: sampleSite.id,
+      material_id: material.id,
+      supplier_id: supplier.id,
+      supplier_name: supplier.name,
+      marshal_id: marshal.id,
+      marshal_name: marshal.name,
+      vehicle: `DEMO ${111 + index}`,
+      ticket_number: `SAMPLE-${111 + index}`,
+      ticket_quantity: 20,
+      ticket_unit: "tonnes",
+      arrival_at: arrival,
+      created_by: marshal.id,
+      creator_name: marshal.name,
+      created_at: arrival,
+      updated_at: arrival,
+      submitted_at: arrival,
+      status: "Submitted",
+      commercial_status: "Not Linked",
+      notes:
+        "Fictional demonstration record. No real delivery or company approval is implied.",
+      accepted_quantity: null,
+      accepted_unit: null,
+      version: 1,
+      evidence: [],
+      reviews: [],
+    };
+    state.deliveries.push(delivery);
+    audit(
+      state,
+      marshal,
+      "demo.sample.created",
+      id,
+      sampleSite.id,
+      null,
+      delivery,
+    );
+  }
 }
 
 function addSecondMarshalSamples(state: DemoState, marshal: Actor) {
