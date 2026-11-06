@@ -1,5 +1,7 @@
 "use client";
 import { SimpleApp } from "../delivery-log/simple-app";
-export function DemoAccess() {
-  return <SimpleApp demo workspaceEnabled={false} />;
+export type DemoView = "marshal" | "entry" | "records" | "supervisor";
+
+export function DemoAccess({ view = "marshal" }: { view?: DemoView }) {
+  return <SimpleApp demo demoView={view} workspaceEnabled={false} />;
 }

@@ -58,10 +58,29 @@ export async function demoFetch(
       let body: unknown = options.body;
       if (typeof body === "string") body = JSON.parse(body);
       const state = await readState();
+      // Each demo page has its own role while sharing saved records. Changing
+      // marshal in another tab must not change the supervisor's photo access.
+      const savedRole = state.role;
+      if (typeof window !== "undefined") {
+        state.role = /^\/demo\/supervisor\/?$/.test(window.location.pathname)
+          ? "supervisor"
+          : "gate";
+        const entry = window.location.pathname.match(
+          /^\/demo\/delivery\/(b|olamilekan)\/?$/,
+        );
+        const profile =
+          entry?.[1] ??
+          (/^\/demo\/records\/?$/.test(window.location.pathname)
+            ? new URLSearchParams(window.location.search).get("profile")
+            : null);
+        if (profile === "b" || profile === "olamilekan")
+          state.gate_profile = profile;
+      }
       const response = await dispatchDemo(state, url, {
         method: options.method,
         body,
       });
+      state.role = savedRole;
       const db = await database();
       // Persist before reporting success so quota/private-mode errors remain visible.
       await db.put("demo", state, "state");

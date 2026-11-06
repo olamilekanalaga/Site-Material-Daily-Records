@@ -24,7 +24,7 @@ async function noOverflow(page: Page) {
 async function openDemo(page: Page) {
   await page.goto("/demo");
   await expect(
-    page.getByRole("heading", { name: "Home", exact: true }),
+    page.getByRole("heading", { name: "Sign in as", exact: true }),
   ).toBeVisible();
 }
 async function capture(
@@ -34,12 +34,19 @@ async function capture(
   time?: string,
 ) {
   await page.getByRole("button", { name: marshal, exact: true }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/demo/delivery/${marshal === "B" ? "b" : "olamilekan"}$`),
+  );
+  await expect(
+    page.getByRole("heading", { name: "Record Delivery", exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "New Delivery", exact: true }),
   ).toBeVisible();
+  await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
   await page
     .getByRole("combobox", { name: "Material name", exact: true })
-    .selectOption({ label: "GF5" });
+    .selectOption({ label: "6F5" });
   await page
     .getByLabel("Supplier / Company name", { exact: true })
     .fill(supplier);
@@ -64,7 +71,7 @@ async function capture(
   );
 }
 
-test("public DJCU demo opens Home directly with two square marshal photographs and two-page navigation", async ({
+test("public DJCU demo starts with Sign in as and opens marshal entry and records on separate pages", async ({
   page,
   context,
   request,
@@ -115,13 +122,13 @@ test("public DJCU demo opens Home directly with two square marshal photographs a
     fullPage: true,
   });
   await page
-    .getByRole("button", { name: "Delivery Records", exact: true })
+    .getByRole("link", { name: "Delivery Records", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Delivery Records", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "View as supervisor", exact: true })
+    .getByRole("link", { name: "View as supervisor", exact: true })
     .click();
   const sampleRows = page.locator(".simple-table tbody tr");
   await expect(sampleRows).toHaveCount(10);
@@ -135,12 +142,10 @@ test("public DJCU demo opens Home directly with two square marshal photographs a
   );
   await page.reload();
   await expect(sampleRows).toHaveCount(10);
-  await page
-    .getByRole("button", { name: "Back to marshal entry", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await page.goto("/demo");
+  await page.getByRole("link", { name: "Home", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Home", exact: true }),
+    page.getByRole("heading", { name: "Sign in as", exact: true }),
   ).toBeVisible();
   expect(apiRequests).toEqual([]);
   expect(
@@ -161,23 +166,21 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   const earlySupplier = `Fictional early ${suffix}`;
   const recentSupplier = `Fictional recent ${suffix}`;
   await capture(page, "B", earlySupplier, "00:00");
-  await page
-    .getByRole("button", { name: "Delivery Records", exact: true })
-    .click();
+  await page.getByRole("button", { name: "View Records", exact: true }).click();
+  await expect(page).toHaveURL(/\/demo\/records(?:\?|$)/);
   await expect(
     page.getByRole("row").filter({ hasText: earlySupplier }),
   ).toHaveCount(1);
-  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await page.getByRole("link", { name: "Home", exact: true }).click();
   await capture(page, "Olamilekan Alaga", recentSupplier);
-  await page
-    .getByRole("button", { name: "Delivery Records", exact: true })
-    .click();
+  await page.getByRole("button", { name: "View Records", exact: true }).click();
+  await expect(page).toHaveURL(/\/demo\/records(?:\?|$)/);
   const earlyRow = page.getByRole("row").filter({ hasText: earlySupplier });
   const recentRow = page.getByRole("row").filter({ hasText: recentSupplier });
   await expect(earlyRow).toHaveCount(0);
   await expect(recentRow).toHaveCount(1);
   await page
-    .getByRole("button", { name: "View as supervisor", exact: true })
+    .getByRole("link", { name: "View as supervisor", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Delivery Records", exact: true }),
@@ -213,7 +216,7 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   await expect(recentRow).toHaveCount(0);
   await page
     .getByRole("combobox", { name: "Material", exact: true })
-    .selectOption({ label: "GF5" });
+    .selectOption({ label: "6F5" });
   await expect(recentRow).toHaveCount(1);
   await page.getByLabel("Date", { exact: true }).fill("2000-01-01");
   await expect(recentRow).toHaveCount(0);
@@ -231,18 +234,16 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
     path: testInfo.outputPath("simple-demo-records.png"),
     fullPage: true,
   });
-  await page
-    .getByRole("button", { name: "Back to marshal entry", exact: true })
-    .click();
+  await page.goto("/demo");
   await expect(
-    page.getByRole("heading", { name: "Home", exact: true }),
+    page.getByRole("heading", { name: "Sign in as", exact: true }),
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "Home", exact: true }),
+    page.getByRole("heading", { name: "Sign in as", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Delivery Records", exact: true })
+    .getByRole("link", { name: "Delivery Records", exact: true })
     .click();
   await expect(
     page.getByRole("row").filter({ hasText: earlySupplier }),
@@ -251,7 +252,7 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
     page.getByRole("row").filter({ hasText: recentSupplier }),
   ).toHaveCount(1);
   await page
-    .getByRole("button", { name: "View as supervisor", exact: true })
+    .getByRole("link", { name: "View as supervisor", exact: true })
     .click();
   await expect(
     page.getByRole("row").filter({ hasText: earlySupplier }),
@@ -262,4 +263,109 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
       (cookie) => cookie.name === "delivery_session",
     ),
   ).toBe(false);
+});
+
+test("direct supervisor view stays read-only and keeps photo access while a marshal uses another tab", async ({
+  page,
+  context,
+}, testInfo) => {
+  const apiRequests = monitorBackendRequests(page);
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.goto("/demo/supervisor");
+  await expect(page).toHaveTitle(/Supervisor demo/);
+  await expect(
+    page.getByRole("heading", { name: "Delivery Records", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".simple-table tbody tr")).toHaveCount(10);
+  await expect(
+    page.getByRole("link", { name: "Home", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "New Delivery", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Save Delivery", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "View as supervisor", exact: true }),
+  ).toHaveCount(0);
+  const materialCell = page
+    .getByRole("cell", { name: "6F5", exact: true })
+    .first();
+  await expect(materialCell).toBeVisible();
+  await expect(materialCell.locator("*")).toHaveCount(0);
+  await expect(
+    page.getByRole("cell", { name: "GF5", exact: true }),
+  ).toHaveCount(0);
+
+  const marshalPage = await context.newPage();
+  const marshalRequests = monitorBackendRequests(marshalPage);
+  marshalPage.on("pageerror", (error) => pageErrors.push(error.message));
+  await openDemo(marshalPage);
+  const supplier = `Sample supervisor ${randomUUID().slice(0, 8)}`;
+  await capture(marshalPage, "Olamilekan Alaga", supplier);
+  await page.getByRole("button", { name: "Refresh deliveries" }).click();
+  const uploadedRow = page.getByRole("row").filter({ hasText: supplier });
+  await expect(uploadedRow).toContainText("Olamilekan Alaga");
+  await expect(uploadedRow).toContainText("6F5");
+  await expect(page.locator(".simple-table tbody tr")).toHaveCount(11);
+
+  // Each marshal and the supervisor retain their own view across tabs.
+  const bPage = await context.newPage();
+  const bRequests = monitorBackendRequests(bPage);
+  bPage.on("pageerror", (error) => pageErrors.push(error.message));
+  await openDemo(bPage);
+  await bPage.getByRole("button", { name: "B", exact: true }).click();
+  await expect(bPage).toHaveURL(/\/demo\/delivery\/b$/);
+  await bPage
+    .getByRole("button", { name: "View Records", exact: true })
+    .click();
+  await expect(bPage).toHaveURL(/\/demo\/records\?profile=b$/);
+  await expect(
+    bPage.getByRole("row").filter({ hasText: supplier }),
+  ).toHaveCount(0);
+  await marshalPage.reload();
+  await expect(marshalPage).toHaveURL(/\/demo\/delivery\/olamilekan$/);
+  await expect(
+    marshalPage.getByText("Recording for Olamilekan Alaga", { exact: true }),
+  ).toBeVisible();
+  await bPage.getByRole("button", { name: "Refresh deliveries" }).click();
+  await expect(bPage.locator(".simple-table tbody tr")).toHaveCount(5);
+  await expect(
+    bPage.getByRole("row").filter({ hasText: supplier }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Refresh deliveries" }).click();
+  await uploadedRow
+    .getByRole("button", { name: "View photo", exact: true })
+    .click();
+  const photo = page.getByRole("dialog").getByRole("img");
+  await expect(photo).toBeVisible();
+  await expect(photo).toHaveJSProperty("naturalWidth", 1);
+  await page.getByRole("button", { name: "Close photo", exact: true }).click();
+  await page.reload();
+  await expect(page.locator(".simple-table tbody tr")).toHaveCount(11);
+  await expect(uploadedRow).toBeVisible();
+  await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
+  await noOverflow(page);
+  await noOverflow(marshalPage);
+  await page.locator(".simple-table-scroll").evaluate((element) => {
+    element.scrollLeft = 0;
+  });
+  await page.screenshot({
+    path: testInfo.outputPath("supervisor-demo-records.png"),
+    fullPage: true,
+  });
+  expect(apiRequests).toEqual([]);
+  expect(marshalRequests).toEqual([]);
+  expect(bRequests).toEqual([]);
+  expect(pageErrors).toEqual([]);
+  expect(
+    (await context.cookies()).some(
+      (cookie) => cookie.name === "delivery_session",
+    ),
+  ).toBe(false);
+  await marshalPage.close();
+  await bPage.close();
 });

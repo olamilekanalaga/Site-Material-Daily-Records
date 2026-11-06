@@ -3204,6 +3204,10 @@ code {
   min-height: 49px;
   font-size: 13px;
 }
+.demo-entry > .secondary {
+  width: 100%;
+  margin-top: 10px;
+}
 .demo-entry > small {
   display: block;
   margin-top: 12px;
@@ -3720,17 +3724,17 @@ code {
   border-radius: 10px;
   background: white;
 }
-.simple-navigation nav button {
+.simple-navigation nav :is(button, a) {
   padding: 11px 20px;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 600;
 }
-.simple-navigation nav button[aria-current="page"] {
+.simple-navigation nav :is(button, a)[aria-current="page"] {
   background: #262720;
   color: #fff;
 }
-.simple-navigation nav button:hover:not([aria-current="page"]) {
+.simple-navigation nav :is(button, a):hover:not([aria-current="page"]) {
   background: #f3efe7;
 }
 .simple-refresh {
@@ -3743,6 +3747,11 @@ code {
   margin-top: 5px;
 }
 .simple-demo-view .text-button {
+  color: #735530;
+  font-size: 12px;
+}
+.simple-demo-view p {
+  padding: 10px 0;
   color: #735530;
   font-size: 12px;
 }
@@ -3992,6 +4001,13 @@ code {
   padding: 14px 28px;
   font-size: 15px;
 }
+.simple-view-records {
+  display: flex;
+  width: 100%;
+  margin-top: 12px;
+  min-height: 52px;
+  font-size: 14px;
+}
 .simple-filters {
   display: flex;
   align-items: flex-end;
@@ -4086,16 +4102,6 @@ code {
 }
 .simple-table .simple-time-cell,
 .simple-table .simple-marshal-cell {
-  font-weight: 600;
-}
-.simple-material-label {
-  display: inline-block;
-  padding: 5px 10px;
-  border: 1px solid #d0b789;
-  border-radius: 5px;
-  background: #f2e6cc;
-  color: #65471e;
-  font-size: 12px;
   font-weight: 600;
 }
 .simple-photo-missing {
@@ -4252,7 +4258,7 @@ code {
     gap: 3px;
     padding: 4px;
   }
-  .simple-navigation nav button {
+  .simple-navigation nav :is(button, a) {
     padding: 10px 12px;
     font-size: 13px;
   }

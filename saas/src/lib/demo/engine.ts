@@ -124,7 +124,7 @@ export function createDemoState(
     site_ids: [siteId],
   }));
   const materials = [
-    "GF5",
+    "6F5",
     "G1",
     "Type 1",
     "Sand",
@@ -252,6 +252,11 @@ export function createDemoState(
 /** Upgrade fictional samples without replacing saved records, photos or history. */
 export function migrateDemoState(state: DemoState): DemoState {
   // Clean only the supplied catalogue labels, retaining operator-entered names.
+  const aggregate = state.materials.find(
+    (item) =>
+      item.id === fixtureId("4", 1) && item.company_id === state.company.id,
+  );
+  if (aggregate?.name === "GF5") aggregate.name = "6F5";
   const sampleSite = state.sites.find((item) => item.id === siteId);
   if (sampleSite?.name === "Demonstration Site — fictional")
     sampleSite.name = "Demonstration Site";

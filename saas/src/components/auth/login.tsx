@@ -56,6 +56,9 @@ export function Login({
           <a className="primary" href="/demo">
             Explore demo <ArrowRight size={18} />
           </a>
+          <a className="secondary" href="/demo/supervisor">
+            Supervisor demo
+          </a>
           <small>
             Sample records. Demo changes and photos stay in your browser.
           </small>

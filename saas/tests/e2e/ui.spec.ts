@@ -23,7 +23,7 @@ async function login(page: Page, role: "gate" | "supervisor" = "gate") {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
-      name: role === "gate" ? "Home" : "Delivery Records",
+      name: role === "gate" ? "Sign in as" : "Delivery Records",
       exact: true,
     }),
   ).toBeVisible();
@@ -42,14 +42,18 @@ async function selectMarshal(page: Page) {
     .getByRole("button", { name: "Olamilekan Alaga", exact: true })
     .click();
   await expect(
+    page.getByRole("heading", { name: "Record Delivery", exact: true }),
+  ).toBeVisible();
+  await expect(
     page.getByRole("heading", { name: "New Delivery", exact: true }),
   ).toBeVisible();
+  await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
 }
 
 async function fillDelivery(page: Page, supplier: string) {
   await page
     .getByRole("combobox", { name: "Material name", exact: true })
-    .selectOption({ label: "GF5" });
+    .selectOption({ label: "6F5" });
   await page
     .getByLabel("Supplier / Company name", { exact: true })
     .fill(supplier);
@@ -60,7 +64,7 @@ async function fillDelivery(page: Page, supplier: string) {
   });
 }
 
-test("two-page marshal entry validates required details, site time and photograph limits", async ({
+test("marshal selection opens a separate entry view that validates required details, site time and photograph limits", async ({
   page,
 }, testInfo) => {
   const creations: string[] = [];
@@ -128,7 +132,7 @@ test("two-page marshal entry validates required details, site time and photograp
   );
   await page
     .getByRole("combobox", { name: "Material name", exact: true })
-    .selectOption({ label: "GF5" });
+    .selectOption({ label: "6F5" });
   await page
     .getByLabel("Supplier / Company name", { exact: true })
     .fill("Fictional validation supplier");
@@ -207,7 +211,7 @@ test("failed photo upload retries one persisted record that an authenticated sup
   );
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "Home", exact: true }),
+    page.getByRole("heading", { name: "Sign in as", exact: true }),
   ).toBeVisible();
   await selectMarshal(page);
   await expect(
@@ -228,12 +232,10 @@ test("failed photo upload retries one persisted record that an authenticated sup
   );
   expect(submittedIds.length).toBeGreaterThanOrEqual(2);
   expect(new Set(submittedIds).size).toBe(1);
-  await page
-    .getByRole("button", { name: "Delivery Records", exact: true })
-    .click();
+  await page.getByRole("button", { name: "View Records", exact: true }).click();
   const row = page.getByRole("row").filter({ hasText: supplier });
   await expect(row).toHaveCount(1);
-  await expect(row).toContainText("GF5");
+  await expect(row).toContainText("6F5");
   await expect(row).toContainText("Olamilekan Alaga");
   const state = await (await page.request.get("/api/bootstrap")).json();
   const matches = state.deliveries.filter(
