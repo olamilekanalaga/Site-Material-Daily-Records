@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import { ArrowRight, ShieldCheck } from "lucide-react";
-import { request } from "@/lib/offline";
-import { Brand } from "./brand";
+import { request } from "@/lib/client/offline";
+import { Brand } from "../shared/brand";
 
 export function Login({
   onLogin,

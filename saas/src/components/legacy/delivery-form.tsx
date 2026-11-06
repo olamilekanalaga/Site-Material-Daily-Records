@@ -9,7 +9,7 @@ import {
   synchroniseDraft,
   type LocalDraft,
   type LocalPhoto,
-} from "@/lib/offline";
+} from "@/lib/client/offline";
 
 function dateInput(iso: string) {
   const d = new Date(iso);

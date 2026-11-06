@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { local } from "../src/lib/server/local";
-import { parseSimpleDelivery, parseDelivery } from "../src/lib/server/core";
-import type { Actor, Bootstrap, SimpleDeliveryInput } from "../src/lib/types";
+import { local } from "../../src/lib/server/local";
+import { parseSimpleDelivery, parseDelivery } from "../../src/lib/server/core";
+import type { Actor, Bootstrap, SimpleDeliveryInput } from "../../src/lib/types";
 
 const folder = mkdtempSync(join(tmpdir(), "djcu-simple-local-"));
 const oldMode = process.env.APP_MODE;

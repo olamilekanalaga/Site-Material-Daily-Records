@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { synchroniseDraft, type LocalDraft } from "../src/lib/offline";
+import { synchroniseDraft, type LocalDraft } from "../../src/lib/client/offline";
 const draft: LocalDraft = {
   id: "30000000-0000-4000-8000-000000000001",
   owner: "company:gate",

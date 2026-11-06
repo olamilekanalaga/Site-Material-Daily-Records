@@ -1,5 +1,5 @@
 import { openDB } from "idb";
-import type { DeliveryInput } from "./types";
+import type { DeliveryInput } from "../types";
 export type LocalPhoto = {
   id: string;
   kind: "ticket" | "vehicle" | "load";
@@ -33,7 +33,7 @@ export async function clearDemoDrafts() {
 
 export async function transport(url: string, options: RequestInit = {}) {
   if (isDemoPath()) {
-    const { demoFetch } = await import("./demo/browser");
+    const { demoFetch } = await import("../demo/browser");
     return demoFetch(url, options);
   }
   return fetch(url, {

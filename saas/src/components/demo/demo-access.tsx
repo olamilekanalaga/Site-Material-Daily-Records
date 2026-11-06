@@ -1,5 +1,5 @@
 "use client";
-import { SimpleApp } from "./simple-app";
+import { SimpleApp } from "../delivery-log/simple-app";
 export function DemoAccess() {
   return <SimpleApp demo workspaceEnabled={false} />;
 }

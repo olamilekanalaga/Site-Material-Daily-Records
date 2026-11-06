@@ -1,5 +1,5 @@
 import { openDB } from "idb";
-import type { SimpleDeliveryInput } from "./types";
+import type { SimpleDeliveryInput } from "../types";
 import { isDemoPath, request } from "./offline";
 
 export type CaptureDraft = {
@@ -31,7 +31,7 @@ export async function removeCapture(key: string) {
 }
 
 export async function submitCapture(draft: CaptureDraft) {
-  const { delivery } = await request<{ delivery: import("./types").Delivery }>(
+  const { delivery } = await request<{ delivery: import("../types").Delivery }>(
     "/api/log-deliveries",
     {
       method: "POST",
@@ -47,7 +47,7 @@ export async function submitCapture(draft: CaptureDraft) {
     method: "POST",
     body: form,
   });
-  const saved = await request<{ delivery: import("./types").Delivery }>(
+  const saved = await request<{ delivery: import("../types").Delivery }>(
     "/api/log-deliveries",
     {
       method: "POST",

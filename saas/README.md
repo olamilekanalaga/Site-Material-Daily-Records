@@ -74,13 +74,15 @@ The unit/SQL suite passes **58 tests**, and authenticated/API plus credential-fr
 
 ## Source map and next phase
 
+See the [repository folder guide](../docs/REPOSITORY-STRUCTURE.md) for the complete tree and file placement conventions.
+
 | Path                              | Purpose                                                         |
 | --------------------------------- | --------------------------------------------------------------- |
 | `src/app/demo/`, `src/lib/demo/`  | Credential-free browser demo and persistent fictional state     |
-| `src/components/simple-*.tsx`     | Home, inline delivery form and filtered records/photo viewer    |
-| `src/components/login.tsx`        | Existing team sign-in and credential-free demo entry            |
+| `src/components/delivery-log/`    | Home, inline delivery form and filtered records/photo viewer    |
+| `src/components/auth/login.tsx`   | Existing team sign-in and credential-free demo entry            |
 | `src/app/api/`, `src/lib/server/` | Authenticated team APIs, validation and storage adapters        |
-| `src/lib/simple-drafts.ts`        | Separate demo/team pending attempts and idempotent image upload |
+| `src/lib/client/simple-drafts.ts` | Separate demo/team pending attempts and idempotent image upload |
 | `src/lib/site-time.ts`            | Site-local dates/times independent of the phone timezone        |
 | `supabase/migrations/`            | Production schema, tenant/site RLS and private-storage policies |
 | `tests/`                          | Demo, domain, SQL and browser tests                             |
