@@ -6,12 +6,12 @@ The proposed company pilot remains unofficial. Included deliveries and suppliers
 
 ## Record an arrival
 
-1. Open `/demo`, then choose **Bemigho Estano** or **Olamilekan Alaga**. Their **Daily Records** page opens for the current site day.
-2. Choose **Record New Delivery**, then select **Category** first. The item dropdown is enabled for that category and shows only its items. Optional **Search items** inside the dropdown helps find a name or alias within that category.
+1. Open `/demo`, then choose **Bemigho Estano** or **Olamilekan Alaga**. Their delivery-entry form opens directly.
+2. Select **Category** first. The item dropdown is enabled for that category and shows only its items. Optional **Search items** inside the dropdown helps find a name or alias within that category.
 3. The item dropdown shows names only. Selecting a known item derives its classification internally. Changing category clears the previous item selection so an item from another category cannot remain selected.
 4. Add the company/supplier if known. Take or upload an image of the delivery evidence, such as a retained ticket where permitted. A truck photograph is not specifically required.
 5. Press **Save Delivery**. The app associates the selected marshal, records the timestamp and confirms the browser save. The known item remains selected for repeated arrivals; supplier and evidence are cleared for the next arrival.
-6. Choose **View Records** or **Back to Records** to inspect the saved row.
+6. Choose **View Records** or **Back to Records** to open **Daily Records** and inspect the saved row. **Record New Delivery** returns to the entry form.
 
 The form has no tonnage, volume, litres, prices, stock calculations, purchase orders or vehicle-registration requirement. The smart demo does not require manual time entry. The existing photo requirement remains: JPEG, PNG or WebP, at most **3 MiB**. Failed validation, upload or persistence keeps the prepared attempt available for retry with the same record and photo identifiers.
 

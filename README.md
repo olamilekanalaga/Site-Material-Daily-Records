@@ -1,6 +1,6 @@
 # DJ Civils delivery log
 
-The active application lives in [`saas/`](saas/README.md). Traffic marshals start at **Sign in as**, choose their photo to open **Daily Records**, then use **Record New Delivery** for the entry form. Records default to the current Europe/London site day and move to the next day at midnight; custom date ranges keep earlier arrivals accessible. The browser demo uses category-first selection to filter the searchable item dropdown, classifies items internally and supports supervisor review of unknown items. The proposed DJ Civils pilot is unofficial; included delivery records are fictional.
+The active application lives in [`saas/`](saas/README.md). Traffic marshals start at **Sign in as**, choose their photo to open the delivery-entry form, then use **View Records** to inspect **Daily Records**. Records default to the current Europe/London site day and move to the next day at midnight; custom date ranges keep earlier arrivals accessible. The browser demo uses category-first selection to filter the searchable item dropdown, classifies items internally and supports supervisor review of unknown items. The proposed DJ Civils pilot is unofficial; included delivery records are fictional.
 
 ## Run the SaaS
 

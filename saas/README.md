@@ -1,6 +1,6 @@
 # DJ Civils — construction delivery management
 
-DJ Civils is a site-arrival log: traffic marshals choose their name to open their records and record deliveries or service visits; supervisors inspect records, evidence and operational totals, and classify new items. The interface uses the supplied DJ Civils logo. The proposed pilot remains **unofficial and unauthorised**; all included supplier, ticket and delivery records are fictional. The named demo profiles are for demonstration only.
+DJ Civils is a site-arrival log: traffic marshals choose their name to open the delivery-entry form and record deliveries or service visits; supervisors inspect records, evidence and operational totals, and classify new items. The interface uses the supplied DJ Civils logo. The proposed pilot remains **unofficial and unauthorised**; all included supplier, ticket and delivery records are fictional. The named demo profiles are for demonstration only.
 
 The original reporting app remains outside `saas/` and is not served by DJ Civils.
 
@@ -14,11 +14,11 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000/demo` and click one of the two square profile cards: **Bemigho Estano** or **Olamilekan Alaga**. Both marshal cards use their supplied portraits. The demo includes 30 sample deliveries: 20 for Bemigho Estano and 10 for Olamilekan Alaga. Open `/demo/supervisor` to see the combined records in arrival-time order. Existing browser records and photos are kept when the sample data is updated. The first page says **Sign in as**. Choosing a square photo opens the selected marshal’s saved records. **Record New Delivery** opens their entry form; **View Records** returns to the saved table. Reloading keeps your current demo session; select a marshal again to resume any pending save.
+Open `http://localhost:3000/demo` and click one of the two square profile cards: **Bemigho Estano** or **Olamilekan Alaga**. Both marshal cards use their supplied portraits. The demo includes 30 sample deliveries: 20 for Bemigho Estano and 10 for Olamilekan Alaga. Open `/demo/supervisor` to see the combined records in arrival-time order. Existing browser records and photos are kept when the sample data is updated. The first page says **Sign in as**. Choosing a square photo opens the selected marshal’s delivery-entry form directly. **View Records** opens the saved table; **Record New Delivery** returns to entry. For a selected marshal, the company-logo Home link also opens the delivery form. Reloading the delivery page keeps the selected profile; select the same marshal again to resume any pending save.
 
 **No email, password, Supabase project, environment variables or backend session are needed for `/demo`.** The landing page and interactive demo also work on a deployment with no team backend configured.
 
-1. Select a marshal to open their delivery records. Choose **Record New Delivery**, then choose **Category** first. The item dropdown shows only that category's items; use **Search items** inside it if needed. Known items are classified internally. Changing category clears the previous item selection.
+1. Select a marshal to open their delivery-entry form directly, then choose **Category** first. The item dropdown shows only that category's items; use **Search items** inside it if needed. Known items are classified internally. Changing category clears the previous item selection.
 2. Add a sample supplier/company if known and take or upload a delivery image or retained ticket. Choose **Other / Not listed** as the category, or **Other — Enter new item** from an item list, when no catalogue option fits. The exact entered name can be saved with a pending classification.
 3. Press **Save Delivery** explicitly. **Recorded at** is generated at save time and displayed in Europe/London time. The selected known item stays ready for repeated arrivals while supplier and evidence are cleared. No manual time, vehicle registration, quantity or ticket number is required in the smart demo form.
 4. Choose **View Records** or **Back to Records** to return to **Daily Records**, initially showing the current site day's saved rows, newest first. Filter by dates, item, category, entry type, marshal or pending classification.

@@ -50,19 +50,6 @@ async function cleanLayout(page: Page) {
 async function capture(page: Page, marshal: string, supplier: string) {
   await page.getByRole("button", { name: marshal, exact: true }).click();
   const profile = marshal === "Bemigho Estano" ? "b" : "olamilekan";
-  await expect(page).toHaveURL(
-    new RegExp(`/demo/records[?]profile=${profile}$`),
-  );
-  await expect(
-    page.getByRole("heading", { name: "Daily Records", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "New Delivery", exact: true }),
-  ).toHaveCount(0);
-  await cleanLayout(page);
-  await page
-    .getByRole("button", { name: "Record New Delivery", exact: true })
-    .click();
   await expect(page).toHaveURL(new RegExp(`/demo/delivery/${profile}$`));
   await expect(
     page.getByRole("heading", { name: "Record Delivery", exact: true }),
@@ -71,6 +58,8 @@ async function capture(page: Page, marshal: string, supplier: string) {
     page.getByRole("heading", { name: "New Delivery", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
+  await expect(page.locator(".simple-table")).toHaveCount(0);
+  await cleanLayout(page);
   await expect(page.getByText("Quick Record", { exact: true })).toHaveCount(0);
   await page
     .getByRole("combobox", { name: "Category", exact: true })
@@ -105,7 +94,7 @@ async function capture(page: Page, marshal: string, supplier: string) {
   );
 }
 
-test("public DJ Civils photo selection opens clean marshal records with separate delivery entry", async ({
+test("public DJ Civils photo selection opens delivery input first with explicit records access", async ({
   page,
   context,
   request,
@@ -162,6 +151,28 @@ test("public DJ Civils photo selection opens clean marshal records with separate
   await page
     .getByRole("button", { name: "Bemigho Estano", exact: true })
     .click();
+  await expect(page).toHaveURL(/\/demo\/delivery\/b$/);
+  await expect(
+    page.getByRole("heading", { name: "New Delivery", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Recording for Bemigho Estano", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".simple-table")).toHaveCount(0);
+  await page
+    .getByLabel("Supplier / Company name", { exact: true })
+    .fill("Unsaved home return");
+  await page.getByRole("link", { name: "DJ Civils home", exact: true }).click();
+  await expect(page).toHaveURL(/\/demo\/delivery\/b$/);
+  await expect(
+    page.getByLabel("Supplier / Company name", { exact: true }),
+  ).toHaveValue("Unsaved home return");
+  await cleanLayout(page);
+  await page.screenshot({
+    path: testInfo.outputPath("marshal-input-first.png"),
+    fullPage: false,
+  });
+  await page.getByRole("button", { name: "View Records", exact: true }).click();
   await expect(page).toHaveURL(/\/demo\/records\?profile=b$/);
   await expect(page.locator(".simple-table tbody tr")).toHaveCount(20);
   await expect(
@@ -175,6 +186,23 @@ test("public DJ Civils photo selection opens clean marshal records with separate
   await expect(
     page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
+  await page.getByRole("link", { name: "DJ Civils home", exact: true }).click();
+  await expect(page).toHaveURL(/\/demo\/delivery\/b$/);
+  await expect(
+    page.getByText("Recording for Bemigho Estano", { exact: true }),
+  ).toBeVisible();
+  await page.goto("/demo");
+  await page
+    .getByRole("button", { name: "Olamilekan Alaga", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/demo\/delivery\/olamilekan$/);
+  await expect(
+    page.getByText("Recording for Olamilekan Alaga", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".simple-table")).toHaveCount(0);
+  await page.getByRole("button", { name: "View Records", exact: true }).click();
+  await expect(page).toHaveURL(/\/demo\/records\?profile=olamilekan$/);
+  await expect(page.locator(".simple-table tbody tr")).toHaveCount(10);
   await page.goto("/demo/supervisor");
   const sampleRows = page.locator(".simple-table tbody tr");
   await expect(sampleRows).toHaveCount(30);
@@ -247,6 +275,11 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
     page.getByRole("row").filter({ hasText: earlySupplier }),
   ).toHaveCount(1);
   await page.getByRole("link", { name: "DJ Civils home", exact: true }).click();
+  await expect(page).toHaveURL(/\/demo\/delivery\/b$/);
+  await expect(
+    page.getByText("Recording for Bemigho Estano", { exact: true }),
+  ).toBeVisible();
+  await page.goto("/demo");
   await capture(page, "Olamilekan Alaga", recentSupplier);
   await page.getByRole("button", { name: "View Records", exact: true }).click();
   await expect(page).toHaveURL(/\/demo\/records(?:\?|$)/);
@@ -324,6 +357,11 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   await page
     .getByRole("button", { name: "Olamilekan Alaga", exact: true })
     .click();
+  await expect(page).toHaveURL(/\/demo\/delivery\/olamilekan$/);
+  await expect(
+    page.getByText("Recording for Olamilekan Alaga", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "View Records", exact: true }).click();
   await expect(page).toHaveURL(/\/demo\/records\?profile=olamilekan$/);
   await expect(
     page.getByRole("row").filter({ hasText: earlySupplier }),
@@ -401,10 +439,6 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
   await openDemo(bPage);
   await bPage
     .getByRole("button", { name: "Bemigho Estano", exact: true })
-    .click();
-  await expect(bPage).toHaveURL(/\/demo\/records\?profile=b$/);
-  await bPage
-    .getByRole("button", { name: "Record New Delivery", exact: true })
     .click();
   await expect(bPage).toHaveURL(/\/demo\/delivery\/b$/);
   await bPage
