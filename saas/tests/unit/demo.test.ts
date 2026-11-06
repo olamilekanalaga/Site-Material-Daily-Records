@@ -102,16 +102,16 @@ test("demo opens without credentials and uses only clearly fictional sample data
   assert(!JSON.stringify(state).includes("real@example.com"));
 });
 
-test("ten fictional samples are split between the two named marshals with scoped views", async () => {
+test("thirty fictional samples are split twenty and ten between the named marshals", async () => {
   const state = createDemoState(new Date("2026-11-06T10:00:00Z"));
   const b = demoBootstrap(state);
-  assert.equal(state.deliveries.length, 10);
-  assert.equal(new Set(state.deliveries.map((item) => item.id)).size, 10);
-  assert.equal(b.deliveries.length, 5);
+  assert.equal(state.deliveries.length, 30);
+  assert.equal(new Set(state.deliveries.map((item) => item.id)).size, 30);
+  assert.equal(b.deliveries.length, 20);
   assert(b.deliveries.every((item) => item.marshal_name === "Bemigho Estano"));
   await ok(call(state, "/api/demo/profile", { profile: "olamilekan" }));
   const ola = demoBootstrap(state);
-  assert.equal(ola.deliveries.length, 5);
+  assert.equal(ola.deliveries.length, 10);
   assert(
     ola.deliveries.every((item) => item.marshal_name === "Olamilekan Alaga"),
   );
@@ -126,10 +126,90 @@ test("ten fictional samples are split between the two named marshals with scoped
   );
   await role(state, "supervisor");
   const supervisor = demoBootstrap(state);
-  assert.equal(supervisor.deliveries.length, 10);
+  assert.equal(supervisor.deliveries.length, 30);
   assert.deepEqual(
     [...new Set(supervisor.deliveries.map((item) => item.marshal_name))].sort(),
     ["Bemigho Estano", "Olamilekan Alaga"],
+  );
+  const newestNames = supervisor.deliveries
+    .slice(0, 21)
+    .map((item) => item.marshal_name);
+  assert.equal(new Set(newestNames).size, 2);
+  assert(
+    newestNames.filter(
+      (name, index) => index > 0 && name !== newestNames[index - 1],
+    ).length >= 9,
+  );
+  assert(
+    supervisor.deliveries.every(
+      (item) =>
+        Date.parse(item.arrival_at) <= Date.parse("2026-11-06T10:00:00Z"),
+    ),
+  );
+});
+
+test("ten-row browser upgrades append twenty mixed samples once without replacing saved uploads", async () => {
+  const state = createDemoState(new Date("2026-11-06T10:00:00Z"));
+  const originalIds = new Set(
+    state.deliveries.slice(0, 10).map((item) => item.id),
+  );
+  const fields = input(state, {
+    intent: "draft",
+    ticket_number: "KEEP-TEN-ROW-UPLOAD",
+  });
+  const { delivery: draft } = await ok<{ delivery: Delivery }>(
+    call(state, "/api/deliveries", fields),
+  );
+  const upload = photo();
+  await ok(call(state, `/api/deliveries/${draft.id}/evidence`, upload));
+  await ok(
+    call(
+      state,
+      `/api/deliveries/${draft.id}`,
+      { ...fields, intent: "submit", version: draft.version },
+      "PATCH",
+    ),
+  );
+  originalIds.add(draft.id);
+  state.deliveries = state.deliveries.filter((item) =>
+    originalIds.has(item.id),
+  );
+  state.audit = state.audit.filter((item) => originalIds.has(item.entity_id));
+  state.sample_data_version = 2;
+  const originals = structuredClone(state.deliveries);
+  const originalHistory = structuredClone(state.audit);
+  const originalFiles = state.files;
+  migrateDemoState(state);
+  migrateDemoState(state);
+  assert.equal(state.sample_data_version, 3);
+  assert.equal(state.deliveries.length, 31);
+  assert.equal(new Set(state.deliveries.map((item) => item.id)).size, 31);
+  for (const original of originals)
+    assert.deepEqual(
+      state.deliveries.find((item) => item.id === original.id),
+      original,
+    );
+  assert.deepEqual(
+    state.audit.slice(0, originalHistory.length),
+    originalHistory,
+  );
+  assert.equal(state.audit.length, originalHistory.length + 20);
+  assert.equal(state.files, originalFiles);
+  assert.deepEqual(
+    new Uint8Array(await state.files[String(upload.get("id"))].arrayBuffer()),
+    new Uint8Array(await png.arrayBuffer()),
+  );
+  state.role = "supervisor";
+  const samples = demoBootstrap(state).deliveries.filter(
+    (item) => item.id !== draft.id,
+  );
+  assert.equal(
+    samples.filter((item) => item.marshal_name === "Bemigho Estano").length,
+    20,
+  );
+  assert.equal(
+    samples.filter((item) => item.marshal_name === "Olamilekan Alaga").length,
+    10,
   );
 });
 
@@ -232,15 +312,15 @@ test("five-row browser upgrades retain uploaded records and history while adding
   const originalFiles = state.files;
   migrateDemoState(state);
   migrateDemoState(state);
-  assert.equal(state.deliveries.length, 11);
-  assert.equal(new Set(state.deliveries.map((item) => item.id)).size, 11);
+  assert.equal(state.deliveries.length, 31);
+  assert.equal(new Set(state.deliveries.map((item) => item.id)).size, 31);
   for (const original of originals)
     assert.deepEqual(
       state.deliveries.find((item) => item.id === original.id),
       original,
     );
   assert.deepEqual(state.audit.slice(0, history.length), history);
-  assert.equal(state.audit.length, history.length + 5);
+  assert.equal(state.audit.length, history.length + 25);
   assert.equal(state.files, originalFiles);
   assert.deepEqual(
     new Uint8Array(await state.files[String(upload.get("id"))].arrayBuffer()),
@@ -249,7 +329,7 @@ test("five-row browser upgrades retain uploaded records and history while adding
   await role(state, "supervisor");
   const upgraded = demoBootstrap(state);
   const visible = upgraded.deliveries;
-  assert.equal(visible.length, 11);
+  assert.equal(visible.length, 31);
   assert.equal(upgraded.sites[0].name, "Demonstration Site");
   assert.equal(upgraded.suppliers[0].name, "Example Aggregates");
   assert.equal(upgraded.suppliers.at(-1)?.name, customSupplier.name);
@@ -369,7 +449,7 @@ test("stable IDs protect repeated creation, photo upload and submission from dou
     ).length,
     1,
   );
-  assert.equal(summarise(state.deliveries).arrivals, 11);
+  assert.equal(summarise(state.deliveries).arrivals, 31);
 });
 
 test("duplicate supplier ticket numbers produce an investigation warning", async () => {
@@ -552,7 +632,7 @@ test("correction retains original input history, first submission time and a sin
     ),
   ));
   assert.equal(delivery.submitted_at, firstSubmitted);
-  assert.equal(summarise(state.deliveries).arrivals, 11);
+  assert.equal(summarise(state.deliveries).arrivals, 31);
   const correction = state.audit.find(
     (event) =>
       event.action === "delivery.corrected" && event.entity_id === fields.id,
@@ -713,7 +793,7 @@ test("administrator catalogues, sites and aggregates work without storing creden
     }),
   );
   assert.equal(state.historical.length, 1);
-  assert.equal(summarise(state.deliveries).arrivals, 10);
+  assert.equal(summarise(state.deliveries).arrivals, 30);
   await ok(
     call(state, "/api/admin", {
       action: "member",
@@ -828,8 +908,8 @@ test("selected marshal survives role changes, logout and sample reset", async ()
   assert.equal(reset.actor.id, selected.actor.id);
   assert.equal(reset.actor.role, "gate");
   assert.equal(reset.actor.name, "Olamilekan Alaga");
-  assert.equal(reset.deliveries.length, 5);
-  assert.equal(state.deliveries.length, 10);
+  assert.equal(reset.deliveries.length, 10);
+  assert.equal(state.deliveries.length, 30);
   assert(!reset.deliveries.some((delivery) => delivery.id === captured.id));
   assert.equal(Object.keys(state.files).length, 0);
 });
@@ -964,7 +1044,7 @@ test("simple photo logging preserves chosen marshal, actual creator and supplier
   assert.equal(draft.ticket_number, "");
   assert.equal(draft.ticket_quantity, null);
   assert.equal(draft.ticket_unit, "loads");
-  assert.equal(summarise(state.deliveries).arrivals, 10);
+  assert.equal(summarise(state.deliveries).arrivals, 30);
   assert.equal(
     (
       await call(state, "/api/log-deliveries", {
@@ -997,7 +1077,7 @@ test("simple photo logging preserves chosen marshal, actual creator and supplier
   assert.equal(delivery.supplier_name, "Fictional Quarry");
   assert.equal(delivery.accepted_quantity, null);
   assert.equal(delivery.accepted_unit, null);
-  assert.equal(summarise(state.deliveries).arrivals, 11);
+  assert.equal(summarise(state.deliveries).arrivals, 31);
   assert.equal(
     state.audit.find(
       (event) =>
@@ -1082,7 +1162,7 @@ test("simple retries cannot duplicate arrivals or mutate saved fields, and legac
     ).length,
     1,
   );
-  assert.equal(summarise(state.deliveries).arrivals, 11);
+  assert.equal(summarise(state.deliveries).arrivals, 31);
 });
 
 test("simple logging rejects unassigned marshals, invalid suppliers, future times and image-free first submission", async () => {
@@ -1135,7 +1215,7 @@ test("simple logging rejects unassigned marshals, invalid suppliers, future time
   );
   state.materials[0].active = false;
   assert.equal((await call(state, "/api/log-deliveries", fields)).status, 400);
-  assert.equal(state.deliveries.length, 10);
+  assert.equal(state.deliveries.length, 30);
 });
 
 test("gate sees only their own records and photos, no audit snapshots, while the supervisor sees the authorised site", async () => {
@@ -1157,7 +1237,7 @@ test("gate sees only their own records and photos, no audit snapshots, while the
   );
   await ok(call(state, "/api/demo/profile", { profile: "olamilekan" }));
   const ola = demoBootstrap(state);
-  assert.equal(ola.deliveries.length, 5);
+  assert.equal(ola.deliveries.length, 10);
   assert.equal(ola.audit.length, 0);
   assert.equal((await call(state, `/api/evidence/${evidenceId}`)).status, 404);
   assert.equal((await call(state, "/api/log-deliveries", fields)).status, 404);

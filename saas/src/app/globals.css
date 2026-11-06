@@ -4025,30 +4025,6 @@ code {
   min-height: 52px;
   font-size: 13px;
 }
-.simple-period-shortcuts {
-  display: flex;
-  gap: 8px;
-  padding: 22px 24px 0;
-  overflow-x: auto;
-  background: #faf7f1;
-  scrollbar-color: #a68b60 #efe9de;
-}
-.simple-period-shortcuts button {
-  flex: 0 0 auto;
-  min-height: 44px;
-  padding: 10px 15px;
-  border: 1px solid #d7cbb8;
-  border-radius: 7px;
-  background: white;
-  color: #665438;
-  font-size: 12px;
-  font-weight: 600;
-}
-.simple-period-shortcuts button[aria-pressed="true"] {
-  background: #292b25;
-  border-color: #292b25;
-  color: #fff8e9;
-}
 .simple-range-error {
   padding: 0 24px 18px;
   background: #faf7f1;
@@ -4134,8 +4110,7 @@ code {
   background: #efe1c7;
 }
 .simple-summary-cards:focus-visible,
-.simple-summary-card:focus-visible,
-.simple-period-shortcuts button:focus-visible {
+.simple-summary-card:focus-visible {
   outline: 3px solid #8d6d3d;
   outline-offset: -3px;
 }
@@ -4449,9 +4424,6 @@ code {
     width: auto;
     padding-inline: 12px;
     font-size: 12px;
-  }
-  .simple-period-shortcuts {
-    padding: 18px 18px 0;
   }
   .simple-summary-heading {
     flex-wrap: wrap;

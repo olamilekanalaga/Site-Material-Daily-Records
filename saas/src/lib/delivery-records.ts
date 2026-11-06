@@ -2,33 +2,6 @@ import type { Delivery } from "./types";
 import { siteClock } from "./site-time";
 
 export type DateRange = { from: string; to: string };
-export type PeriodPreset = "all" | "today" | "3days" | "7days" | "month";
-
-/** Calendar-day offsets keep presets stable across the site's clock changes. */
-function offsetDate(date: string, days: number) {
-  const calendar = new Date(`${date}T12:00:00Z`);
-  calendar.setUTCDate(calendar.getUTCDate() + days);
-  return calendar.toISOString().slice(0, 10);
-}
-
-export function periodRange(
-  preset: PeriodPreset,
-  timezone: string,
-  reference = new Date(),
-): DateRange {
-  if (preset === "all") return { from: "", to: "" };
-  const today = siteClock(reference, timezone).date;
-  const from =
-    preset === "3days"
-      ? offsetDate(today, -2)
-      : preset === "7days"
-        ? offsetDate(today, -6)
-        : preset === "month"
-          ? `${today.slice(0, 7)}-01`
-          : today;
-  return { from, to: today };
-}
-
 function uniqueDeliveries(deliveries: Delivery[]) {
   const latest = new Map<string, Delivery>();
   for (const delivery of deliveries) {

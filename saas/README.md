@@ -14,7 +14,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000/demo` and click one of the two square profile cards: **Bemigho Estano** or **Olamilekan Alaga**. Both marshal cards use their supplied portraits. The demo includes 10 fictional sample deliveries, five for each marshal. Select **View as supervisor** to see all ten together. Existing browser records and photos are kept when the sample data is updated. The first page says **Sign in as**. Choosing a square photo opens the next page with the selected marshal’s delivery form. **View Records** opens the saved table. Reloading keeps your current demo session; select a marshal again to resume any pending save.
+Open `http://localhost:3000/demo` and click one of the two square profile cards: **Bemigho Estano** or **Olamilekan Alaga**. Both marshal cards use their supplied portraits. The demo includes 30 sample deliveries: 20 for Bemigho Estano and 10 for Olamilekan Alaga. Select **View as supervisor** to see the combined records in arrival-time order. Existing browser records and photos are kept when the sample data is updated. The first page says **Sign in as**. Choosing a square photo opens the next page with the selected marshal’s delivery form. **View Records** opens the saved table. Reloading keeps your current demo session; select a marshal again to resume any pending save.
 
 **No email, password, Supabase project, environment variables or backend session are needed for `/demo`.** The landing page and interactive demo also work on a deployment with no team backend configured.
 
@@ -33,7 +33,7 @@ Material names display as plain text. The seeded material catalogue uses **6F5**
 
 ### Date ranges and delivery totals
 
-Delivery Records supports inclusive **From date** and **To date** filters, such as 1–30 October. Shortcuts cover All dates, Today, Last 3 days, Last 7 days and This month using the site timezone; rolling periods include today.
+Delivery Records supports inclusive **From date** and **To date** filters, such as 1–30 October. Choose any custom date range using the site timezone. Clear filters restores all dates.
 
 The Total deliveries card and material cards count recorded arrivals in the selected dates. They remain in one horizontally scrollable row. Select a material card to narrow the table, or Total deliveries to show all materials again. Card counts continue to show the full selected period so materials remain comparable. Counts do not add ticket quantities or combine measurement units; historical aggregate summaries are separate.
 
