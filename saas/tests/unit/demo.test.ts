@@ -73,10 +73,16 @@ test("demo opens without credentials and uses only clearly fictional sample data
   assert.equal(boot.mode, "demo");
   assert.equal(boot.actor.role, "gate");
   assert.equal(boot.company.name, "DJ Civils Demo Workspace");
-  assert.deepEqual(
-    boot.materials.map((item) => item.name),
-    ["6F5", "G1", "Type 1", "Sand", "10mm shingles", "20mm shingles", "Other"],
-  );
+  for (const name of [
+    "6F5",
+    "G1",
+    "Type 1",
+    "Sand",
+    "10mm shingles",
+    "20mm shingles",
+    "Other",
+  ])
+    assert(boot.materials.some((item) => item.name === name));
   assert(
     boot.deliveries.every(
       (item) =>

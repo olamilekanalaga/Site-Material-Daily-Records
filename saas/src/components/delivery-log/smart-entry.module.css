@@ -1,0 +1,117 @@
+.quick {
+  margin-bottom: 24px;
+}
+.quick h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.quick p {
+  margin: 4px 0 10px;
+  color: #756b5c;
+  font-size: 12px;
+}
+.quickButtons {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  scrollbar-color: #a68b60 #efe9de;
+}
+.quickButtons button {
+  flex: 0 0 auto;
+  padding: 11px 15px;
+  border: 1px solid #d3c1a2;
+  border-radius: 7px;
+  background: #faf6ed;
+  color: #644b2b;
+  font-size: 13px;
+  font-weight: 600;
+}
+.quickButtons button[aria-pressed="true"] {
+  background: #292b25;
+  color: #fff7e6;
+}
+.selector {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.options {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid #d2c5b0;
+  border-radius: 7px;
+  background: white;
+}
+.options button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  width: 100%;
+  padding: 12px;
+  border-bottom: 1px solid #ece5d8;
+  text-align: left;
+  font-size: 14px;
+}
+.options button small {
+  max-width: 45%;
+  color: #756851;
+  font-size: 11px;
+  text-align: right;
+}
+.options button[aria-selected="true"],
+.options button:hover {
+  background: #f3ecde;
+}
+.options button:last-child {
+  border-bottom: 0;
+}
+.options .other {
+  font-weight: 600;
+  color: #77582d;
+}
+.noMatches {
+  padding: 12px;
+  color: #756851;
+  font-size: 12px;
+}
+.customField {
+  margin-top: 8px;
+}
+.classification {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #e2d7c4;
+  border-radius: 7px;
+  background: #faf7f1;
+}
+.classification dt {
+  color: #796b55;
+  font-size: 11px;
+}
+.classification dd {
+  margin: 5px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.pending {
+  margin-top: -12px;
+  color: #82602e;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.automaticTime {
+  color: #756b5c;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.automaticTime strong {
+  display: block;
+  color: #3a392f;
+  font-size: 13px;
+}

@@ -9,3 +9,6 @@ import "./integration/simple-local.test";
 import "./unit/site-time.test";
 import "./unit/delivery-records.test";
 import "./unit/access.test";
+import "./unit/catalogue.test";
+import "./unit/smart-arrivals.test";
+import "./unit/smart-drafts.test";

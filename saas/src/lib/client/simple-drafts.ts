@@ -41,7 +41,7 @@ export async function submitCapture(draft: CaptureDraft) {
   if (delivery.submitted_at) return delivery;
   const form = new FormData();
   form.set("id", draft.photoId);
-  form.set("kind", "load");
+  form.set("kind", draft.input.capture_kind === "arrival" ? "ticket" : "load");
   form.set("file", draft.photo);
   await request(`/api/deliveries/${delivery.id}/evidence`, {
     method: "POST",
@@ -53,6 +53,13 @@ export async function submitCapture(draft: CaptureDraft) {
       method: "POST",
       body: JSON.stringify({
         ...draft.input,
+        ...(draft.input.capture_kind === "arrival"
+          ? {
+              material_id: delivery.material_id,
+              arrival_at: delivery.arrival_at,
+              recorded_at: delivery.recorded_at,
+            }
+          : {}),
         intent: "submit",
         version: delivery.version,
       }),
