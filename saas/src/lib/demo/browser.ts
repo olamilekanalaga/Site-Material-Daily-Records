@@ -1,5 +1,12 @@
 import { openDB } from "idb";
-import { createDemoState, dispatchDemo, type DemoState } from "./engine";
+import {
+  createDemoState,
+  dispatchDemo,
+  migrateDemoState,
+  resetDemoState,
+  type DemoState,
+} from "./engine";
+import type { DemoProfileId } from "./profiles";
 
 // A separate database keeps sample records/photos away from production drafts.
 let dbPromise: ReturnType<typeof openDB> | undefined;
@@ -24,12 +31,13 @@ function serialise<T>(work: () => Promise<T>): Promise<T> {
 async function readState(): Promise<DemoState> {
   const db = await database();
   const state = (await db.get("demo", "state")) as DemoState | undefined;
-  return state?.schema === 1 ? state : createDemoState();
+  return state?.schema === 1 ? migrateDemoState(state) : createDemoState();
 }
 export async function resetDemo(): Promise<void> {
   return serialise(async () => {
     const db = await database();
-    await db.put("demo", createDemoState(), "state");
+    const state = await readState();
+    await db.put("demo", resetDemoState(state), "state");
   });
 }
 
@@ -46,15 +54,6 @@ export async function demoFetch(
           { error: "External URLs are unavailable in the demonstration" },
           { status: 400 },
         );
-      }
-      if (
-        target.pathname === "/api/demo/reset" &&
-        (options.method ?? "GET").toUpperCase() === "POST"
-      ) {
-        const db = await database();
-        const state = createDemoState();
-        await db.put("demo", state, "state");
-        return dispatchDemo(state, "/api/bootstrap");
       }
       let body: unknown = options.body;
       if (typeof body === "string") body = JSON.parse(body);
@@ -75,6 +74,20 @@ export async function demoFetch(
       return Response.json({ error: message }, { status: 503 });
     }
   });
+}
+/** Select a named sample marshal locally, with no real sign-in or API request. */
+export async function selectDemoProfile(profile: DemoProfileId): Promise<void> {
+  const response = await demoFetch("/api/demo/profile", {
+    method: "POST",
+    body: JSON.stringify({ profile }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(
+      body?.error ??
+        "Demo access is unavailable. Enable browser storage and try again.",
+    );
+  }
 }
 /** Caller owns the object URL and must revoke it on replacement/unmount. */
 export async function demoEvidenceUrl(id: string): Promise<string> {
