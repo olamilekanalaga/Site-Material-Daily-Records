@@ -18,8 +18,8 @@ Open `http://localhost:3000/demo` and click one of the two square profile cards:
 
 **No email, password, Supabase project, environment variables or backend session are needed for `/demo`.** The landing page and interactive demo also work on a deployment with no team backend configured.
 
-1. Select a marshal to open their delivery records. Choose **Record New Delivery**, then select an item from the scrollable dropdown. Use **Search items** inside the dropdown if needed. Known items fill their category and entry type automatically.
-2. Add a sample supplier/company if known and take or upload a delivery image or retained ticket. Choose **Other — Enter new item** when the catalogue has no suitable option; it can be saved with a pending classification.
+1. Select a marshal to open their delivery records. Choose **Record New Delivery**, then choose **Category** first. The item dropdown shows only that category's items; use **Search items** inside it if needed. Selecting a known item fills its entry type automatically. Changing category clears the previous item selection.
+2. Add a sample supplier/company if known and take or upload a delivery image or retained ticket. Choose **Other / Not listed** as the category, or **Other — Enter new item** from an item list, when no catalogue option fits. The exact entered name can be saved with a pending classification.
 3. Press **Save Delivery** explicitly. **Recorded at** is generated at save time and displayed in Europe/London time. The selected known item stays ready for repeated arrivals while supplier and evidence are cleared. No manual time, vehicle registration, quantity or ticket number is required in the smart demo form.
 4. Choose **View Records** or **Back to Records** to return to saved rows, newest first. Filter by dates, item, category, entry type, marshal or pending classification.
 5. Open `/demo/supervisor` to inspect combined site records, photos and breakdowns, and approve pending catalogue items. Open `/demo` to return to marshal selection.

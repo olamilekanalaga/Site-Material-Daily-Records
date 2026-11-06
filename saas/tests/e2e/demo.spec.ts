@@ -73,6 +73,9 @@ async function capture(page: Page, marshal: string, supplier: string) {
   await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
   await expect(page.getByText("Quick Record", { exact: true })).toHaveCount(0);
   await page
+    .getByRole("combobox", { name: "Category", exact: true })
+    .selectOption({ label: "Aggregates" });
+  await page
     .getByRole("combobox", { name: "Item / material / activity", exact: true })
     .click();
   await page

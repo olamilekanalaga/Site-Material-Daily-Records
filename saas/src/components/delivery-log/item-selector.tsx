@@ -13,6 +13,8 @@ export function ItemSelector({
   customName,
   usage,
   disabled,
+  placeholder = "Choose an item",
+  selectedLabel,
   onSelect,
   onCustom,
   onCustomName,
@@ -23,6 +25,8 @@ export function ItemSelector({
   customName: string;
   usage: Record<string, number>;
   disabled: boolean;
+  placeholder?: string;
+  selectedLabel?: string;
   onSelect: (id: string) => void;
   onCustom: (selected: boolean) => void;
   onCustomName: (name: string) => void;
@@ -33,7 +37,8 @@ export function ItemSelector({
   const [active, setActive] = useState(0);
   const container = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
-  const selectedName = items.find((item) => item.id === value)?.name || "";
+  const selectedName =
+    items.find((item) => item.id === value)?.name || selectedLabel || "";
   const matches = searchCatalogue(items, query, usage);
   const expanded = open && !disabled;
 
@@ -121,9 +126,7 @@ export function ItemSelector({
           onKeyDown={keyboard}
         >
           <span>
-            {custom
-              ? "Other — Enter new item"
-              : selectedName || "Choose an item"}
+            {custom ? "Other — Enter new item" : selectedName || placeholder}
           </span>
           <ChevronDown size={20} aria-hidden="true" />
         </button>

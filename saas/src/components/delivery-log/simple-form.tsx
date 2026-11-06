@@ -4,10 +4,12 @@ import { Camera, Upload, Check } from "lucide-react";
 import type { Bootstrap, Marshal, Site } from "@/lib/types";
 import { siteArrival, siteClock } from "@/lib/site-time";
 import {
+  CATEGORIES,
   findExactCatalogueItem,
   normaliseItemName,
   PENDING_CATEGORY,
   PENDING_ENTRY_TYPE,
+  searchCatalogue,
 } from "@/lib/catalogue";
 import { ItemSelector } from "./item-selector";
 import styles from "./smart-entry.module.css";
@@ -44,6 +46,7 @@ export function SimpleForm({
 }) {
   const demo = data.mode === "demo";
   const [material, setMaterial] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [custom, setCustom] = useState(false);
   const [customName, setCustomName] = useState("");
   const [supplier, setSupplier] = useState("");
@@ -113,6 +116,12 @@ export function SimpleForm({
   const category = selectedItem?.category || PENDING_CATEGORY;
   const entryType = selectedItem?.entry_type || PENDING_ENTRY_TYPE;
   const hasItem = Boolean(material || (custom && customName.trim()));
+  // A restored draft retains its catalogue classification. The picker only
+  // narrows selection; it never assigns a guessed category to an unknown name.
+  const chosenCategory = hasItem || custom ? category : categoryFilter;
+  const availableItems = searchCatalogue(data.materials, "", usage).filter(
+    (item) => item.category === chosenCategory,
+  );
 
   const choosePhoto = (file: File | undefined, element: HTMLInputElement) => {
     setError("");
@@ -260,15 +269,50 @@ export function SimpleForm({
         <fieldset disabled={busy || !!pending || restoring}>
           {demo ? (
             <>
+              <label>
+                Category
+                <select
+                  required
+                  value={chosenCategory}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setCategoryFilter(next);
+                    setMaterial("");
+                    setCustom(next === PENDING_CATEGORY);
+                    setCustomName("");
+                    setError("");
+                    setNotice("");
+                  }}
+                >
+                  <option value="">Choose a category</option>
+                  {CATEGORIES.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                  <option value={PENDING_CATEGORY}>Other / Not listed</option>
+                </select>
+              </label>
               <ItemSelector
-                items={data.materials}
+                key={categoryFilter}
+                items={availableItems}
                 value={material}
+                selectedLabel={selectedItem?.name}
                 custom={custom}
                 customName={customName}
                 usage={usage}
-                disabled={busy || !!pending || restoring}
+                disabled={!chosenCategory || busy || !!pending || restoring}
+                placeholder={
+                  !chosenCategory ? "Choose a category first" : "Choose an item"
+                }
                 onSelect={setMaterial}
-                onCustom={setCustom}
+                onCustom={(next) => {
+                  setCustom(next);
+                  if (next) {
+                    setCategoryFilter(PENDING_CATEGORY);
+                    setCustomName("");
+                  }
+                }}
                 onCustomName={setCustomName}
               />
               {hasItem && (
@@ -276,10 +320,6 @@ export function SimpleForm({
                   className={styles.classification}
                   aria-label="Automatic classification"
                 >
-                  <div>
-                    <dt>Category</dt>
-                    <dd>{category}</dd>
-                  </div>
                   <div>
                     <dt>Entry type</dt>
                     <dd>{entryType}</dd>
