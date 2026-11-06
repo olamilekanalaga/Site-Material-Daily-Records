@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ImageIcon, X } from "lucide-react";
+import { ArrowLeftRight, ImageIcon, X } from "lucide-react";
 import type { Bootstrap, Delivery, Evidence } from "@/lib/types";
 import { siteClock } from "@/lib/site-time";
 
@@ -119,7 +119,7 @@ export function SimpleRecords({
         Date.parse(b.created_at) - Date.parse(a.created_at),
     );
   return (
-    <section className="simple-panel">
+    <section className="simple-panel simple-records-panel">
       <div className="simple-filters">
         <label>
           Date
@@ -153,20 +153,25 @@ export function SimpleRecords({
           Clear filters
         </button>
       </div>
+      <p className="simple-table-hint">
+        <ArrowLeftRight size={16} aria-hidden="true" />
+        Swipe sideways to see all columns, including photos.
+      </p>
       <div
         className="simple-table-scroll"
+        role="region"
         tabIndex={0}
         aria-label="Scrollable delivery records"
       >
-        <table className="simple-table">
+        <table className="simple-table" aria-label="Saved delivery records">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Material</th>
-              <th>Supplier/Company</th>
-              <th>Traffic Marshal</th>
-              <th>Photo</th>
+              <th scope="col">Date</th>
+              <th scope="col">Time</th>
+              <th scope="col">Material</th>
+              <th scope="col">Supplier/Company</th>
+              <th scope="col">Traffic Marshal</th>
+              <th scope="col">Photo</th>
             </tr>
           </thead>
           <tbody>
@@ -174,11 +179,13 @@ export function SimpleRecords({
               const clock = siteClock(new Date(d.arrival_at), timezone);
               return (
                 <tr key={d.id}>
-                  <td>{clock.date}</td>
-                  <td>{clock.time}</td>
+                  <td className="simple-date-cell">{clock.date}</td>
+                  <td className="simple-time-cell">{clock.time}</td>
                   <td>
-                    {data.materials.find((m) => m.id === d.material_id)?.name ||
-                      "Historical material"}
+                    <span className="simple-material-label">
+                      {data.materials.find((m) => m.id === d.material_id)
+                        ?.name || "Historical material"}
+                    </span>
                   </td>
                   <td>
                     {d.supplier_name ||
@@ -186,7 +193,9 @@ export function SimpleRecords({
                         ?.name ||
                       "Not recorded"}
                   </td>
-                  <td>{d.marshal_name || d.creator_name}</td>
+                  <td className="simple-marshal-cell">
+                    {d.marshal_name || d.creator_name}
+                  </td>
                   <td>
                     {d.evidence.length ? (
                       <button
@@ -204,7 +213,7 @@ export function SimpleRecords({
                         </span>
                       </button>
                     ) : (
-                      <span className="simple-help">No photo</span>
+                      <span className="simple-photo-missing">No photo</span>
                     )}
                   </td>
                 </tr>

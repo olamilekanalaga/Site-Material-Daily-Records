@@ -7,7 +7,11 @@ import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { local } from "../../src/lib/server/local";
 import { parseSimpleDelivery, parseDelivery } from "../../src/lib/server/core";
-import type { Actor, Bootstrap, SimpleDeliveryInput } from "../../src/lib/types";
+import type {
+  Actor,
+  Bootstrap,
+  SimpleDeliveryInput,
+} from "../../src/lib/types";
 
 const folder = mkdtempSync(join(tmpdir(), "djcu-simple-local-"));
 const oldMode = process.env.APP_MODE;
@@ -154,7 +158,7 @@ test("simple logging retries are idempotent and cannot finalize altered or photo
 
 test("marshal catalogues stay company/site scoped and capture roles remain enforced", () => {
   assert.deepEqual(boot.marshals!.map((m) => m.name).sort(), [
-    "B Traffic Marshal",
+    "B",
     "Olamilekan Alaga",
   ]);
   assert.equal(local.bootstrap(gate).marshals!.length, 2);
@@ -165,6 +169,30 @@ test("marshal catalogues stay company/site scoped and capture roles remain enfor
   );
   assert.throws(() => local.log(supervisor, input()), /cannot record/);
   assert.throws(() => local.log(outsider, input()), /Site not found/);
+});
+
+test("renaming the original local marshal keeps saved delivery references intact", () => {
+  const marshal = boot.marshals!.find((m) => m.name === "B")!;
+  const saved = local.log(gate, input({ marshal_id: marshal.id })).delivery;
+  const connection = new DatabaseSync(join(folder, "pilot.sqlite"));
+  try {
+    connection
+      .prepare("UPDATE objects SET body=? WHERE kind='marshal' AND id=?")
+      .run(
+        JSON.stringify({ ...marshal, name: "B Traffic Marshal" }),
+        marshal.id,
+      );
+  } finally {
+    connection.close();
+  }
+  const migrated = local.bootstrap(gate);
+  assert.equal(migrated.marshals!.length, 2);
+  assert.equal(migrated.marshals!.find((m) => m.id === marshal.id)?.name, "B");
+  assert.equal(
+    migrated.deliveries.find((d) => d.id === saved.id)?.marshal_id,
+    marshal.id,
+  );
+  assert.equal(local.bootstrap(gate).marshals!.length, 2);
 });
 
 test("gate access is limited to own records/photos while selected marshal remains distinct from authentication", () => {

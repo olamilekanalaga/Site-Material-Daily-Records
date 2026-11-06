@@ -72,7 +72,7 @@ test("two-page marshal entry validates required details, site time and photograp
       creations.push(request.url());
   });
   await login(page);
-  for (const name of ["B Traffic Marshal", "Olamilekan Alaga"]) {
+  for (const name of ["B", "Olamilekan Alaga"]) {
     const photo = page
       .getByRole("button", { name, exact: true })
       .locator("img");

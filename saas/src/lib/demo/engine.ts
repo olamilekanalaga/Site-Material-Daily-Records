@@ -30,6 +30,7 @@ export type DemoState = {
   schema: 1;
   role: DemoRole;
   gate_profile?: DemoProfileId;
+  sample_data_version?: 2;
   company: Bootstrap["company"];
   sites: Site[];
   members: Actor[];
@@ -58,6 +59,11 @@ const siteId = "d2000000-0000-4000-8000-000000000001";
 const fixtureId = (group: string, index: number) =>
   `d${group}${index.toString(16).padStart(6, "0")}-0000-4000-8000-${String(index).padStart(12, "0")}`;
 const olamilekanId = fixtureId("3", 5);
+const sampleSupplierNames = [
+  "Example Aggregates",
+  "Sample Quarry",
+  "Demo Building Supplies",
+];
 const units: Unit[] = ["tonnes", "m³", "loads", "kg"];
 const clone = <T>(value: T): T => structuredClone(value);
 function text(value: unknown, max = 200, required = false): string {
@@ -131,11 +137,7 @@ export function createDemoState(
     name,
     active: true,
   }));
-  const suppliers = [
-    "Example Aggregates — fictional",
-    "Sample Quarry — fictional",
-    "Demo Building Supplies — fictional",
-  ].map((name, index) => ({
+  const suppliers = sampleSupplierNames.map((name, index) => ({
     id: fixtureId("5", index + 1),
     company_id: companyId,
     name,
@@ -209,7 +211,7 @@ export function createDemoState(
       {
         id: siteId,
         company_id: companyId,
-        name: "Demonstration Site — fictional",
+        name: "Demonstration Site",
         timezone: "Europe/London",
         require_ticket: true,
         require_photo: false,
@@ -247,8 +249,18 @@ export function createDemoState(
   return migrateDemoState(state);
 }
 
-/** Add the second persona in place without changing existing IDs or evidence. */
+/** Upgrade fictional samples without replacing saved records, photos or history. */
 export function migrateDemoState(state: DemoState): DemoState {
+  // Clean only the supplied catalogue labels, retaining operator-entered names.
+  const sampleSite = state.sites.find((item) => item.id === siteId);
+  if (sampleSite?.name === "Demonstration Site — fictional")
+    sampleSite.name = "Demonstration Site";
+  for (const [index, name] of sampleSupplierNames.entries()) {
+    const supplier = state.suppliers.find(
+      (item) => item.id === fixtureId("5", index + 1),
+    );
+    if (supplier?.name === `${name} — fictional`) supplier.name = name;
+  }
   if (!demoProfiles.some((profile) => profile.id === state.gate_profile))
     state.gate_profile = "b";
   const firstGate = state.members.find(
@@ -269,7 +281,85 @@ export function migrateDemoState(state: DemoState): DemoState {
       site_ids: [...firstGate.site_ids],
     });
   }
+  const secondGate = state.members.find(
+    (member) => member.id === olamilekanId,
+  )!;
+  secondGate.name = demoProfiles[1].name;
+  if (state.sample_data_version !== 2) {
+    addSecondMarshalSamples(state, secondGate);
+    state.sample_data_version = 2;
+  }
   return state;
+}
+
+function addSecondMarshalSamples(state: DemoState, marshal: Actor) {
+  // These stable IDs extend the original five fixtures. Repeated upgrades never
+  // duplicate samples or replace a record that was already saved or edited.
+  const sampleSite = state.sites.find(
+    (item) => item.id === siteId && item.company_id === state.company.id,
+  );
+  if (!sampleSite) return;
+  const stamp =
+    state.deliveries.find((item) => item.id === fixtureId("6", 1))
+      ?.created_at ?? now();
+  const materialIndices = [5, 4, 2, 0, 1];
+  for (let index = 0; index < 5; index++) {
+    const id = fixtureId("6", index + 6);
+    if (state.deliveries.some((item) => item.id === id)) continue;
+    const material = state.materials.find(
+      (item) =>
+        item.id === fixtureId("4", materialIndices[index] + 1) &&
+        item.company_id === state.company.id,
+    );
+    const supplier = state.suppliers.find(
+      (item) =>
+        item.id === fixtureId("5", (index % 3) + 1) &&
+        item.company_id === state.company.id,
+    );
+    if (!material || !supplier) continue;
+    const arrival = new Date(
+      Date.parse(stamp) - (5 - index) * 12 * 60_000,
+    ).toISOString();
+    const delivery: Delivery = {
+      id,
+      company_id: state.company.id,
+      site_id: sampleSite.id,
+      material_id: material.id,
+      supplier_id: supplier.id,
+      supplier_name: supplier.name,
+      marshal_id: marshal.id,
+      marshal_name: marshal.name,
+      vehicle: `DEMO ${106 + index}`,
+      ticket_number: `SAMPLE-${106 + index}`,
+      ticket_quantity: 20,
+      ticket_unit: "tonnes",
+      arrival_at: arrival,
+      created_by: marshal.id,
+      creator_name: marshal.name,
+      created_at: arrival,
+      updated_at: stamp,
+      submitted_at: arrival,
+      status: "Submitted",
+      commercial_status: "Not Linked",
+      notes:
+        "Fictional demonstration record. No real delivery or company approval is implied.",
+      accepted_quantity: null,
+      accepted_unit: null,
+      version: 1,
+      evidence: [],
+      reviews: [],
+    };
+    state.deliveries.push(delivery);
+    audit(
+      state,
+      marshal,
+      "demo.sample.created",
+      id,
+      sampleSite.id,
+      null,
+      delivery,
+    );
+  }
 }
 
 export function resetDemoState(state: DemoState): DemoState {
@@ -342,6 +432,7 @@ function audit(
 }
 export function demoBootstrap(state: DemoState): Bootstrap {
   const person = actor(state);
+  const marshals = marshalCatalogue(state);
   return clone({
     actor: person,
     company: state.company,
@@ -355,7 +446,7 @@ export function demoBootstrap(state: DemoState): Bootstrap {
     suppliers: state.suppliers.filter(
       (item) => item.company_id === person.company_id,
     ),
-    marshals: marshalCatalogue(state).filter(
+    marshals: marshals.filter(
       (item) =>
         item.company_id === person.company_id && canSite(person, item.site_id),
     ),
@@ -367,7 +458,23 @@ export function demoBootstrap(state: DemoState): Bootstrap {
           (person.role !== "gate" || item.created_by === person.id) &&
           (item.status !== "Draft" || item.created_by === person.id),
       )
-      .sort((a, b) => b.arrival_at.localeCompare(a.arrival_at)),
+      .sort((a, b) => b.arrival_at.localeCompare(a.arrival_at))
+      .map((item) => {
+        // Resolve current profile labels for the table while keeping original
+        // saved snapshots and audit history intact in browser storage.
+        const creator = marshals.find(
+          (marshal) => marshal.id === item.created_by,
+        );
+        const selected = marshals.find(
+          (marshal) => marshal.id === (item.marshal_id || item.created_by),
+        );
+        return {
+          ...item,
+          creator_name: creator?.name ?? item.creator_name,
+          marshal_name: selected?.name ?? item.marshal_name,
+          supplier_name: cleanSampleSupplierSnapshot(item),
+        };
+      }),
     audit: state.audit
       .filter(
         (item) =>
@@ -390,6 +497,16 @@ export function demoBootstrap(state: DemoState): Bootstrap {
         : [],
     mode: "demo",
   });
+}
+
+function cleanSampleSupplierSnapshot(delivery: Delivery) {
+  const sampleIndex = sampleSupplierNames.findIndex(
+    (_, index) => delivery.supplier_id === fixtureId("5", index + 1),
+  );
+  const name = sampleSupplierNames[sampleIndex];
+  return name && delivery.supplier_name === `${name} — fictional`
+    ? name
+    : delivery.supplier_name;
 }
 
 function marshalCatalogue(state: DemoState): Marshal[] {
@@ -1251,7 +1368,7 @@ export async function dispatchDemo(
       const profile = object(options.body).profile;
       check(
         demoProfiles.some((item) => item.id === profile),
-        "Select B Traffic Marshal or Olamilekan Alaga",
+        "Select B or Olamilekan Alaga",
       );
       const before = { profile: state.gate_profile, role: state.role };
       state.gate_profile = profile as DemoProfileId;

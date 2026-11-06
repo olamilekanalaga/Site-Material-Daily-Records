@@ -79,7 +79,7 @@ test("public DJCU demo opens Home directly with two square marshal photographs a
       logo.evaluate((image) => (image as HTMLImageElement).naturalWidth),
     )
     .toBeGreaterThan(0);
-  for (const name of ["B Traffic Marshal", "Olamilekan Alaga"]) {
+  for (const name of ["B", "Olamilekan Alaga"]) {
     const photo = page
       .getByRole("button", { name, exact: true })
       .locator("img");
@@ -120,6 +120,24 @@ test("public DJCU demo opens Home directly with two square marshal photographs a
   await expect(
     page.getByRole("heading", { name: "Delivery Records", exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "View as supervisor", exact: true })
+    .click();
+  const sampleRows = page.locator(".simple-table tbody tr");
+  await expect(sampleRows).toHaveCount(10);
+  const marshalCells = sampleRows.locator("td:nth-child(5)");
+  await expect(marshalCells.filter({ hasText: /^B$/ })).toHaveCount(5);
+  await expect(
+    marshalCells.filter({ hasText: /^Olamilekan Alaga$/ }),
+  ).toHaveCount(5);
+  await expect(page.locator("body")).not.toContainText(
+    /Demo gate|B Traffic Marshal|fictional/i,
+  );
+  await page.reload();
+  await expect(sampleRows).toHaveCount(10);
+  await page
+    .getByRole("button", { name: "Back to marshal entry", exact: true })
+    .click();
   await page.getByRole("button", { name: "Home", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Home", exact: true }),
@@ -142,7 +160,7 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   const suffix = randomUUID().slice(0, 8);
   const earlySupplier = `Fictional early ${suffix}`;
   const recentSupplier = `Fictional recent ${suffix}`;
-  await capture(page, "B Traffic Marshal", earlySupplier, "00:00");
+  await capture(page, "B", earlySupplier, "00:00");
   await page
     .getByRole("button", { name: "Delivery Records", exact: true })
     .click();
@@ -165,7 +183,7 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
     page.getByRole("heading", { name: "Delivery Records", exact: true }),
   ).toBeVisible();
   await expect(earlyRow).toHaveCount(1);
-  await expect(earlyRow).toContainText("B Traffic Marshal");
+  await expect(earlyRow).toContainText("B");
   await expect(recentRow).toContainText("Olamilekan Alaga");
   const rows = await page.getByRole("row").allTextContents();
   expect(rows.findIndex((row) => row.includes(recentSupplier))).toBeLessThan(
