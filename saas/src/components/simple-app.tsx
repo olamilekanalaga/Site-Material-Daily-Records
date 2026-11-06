@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { Check, LogOut, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import type { Bootstrap, Marshal } from "@/lib/types";
 import { request } from "@/lib/offline";
@@ -344,7 +345,18 @@ export function SimpleApp({
                     disabled={busy}
                     onClick={() => void selectMarshal(marshal)}
                   >
-                    <img src="/marshal-placeholder.svg" alt="" />
+                    {(demo || data.mode === "local") &&
+                    marshal.name === "Olamilekan Alaga" ? (
+                      <Image
+                        src="/marshals/olamilekan-alaga.jpg"
+                        alt=""
+                        fill
+                        sizes="(max-width: 650px) 45vw, 230px"
+                        style={{ objectPosition: "50% 65%" }}
+                      />
+                    ) : (
+                      <img src="/marshal-placeholder.svg" alt="" />
+                    )}
                     <span>
                       {marshal.name}
                       {selected?.id === marshal.id && (
