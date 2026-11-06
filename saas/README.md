@@ -31,6 +31,12 @@ Open `/demo/supervisor` directly, or choose **Supervisor demo** on the landing p
 
 Material names display as plain text. The seeded material catalogue uses **6F5**; existing demo entries keep their material IDs when the old GF5 spelling is corrected.
 
+### Date ranges and delivery totals
+
+Delivery Records supports inclusive **From date** and **To date** filters, such as 1–30 October. Shortcuts cover All dates, Today, Last 3 days, Last 7 days and This month using the site timezone; rolling periods include today.
+
+The Total deliveries card and material cards count recorded arrivals in the selected dates. They remain in one horizontally scrollable row. Select a material card to narrow the table, or Total deliveries to show all materials again. Card counts continue to show the full selected period so materials remain comparable. Counts do not add ticket quantities or combine measurement units; historical aggregate summaries are separate.
+
 ### What the demo stores
 
 Demo records and photos stay in this browser's IndexedDB. The demo does not send them to the company APIs, create a real user session, or share them with other visitors. Its separate databases keep sample records and drafts away from authenticated team drafts.

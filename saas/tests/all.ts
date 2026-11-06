@@ -7,3 +7,4 @@ import "./unit/demo.test";
 import "./integration/simple-database.test";
 import "./integration/simple-local.test";
 import "./unit/site-time.test";
+import "./unit/delivery-records.test";

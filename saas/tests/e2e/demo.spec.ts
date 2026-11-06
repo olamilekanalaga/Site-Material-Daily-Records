@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import type { DemoState } from "../../src/lib/demo/engine";
 
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWh8AAAAASUVORK5CYII=",
@@ -218,9 +219,11 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
     .getByRole("combobox", { name: "Material", exact: true })
     .selectOption({ label: "6F5" });
   await expect(recentRow).toHaveCount(1);
-  await page.getByLabel("Date", { exact: true }).fill("2000-01-01");
+  await page.getByLabel("From date", { exact: true }).fill("2000-01-01");
+  await page.getByLabel("To date", { exact: true }).fill("2000-01-01");
   await expect(recentRow).toHaveCount(0);
-  await page.getByLabel("Date", { exact: true }).fill("");
+  await page.getByLabel("From date", { exact: true }).fill("");
+  await page.getByLabel("To date", { exact: true }).fill("");
   await expect(recentRow).toHaveCount(1);
   await expect(
     page.getByRole("heading", { name: "Delivery Records", exact: true }),
@@ -368,4 +371,164 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
   ).toBe(false);
   await marshalPage.close();
   await bPage.close();
+});
+
+test("supervisor date ranges and material cards show period totals without crowding the page", async ({
+  page,
+}, testInfo) => {
+  const apiRequests = monitorBackendRequests(page);
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.clock.install({ time: new Date("2026-11-06T12:00:00Z") });
+  await page.goto("/demo/supervisor");
+  await expect(page.locator(".simple-table tbody tr")).toHaveCount(10);
+  // Simulate saved arrivals at the London date boundaries. This changes only
+  // this test browser's demo database, including the final millisecond of Oct30.
+  await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const opening = indexedDB.open("djcu-fictional-browser-demo", 1);
+      opening.onsuccess = () => resolve(opening.result);
+      opening.onerror = () => reject(opening.error);
+    });
+    try {
+      const transaction = database.transaction("demo", "readwrite");
+      const store = transaction.objectStore("demo");
+      const saved = await new Promise<DemoState>((resolve, reject) => {
+        const reading = store.get("state");
+        reading.onsuccess = () => resolve(reading.result as DemoState);
+        reading.onerror = () => reject(reading.error);
+      });
+      const template = saved.deliveries[0];
+      const fixtures = [
+        ["Before October", "2026-09-30T22:59:59.999Z", "6F5"],
+        ["October first", "2026-09-30T23:00:00.000Z", "6F5"],
+        ["October last", "2026-10-30T23:59:59.999Z", "Sand"],
+        ["October thirty-first", "2026-10-31T00:00:00.000Z", "Type 1"],
+        ["Before three days", "2026-11-03T23:59:59.999Z", "G1"],
+        ["Three day start", "2026-11-04T00:00:00.000Z", "Sand"],
+        ["Today arrival", "2026-11-06T23:59:59.999Z", "6F5"],
+      ];
+      saved.deliveries = fixtures.map(([supplier, arrival, material]) => ({
+        ...template,
+        id: crypto.randomUUID(),
+        supplier_name: supplier,
+        material_id: saved.materials.find((item) => item.name === material)!.id,
+        arrival_at: arrival,
+        created_at: arrival,
+        submitted_at: arrival,
+        status: "Submitted",
+        accepted_quantity: null,
+        accepted_unit: null,
+        evidence: [],
+        reviews: [],
+      }));
+      store.put(saved, "state");
+      await new Promise<void>((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+      });
+    } finally {
+      database.close();
+    }
+  });
+  await page.reload();
+  const summary = page.getByRole("region", {
+    name: "Delivery summaries",
+    exact: true,
+  });
+  const rows = page.locator(".simple-table tbody tr");
+  const from = page.getByLabel("From date", { exact: true });
+  const to = page.getByLabel("To date", { exact: true });
+  const total = (count: number) =>
+    summary.getByRole("button", {
+      name: `Total deliveries: ${count}`,
+      exact: true,
+    });
+  const material = (name: string, count: number) =>
+    summary.getByRole("button", {
+      name: `${name}: ${count} deliveries`,
+      exact: true,
+    });
+  await expect(rows).toHaveCount(7);
+  await from.fill("2026-10-01");
+  await to.fill("2026-10-30");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.filter({ hasText: "October first" })).toHaveCount(1);
+  await expect(rows.filter({ hasText: "October last" })).toHaveCount(1);
+  await expect(total(2)).toBeVisible();
+  await expect(material("6F5", 1)).toBeVisible();
+  await material("6F5", 1).click();
+  await expect(material("6F5", 1)).toHaveAttribute("aria-pressed", "true");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("October first");
+  // Material filtering narrows the table but keeps every period total useful.
+  await expect(total(2)).toBeVisible();
+  await expect(material("Sand", 1)).toHaveCount(1);
+  await total(2).click();
+  await expect(rows).toHaveCount(2);
+  await expect(from).toHaveValue("2026-10-01");
+  await expect(to).toHaveValue("2026-10-30");
+
+  for (const [label, first, last, count] of [
+    ["Today", "2026-11-06", "2026-11-06", 1],
+    ["Last 3 days", "2026-11-04", "2026-11-06", 2],
+    ["Last 7 days", "2026-10-31", "2026-11-06", 4],
+    ["This month", "2026-11-01", "2026-11-06", 3],
+  ] as const) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+    await expect(from).toHaveValue(first);
+    await expect(to).toHaveValue(last);
+    await expect(rows).toHaveCount(count);
+    await expect(total(count)).toBeVisible();
+  }
+  await from.fill("2026-11-07");
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(rows).toHaveCount(0);
+  await expect(total(0)).toBeVisible();
+  await page.getByRole("button", { name: "All dates", exact: true }).click();
+  await expect(from).toHaveValue("");
+  await expect(to).toHaveValue("");
+  await expect(rows).toHaveCount(7);
+  await expect(total(7)).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await from.fill("2000-01-01");
+  await to.fill("2000-01-03");
+  await expect(rows).toHaveCount(0);
+  await expect(
+    page.getByText("No saved deliveries match these filters."),
+  ).toBeVisible();
+  await expect(total(0)).toBeVisible();
+  await page.getByRole("button", { name: "All dates", exact: true }).click();
+
+  const dimensions = await summary.evaluate((element) => {
+    const buttons = [...element.querySelectorAll("button")];
+    return {
+      width: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      tops: buttons.map((button) =>
+        Math.round(button.getBoundingClientRect().top),
+      ),
+    };
+  });
+  expect(new Set(dimensions.tops).size).toBe(1);
+  if (testInfo.project.name !== "demo-desktop") {
+    expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.width);
+    await summary.evaluate((element) => {
+      element.scrollLeft = element.scrollWidth;
+    });
+    expect(
+      await summary.evaluate((element) => element.scrollLeft),
+    ).toBeGreaterThan(0);
+  }
+  await noOverflow(page);
+  await summary.evaluate((element) => {
+    element.scrollLeft = 0;
+  });
+  await page.screenshot({
+    path: testInfo.outputPath("date-range-material-summaries.png"),
+    fullPage: true,
+  });
+  expect(apiRequests).toEqual([]);
+  expect(pageErrors).toEqual([]);
 });
