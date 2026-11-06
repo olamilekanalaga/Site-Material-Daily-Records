@@ -36,11 +36,59 @@
   gap: 8px;
   min-width: 0;
 }
-.options {
-  max-height: 250px;
-  overflow-y: auto;
+.dropdown {
+  position: relative;
+  min-width: 0;
+}
+.dropdownTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 13px;
+  border: 1px solid #d6cdbf;
+  border-radius: 7px;
+  background: white;
+  text-align: left;
+  font-size: 16px;
+}
+.dropdownTrigger span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dropdownTrigger svg {
+  flex-shrink: 0;
+  color: #756851;
+}
+.dropdownTrigger[aria-expanded="true"] {
+  border-color: #967443;
+  box-shadow: 0 0 0 3px #eee4d6;
+}
+.dropdownTrigger[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+.dropdownPanel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  overflow: hidden;
   border: 1px solid #d2c5b0;
   border-radius: 7px;
+  background: white;
+  box-shadow: 0 8px 24px #33271926;
+}
+.dropdownSearch {
+  padding: 12px;
+  border-bottom: 1px solid #ece5d8;
+}
+.options {
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: white;
 }
 .options button {
@@ -49,6 +97,7 @@
   justify-content: space-between;
   gap: 15px;
   width: 100%;
+  min-height: 48px;
   padding: 12px;
   border-bottom: 1px solid #ece5d8;
   text-align: left;

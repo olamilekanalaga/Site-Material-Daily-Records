@@ -7,7 +7,7 @@ The proposed company pilot remains unofficial. Included deliveries and suppliers
 ## Record an arrival
 
 1. Open `/demo`, then choose **Bemigho Estano** or **Olamilekan Alaga**. Their existing records page opens.
-2. Choose **Record New Delivery**. Search for the item or use a Quick Record shortcut: **6F5**, **Type 1**, **Sand**, **10mm shingles**, **20mm shingles** or **Concrete**.
+2. Choose **Record New Delivery**. Tap the item dropdown to open the full scrollable catalogue; optional **Search items** inside the dropdown helps find a name or alias. You can also use a Quick Record shortcut: **6F5**, **Type 1**, **Sand**, **10mm shingles**, **20mm shingles** or **Concrete**.
 3. Selecting a known item fills its category and entry type automatically. A shortcut only selects the item; it never saves an arrival.
 4. Add the company/supplier if known. Take or upload an image of the delivery evidence, such as a retained ticket where permitted. A truck photograph is not specifically required.
 5. Press **Save Delivery**. The app associates the selected marshal, records the timestamp and confirms the browser save. The known item remains selected for repeated arrivals; supplier and evidence are cleared for the next arrival.

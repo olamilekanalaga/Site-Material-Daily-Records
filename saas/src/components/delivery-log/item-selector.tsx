@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { ChevronDown } from "lucide-react";
 import type { CatalogueItem } from "@/lib/types";
 import { searchCatalogue } from "@/lib/catalogue";
 import styles from "./smart-entry.module.css";
@@ -30,113 +31,161 @@ export function ItemSelector({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const container = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const selectedName = items.find((item) => item.id === value)?.name || "";
-  const matches = searchCatalogue(items, query, usage).slice(0, 12);
+  const matches = searchCatalogue(items, query, usage);
+  const expanded = open && !disabled;
+
   useEffect(() => {
-    if (value) setQuery(selectedName);
-  }, [value, selectedName]);
+    if (!expanded) return;
+    function closeOutside(event: PointerEvent) {
+      if (!container.current?.contains(event.target as Node)) setOpen(false);
+    }
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [expanded]);
+
+  function openDropdown() {
+    setQuery("");
+    setActive(0);
+    setOpen(true);
+  }
 
   function select(item?: CatalogueItem) {
     if (item) {
       onSelect(item.id);
       onCustom(false);
-      setQuery(item.name);
     } else {
       onSelect("");
       onCustom(true);
-      if (query && query !== selectedName && query !== "Other — Enter new item")
-        onCustomName(query);
-      setQuery("Other — Enter new item");
+      if (query) onCustomName(query);
     }
     setOpen(false);
+    trigger.current?.focus();
+  }
+
+  function keyboard(event: KeyboardEvent<HTMLElement>) {
+    if (disabled) return;
+    if (event.key === "Escape" && expanded) {
+      event.preventDefault();
+      setOpen(false);
+      trigger.current?.focus();
+    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!expanded) openDropdown();
+      else {
+        const next =
+          event.key === "ArrowDown"
+            ? Math.min(active + 1, matches.length)
+            : Math.max(active - 1, 0);
+        setActive(next);
+        document
+          .getElementById(`${id}-option-${next}`)
+          ?.scrollIntoView({ block: "nearest" });
+      }
+    } else if (event.key === "Enter" && expanded) {
+      event.preventDefault();
+      select(matches[active]);
+    }
   }
 
   return (
     <div
+      ref={container}
       className={styles.selector}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null))
           setOpen(false);
       }}
     >
-      <label htmlFor={id}>Item / material / activity</label>
-      <input
-        id={id}
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded={open}
-        aria-controls={`${id}-options`}
-        aria-activedescendant={open ? `${id}-option-${active}` : undefined}
-        autoComplete="off"
-        placeholder="Search materials or services"
-        value={query}
-        disabled={disabled}
-        onFocus={() => {
-          setOpen(true);
-          setActive(0);
-          if (custom) {
-            setQuery("");
-            onCustom(false);
+      <label id={`${id}-label`} htmlFor={id}>
+        Item / material / activity
+      </label>
+      <div className={styles.dropdown}>
+        <button
+          ref={trigger}
+          id={id}
+          type="button"
+          role="combobox"
+          aria-labelledby={`${id}-label`}
+          aria-haspopup="listbox"
+          aria-expanded={expanded}
+          aria-controls={expanded ? `${id}-options` : undefined}
+          aria-activedescendant={
+            expanded ? `${id}-option-${active}` : undefined
           }
-        }}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          onSelect("");
-          onCustom(false);
-          setOpen(true);
-          setActive(0);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-            event.preventDefault();
-            setOpen(true);
-            setActive((index) =>
-              event.key === "ArrowDown"
-                ? Math.min(index + 1, matches.length)
-                : Math.max(index - 1, 0),
-            );
-          } else if (event.key === "Enter" && open) {
-            event.preventDefault();
-            select(matches[active]);
-          } else if (event.key === "Escape") {
-            setOpen(false);
-          }
-        }}
-      />
-      {open && !disabled && (
-        <div id={`${id}-options`} role="listbox" className={styles.options}>
-          {!matches.length && (
-            <p className={styles.noMatches}>
-              No matching item. You can record a new one below.
-            </p>
-          )}
-          {matches.map((item, index) => (
-            <button
-              key={item.id}
-              id={`${id}-option-${index}`}
-              type="button"
-              role="option"
-              aria-selected={active === index}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => select(item)}
+          disabled={disabled}
+          className={styles.dropdownTrigger}
+          onClick={() => (expanded ? setOpen(false) : openDropdown())}
+          onKeyDown={keyboard}
+        >
+          <span>
+            {custom
+              ? "Other — Enter new item"
+              : selectedName || "Choose an item"}
+          </span>
+          <ChevronDown size={20} aria-hidden="true" />
+        </button>
+        {expanded && (
+          <div className={styles.dropdownPanel}>
+            <label className={styles.dropdownSearch}>
+              Search items
+              <input
+                type="search"
+                autoComplete="off"
+                placeholder="Search materials or services"
+                value={query}
+                aria-controls={`${id}-options`}
+                onKeyDown={keyboard}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setActive(0);
+                }}
+              />
+            </label>
+            <div
+              id={`${id}-options`}
+              role="listbox"
+              aria-labelledby={`${id}-label`}
+              className={styles.options}
             >
-              <span>{item.name}</span>
-              <small>{item.category}</small>
-            </button>
-          ))}
-          <button
-            id={`${id}-option-${matches.length}`}
-            type="button"
-            role="option"
-            aria-selected={active === matches.length}
-            className={styles.other}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => select()}
-          >
-            Other — Enter new item
-          </button>
-        </div>
-      )}
+              {!matches.length && (
+                <p className={styles.noMatches}>
+                  No matching item. You can record a new one below.
+                </p>
+              )}
+              {matches.map((item, index) => (
+                <button
+                  key={item.id}
+                  id={`${id}-option-${index}`}
+                  type="button"
+                  role="option"
+                  tabIndex={-1}
+                  aria-selected={active === index}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => select(item)}
+                >
+                  <span>{item.name}</span>
+                  <small>{item.category}</small>
+                </button>
+              ))}
+              <button
+                id={`${id}-option-${matches.length}`}
+                type="button"
+                role="option"
+                tabIndex={-1}
+                aria-selected={active === matches.length}
+                className={styles.other}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => select()}
+              >
+                Other — Enter new item
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
       {custom && (
         <label className={styles.customField}>
           New item name
