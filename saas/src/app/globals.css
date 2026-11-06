@@ -3536,3 +3536,60 @@ code {
     font-size: 9px;
   }
 }
+
+/* Two touch-friendly demo profiles, with names below their square tiles. */
+.demo-profiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  max-width: 310px;
+  margin: 22px auto 24px;
+}
+.demo-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 4px;
+  border-radius: 8px;
+  color: #302a20;
+  text-align: center;
+  text-decoration: none;
+}
+.demo-profile-square {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  border: 2px solid #b9986a;
+  border-radius: 8px;
+  background: #191a18;
+  color: #f4e9d7;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  transition:
+    background 0.15s,
+    transform 0.15s;
+}
+.demo-profile-name {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.demo-profile:hover .demo-profile-square,
+.demo-profile:focus-visible .demo-profile-square {
+  background: #3a3021;
+  transform: translateY(-2px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-profile-square {
+    transition: none;
+  }
+  .demo-profile:hover .demo-profile-square,
+  .demo-profile:focus-visible .demo-profile-square {
+    transform: none;
+  }
+}

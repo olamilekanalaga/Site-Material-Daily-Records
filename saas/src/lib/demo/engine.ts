@@ -14,6 +14,7 @@ import type {
   Unit,
 } from "../types";
 import { localDate } from "../reporting";
+import { demoProfiles, type DemoProfileId } from "./profiles";
 
 /** Fictional, per-browser playground. No server, credentials or production data. */
 export const demoRoles = [
@@ -26,6 +27,7 @@ export type DemoRole = (typeof demoRoles)[number];
 export type DemoState = {
   schema: 1;
   role: DemoRole;
+  gate_profile?: DemoProfileId;
   company: Bootstrap["company"];
   sites: Site[];
   members: Actor[];
@@ -53,6 +55,7 @@ const companyId = "d1000000-0000-4000-8000-000000000001";
 const siteId = "d2000000-0000-4000-8000-000000000001";
 const fixtureId = (group: string, index: number) =>
   `d${group}${index.toString(16).padStart(6, "0")}-0000-4000-8000-${String(index).padStart(12, "0")}`;
+const olamilekanId = fixtureId("3", 5);
 const units: Unit[] = ["tonnes", "m³", "loads", "kg"];
 const clone = <T>(value: T): T => structuredClone(value);
 function text(value: unknown, max = 200, required = false): string {
@@ -94,14 +97,17 @@ function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-export function createDemoState(instant = new Date()): DemoState {
+export function createDemoState(
+  instant = new Date(),
+  profile: DemoProfileId = "b",
+): DemoState {
   const stamp = instant.toISOString();
   const members = demoRoles.map((role, index): Actor => ({
     id: fixtureId("3", index + 1),
     company_id: companyId,
     role,
     name: [
-      "Alex · Demo gate",
+      demoProfiles[0].name,
       "Sam · Demo supervisor",
       "Taylor · Demo site manager",
       "Jordan · Demo administrator",
@@ -195,6 +201,7 @@ export function createDemoState(instant = new Date()): DemoState {
   const state: DemoState = {
     schema: 1,
     role: "gate",
+    gate_profile: profile,
     company: { id: companyId, name: "DJCU Demo Workspace" },
     sites: [
       {
@@ -235,10 +242,51 @@ export function createDemoState(instant = new Date()): DemoState {
         delivery.reviews[0],
       );
   }
+  return migrateDemoState(state);
+}
+
+/** Add the second persona in place without changing existing IDs or evidence. */
+export function migrateDemoState(state: DemoState): DemoState {
+  if (!demoProfiles.some((profile) => profile.id === state.gate_profile))
+    state.gate_profile = "b";
+  const firstGate = state.members.find(
+    (member) =>
+      member.role === "gate" &&
+      member.id !== olamilekanId &&
+      member.company_id === state.company.id,
+  );
+  check(firstGate, "The original traffic marshal profile is unavailable", 403);
+  firstGate.name = demoProfiles[0].name;
+  if (!state.members.some((member) => member.id === olamilekanId)) {
+    state.members.push({
+      id: olamilekanId,
+      company_id: state.company.id,
+      name: demoProfiles[1].name,
+      email: "demo-olamilekan@example.invalid",
+      role: "gate",
+      site_ids: [...firstGate.site_ids],
+    });
+  }
   return state;
 }
+
+export function resetDemoState(state: DemoState): DemoState {
+  migrateDemoState(state);
+  return Object.assign(state, createDemoState(new Date(), state.gate_profile));
+}
 function actor(state: DemoState): Actor {
-  const found = state.members.find((member) => member.role === state.role);
+  migrateDemoState(state);
+  const found =
+    state.role === "gate"
+      ? state.members.find(
+          (member) =>
+            member.role === "gate" &&
+            member.company_id === state.company.id &&
+            (state.gate_profile === "olamilekan"
+              ? member.id === olamilekanId
+              : member.id !== olamilekanId),
+        )
+      : state.members.find((member) => member.role === state.role);
   check(found, "Demo persona is unavailable", 403);
   return found;
 }
@@ -986,6 +1034,30 @@ export async function dispatchDemo(
     const person = actor(state);
     if (path === "/api/bootstrap" && method === "GET")
       return json(demoBootstrap(state));
+    if (path === "/api/demo/profile" && method === "POST") {
+      const profile = object(options.body).profile;
+      check(
+        demoProfiles.some((item) => item.id === profile),
+        "Select B Traffic Marshal or Olamilekan Alaga",
+      );
+      const before = { profile: state.gate_profile, role: state.role };
+      state.gate_profile = profile as DemoProfileId;
+      state.role = "gate";
+      audit(
+        state,
+        actor(state),
+        "demo.profile.changed",
+        actor(state).id,
+        null,
+        before,
+        { profile, role: "gate" },
+      );
+      return json(demoBootstrap(state));
+    }
+    if (path === "/api/demo/reset" && method === "POST") {
+      resetDemoState(state);
+      return json(demoBootstrap(state));
+    }
     if (path === "/api/demo/role" && method === "POST") {
       const role = object(options.body).role;
       check(demoRoles.includes(role as DemoRole), "Select a demo role");

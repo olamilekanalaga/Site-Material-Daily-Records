@@ -47,6 +47,8 @@ import { DeliveryDetail } from "./delivery-detail";
 import { SettingsPanel } from "./settings-panel";
 import { HistoricalPanel } from "./historical-panel";
 import { Brand } from "./brand";
+import { DemoProfiles } from "./demo-profiles";
+import type { DemoProfileId } from "@/lib/demo/profiles";
 
 type View =
   | "overview"
@@ -423,7 +425,9 @@ export function LedgerApp({
         {demo && (
           <div className="demo-toolbar">
             <div>
-              <strong>Explore DJCU</strong>
+              <strong>
+                {data.actor.role === "gate" ? data.actor.name : "Explore DJCU"}
+              </strong>
               <small>
                 Try each role to follow a delivery from gate to report.
               </small>
@@ -476,6 +480,9 @@ export function LedgerApp({
               >
                 Reset demo
               </button>
+              <a className="text-button" href="/demo?choose=1">
+                Switch marshal
+              </a>
               <a className="text-button" href="/">
                 Exit demo
               </a>
@@ -895,16 +902,20 @@ export function Empty({ text }: { text: string }) {
     </div>
   );
 }
-function Login({
+export function Login({
   onLogin,
   localDemo,
   workspaceEnabled,
   startupError,
+  onDemoSelect,
+  demoError,
 }: {
   onLogin: () => Promise<void>;
   localDemo: boolean;
   workspaceEnabled: boolean;
   startupError: string;
+  onDemoSelect?: (profile: DemoProfileId) => void;
+  demoError?: string;
 }) {
   const [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
@@ -939,14 +950,14 @@ function Login({
         <p>Your site operations, from gate to report.</p>
         <div className="demo-entry">
           <span className="eyebrow">INTERACTIVE SAMPLE WORKSPACE</span>
-          <h3>Take a look around.</h3>
-          <p>
-            No account, email or password needed. Try delivery capture, switch
-            to Supervisor to review a load, then open the site manager’s report.
-          </p>
-          <a href="/demo" className="primary">
-            Explore demo <ArrowRight size={18} />
-          </a>
+          <h3>Choose your demo profile</h3>
+          <p>Tap your box to open the software. No email or password needed.</p>
+          <DemoProfiles onSelect={onDemoSelect} />
+          {demoError && (
+            <p className="error-text" role="alert">
+              {demoError}
+            </p>
+          )}
           <small>
             Fictional records only. Demo changes and photos stay in your
             browser.

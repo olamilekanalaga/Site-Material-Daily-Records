@@ -1,6 +1,6 @@
 # DJCU — construction delivery management
 
-DJCU captures arrivals, keeps ticket evidence, separates supervisor receipt checks from gate entries, and produces daily site reports. The interface uses the supplied DJ Civils logo. The proposed pilot remains **unofficial and unauthorised**; every included supplier, person, ticket and delivery is fictional.
+DJCU captures arrivals, keeps ticket evidence, separates supervisor receipt checks from gate entries, and produces daily site reports. The interface uses the supplied DJ Civils logo. The proposed pilot remains **unofficial and unauthorised**; all included supplier, ticket and delivery records are fictional. The named demo profiles are for demonstration only.
 
 The original reporting app remains outside `saas/` and is not served by DJCU.
 
@@ -14,7 +14,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000` and choose **Explore demo**, or go directly to `http://localhost:3000/demo`.
+Open `http://localhost:3000` or `http://localhost:3000/demo` and click one of the two square profile tiles: **B Traffic Marshal** or **Olamilekan Alaga**. Either opens the software directly as a traffic marshal. New deliveries record the chosen name; **Switch marshal** lets you choose the other profile. Reloading keeps your current demo session.
 
 **No email, password, Supabase project, environment variables or backend session are needed for `/demo`.** The landing page and interactive demo also work on a deployment with no team backend configured.
 
@@ -66,19 +66,19 @@ npm run test:demo
 npm run test:e2e
 ```
 
-Verified demo coverage: **13 demo engine tests** and **9 browser tests** covering three workflows on phone, tablet and desktop. Browser checks cover one-click entry without credentials/backend requests, photo and manual capture, simulated supervisor review, reports/CSV, persistence and reset. The complete unit/SQL suite currently passes **34 tests**.
+Verified demo coverage: **18 demo engine tests** and **12 browser tests** across phone, tablet and desktop. Browser checks cover one-click profile entry without credentials/backend requests, distinct marshal attribution, photo and manual capture, simulated supervisor review, reports/CSV, persistence and reset. The complete unit/SQL suite currently passes **39 tests**.
 
 `npm run test:demo` uses `playwright.demo.config.ts` and deliberately starts without a configured backend. `npm run test:e2e` exercises the separate authenticated local adapter. Install Chromium with `npx playwright install chromium` if needed; the configuration uses `/usr/bin/chromium` when available. PostgreSQL policy tests use PGlite with mocked Supabase identity/storage metadata. Those tests do not replace a real Supabase Auth/Storage smoke test when credentials are supplied.
 
 ## Source map and next phase
 
-| Path | Purpose |
-| --- | --- |
-| `src/app/demo/`, `src/lib/demo/` | Credential-free browser demo and persistent fictional state |
-| `src/components/` | Capture, register, review, reports and administration |
-| `src/app/api/`, `src/lib/server/` | Authenticated team APIs, validation and storage adapters |
-| `src/lib/offline.ts` | Separate demo/team drafts and retry handling |
-| `supabase/migrations/` | Production schema, tenant/site RLS and private-storage policies |
-| `tests/` | Demo, domain, SQL and browser tests |
+| Path                              | Purpose                                                         |
+| --------------------------------- | --------------------------------------------------------------- |
+| `src/app/demo/`, `src/lib/demo/`  | Credential-free browser demo and persistent fictional state     |
+| `src/components/`                 | Capture, register, review, reports and administration           |
+| `src/app/api/`, `src/lib/server/` | Authenticated team APIs, validation and storage adapters        |
+| `src/lib/offline.ts`              | Separate demo/team drafts and retry handling                    |
+| `supabase/migrations/`            | Production schema, tenant/site RLS and private-storage policies |
+| `tests/`                          | Demo, domain, SQL and browser tests                             |
 
 P0 focuses on delivery accountability. Purchase order, invoice and reconciliation tables prepare for P1; commercial screens, OCR, billing and broader site operations are later work. No paid construction API is required.

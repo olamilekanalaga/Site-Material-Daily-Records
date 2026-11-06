@@ -1,5 +1,5 @@
-import { LedgerApp } from "@/components/ledger-app";
+import { DemoAccess } from "@/components/demo-access";
 export const metadata = { title: "DJCU | Interactive demo" };
 export default function DemoPage() {
-  return <LedgerApp demo workspaceEnabled={false} />;
+  return <DemoAccess />;
 }

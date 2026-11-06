@@ -38,12 +38,50 @@ async function navigate(page: Page, label: string) {
 
 async function openDemo(page: Page) {
   await page.goto("/demo");
+  const profile = page.getByRole("button", {
+    name: "B Traffic Marshal",
+    exact: true,
+  });
+  const overview = page.getByRole("heading", {
+    name: "Your site, at a glance",
+  });
+  await expect(profile.or(overview)).toBeVisible();
+  if (await profile.isVisible()) await profile.click();
   await expect(
     page.getByRole("heading", { name: "Your site, at a glance" }),
   ).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Demo role" })).toHaveValue(
     "gate",
   );
+}
+
+async function expectSquareProfileTiles(page: Page, role: "link" | "button") {
+  for (const name of ["B Traffic Marshal", "Olamilekan Alaga"]) {
+    const tile = page.getByRole(role, { name, exact: true });
+    await expect(tile).toBeVisible();
+    const box = await tile.locator(".demo-profile-square").boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeGreaterThanOrEqual(64);
+    expect(Math.abs(box!.width - box!.height)).toBeLessThanOrEqual(2);
+  }
+  await noPageOverflow(page);
+}
+
+async function expectCreator(page: Page, ticket: string, creator: string) {
+  await page.getByLabel("Search deliveries").fill(ticket);
+  await page
+    .getByRole("row")
+    .filter({ hasText: ticket })
+    .getByRole("button", { name: /^DL-/ })
+    .click();
+  await expect(
+    page
+      .getByRole("dialog")
+      .locator("dl > div")
+      .filter({ hasText: "Gate employee" })
+      .locator("dd"),
+  ).toHaveText(creator);
+  await page.getByRole("button", { name: "Close delivery" }).click();
 }
 
 async function changeRole(
@@ -119,9 +157,12 @@ test("public DJCU demo opens in one click without credentials or a backend sessi
     )
     .toBeGreaterThan(0);
   await expect(page.locator("body")).not.toContainText(/Site\s?Ledger/i);
+  await expectSquareProfileTiles(page, "link");
   const apiRequests = monitorBackendRequests(page);
-  await page.getByRole("link", { name: "Explore demo", exact: true }).click();
-  await expect(page).toHaveURL(/\/demo$/);
+  await page
+    .getByRole("link", { name: "B Traffic Marshal", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/demo(?:\?.*)?$/);
   await expect(
     page.getByRole("heading", { name: "Your site, at a glance" }),
   ).toBeVisible();
@@ -296,4 +337,69 @@ test("manual demo capture survives reload and reset restores only fictional samp
   ).toBeVisible();
   await noPageOverflow(page);
   expect(apiRequests).toEqual([]);
+});
+
+test("square marshal profiles open without credentials and preserve each delivery's original author", async ({
+  page,
+  context,
+}, testInfo) => {
+  const apiRequests = monitorBackendRequests(page);
+  await page.goto("/demo");
+  await expectSquareProfileTiles(page, "button");
+  await expect(page.getByLabel("Email address", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);
+  await page.screenshot({
+    path: testInfo.outputPath("djcu-marshal-profiles.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Olamilekan Alaga", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Your site, at a glance" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".demo-toolbar")
+      .getByText("Olamilekan Alaga", { exact: true }),
+  ).toBeVisible();
+  const olamilekanTicket = `OLAM-${randomUUID().slice(0, 8)}`;
+  await captureDelivery(page, olamilekanTicket, false);
+  await expectCreator(page, olamilekanTicket, "Olamilekan Alaga");
+
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Your site, at a glance" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".demo-toolbar")
+      .getByText("Olamilekan Alaga", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Switch marshal", exact: true }).click();
+  await expectSquareProfileTiles(page, "button");
+  await page
+    .getByRole("button", { name: "B Traffic Marshal", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Your site, at a glance" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".demo-toolbar")
+      .getByText("B Traffic Marshal", { exact: true }),
+  ).toBeVisible();
+  const bTicket = `B-${randomUUID().slice(0, 8)}`;
+  await captureDelivery(page, bTicket, false);
+  await expectCreator(page, bTicket, "B Traffic Marshal");
+  await expectCreator(page, olamilekanTicket, "Olamilekan Alaga");
+  await noPageOverflow(page);
+  expect(apiRequests).toEqual([]);
+  expect(
+    (await context.cookies()).some(
+      (cookie) => cookie.name === "delivery_session",
+    ),
+  ).toBe(false);
 });

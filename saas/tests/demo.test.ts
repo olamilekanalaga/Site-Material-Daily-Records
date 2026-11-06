@@ -4,11 +4,13 @@ import {
   createDemoState,
   demoBootstrap,
   dispatchDemo,
+  migrateDemoState,
   type DemoState,
   type DemoRole,
 } from "../src/lib/demo/engine";
 import { summarise } from "../src/lib/reporting";
 import type { Delivery, DeliveryInput } from "../src/lib/types";
+import { demoProfiles } from "../src/lib/demo/profiles";
 
 async function call(
   state: DemoState,
@@ -566,4 +568,171 @@ test("unknown and external routes never escape to a real API", async () => {
   const boot = demoBootstrap(state);
   boot.deliveries[0].ticket_quantity = 999;
   assert.notEqual(state.deliveries[0].ticket_quantity, 999);
+});
+
+test("named marshal profiles have distinct gate identities and retain delivery attribution", async () => {
+  assert.deepEqual(demoProfiles, [
+    { id: "b", name: "B Traffic Marshal", initials: "B" },
+    { id: "olamilekan", name: "Olamilekan Alaga", initials: "OA" },
+  ]);
+  const state = createDemoState();
+  const firstActor = demoBootstrap(state).actor;
+  assert.equal(firstActor.name, "B Traffic Marshal");
+  const bInput = input(state, { intent: "draft", ticket_number: "B-DEMO" });
+  const { delivery: bDraft } = await ok<{ delivery: Delivery }>(
+    call(state, "/api/deliveries", bInput),
+  );
+  await role(state, "supervisor");
+  const selected = await ok<ReturnType<typeof demoBootstrap>>(
+    call(state, "/api/demo/profile", { profile: "olamilekan" }),
+  );
+  assert.equal(selected.actor.role, "gate");
+  assert.equal(selected.actor.name, "Olamilekan Alaga");
+  assert.notEqual(selected.actor.id, firstActor.id);
+  assert.equal(
+    selected.deliveries.some((delivery) => delivery.id === bDraft.id),
+    false,
+  );
+  assert.equal(
+    (
+      await call(
+        state,
+        `/api/deliveries/${bDraft.id}`,
+        { ...bInput, version: bDraft.version },
+        "PATCH",
+      )
+    ).status,
+    403,
+  );
+  const olaInput = input(state, { ticket_number: "OLA-DEMO" });
+  const { delivery: olaDelivery } = await ok<{ delivery: Delivery }>(
+    call(state, "/api/deliveries", olaInput),
+  );
+  assert.equal(olaDelivery.creator_name, "Olamilekan Alaga");
+  assert.equal(olaDelivery.created_by, selected.actor.id);
+  assert.equal(bDraft.creator_name, "B Traffic Marshal");
+  assert.equal(bDraft.created_by, firstActor.id);
+  await ok(call(state, "/api/demo/profile", { profile: "b" }));
+  assert.equal(demoBootstrap(state).actor.id, firstActor.id);
+  assert.equal(
+    state.deliveries.find((delivery) => delivery.id === olaDelivery.id)
+      ?.creator_name,
+    "Olamilekan Alaga",
+  );
+  assert.equal(
+    (
+      await call(
+        state,
+        `/api/deliveries/${olaDelivery.id}`,
+        { ...olaInput, version: olaDelivery.version },
+        "PATCH",
+      )
+    ).status,
+    403,
+  );
+});
+
+test("selected marshal survives role changes, logout and sample reset", async () => {
+  const state = createDemoState();
+  const selected = await ok<ReturnType<typeof demoBootstrap>>(
+    call(state, "/api/demo/profile", { profile: "olamilekan" }),
+  );
+  const captured = input(state);
+  await ok(call(state, "/api/deliveries", captured));
+  await role(state, "supervisor");
+  await role(state, "gate");
+  assert.equal(demoBootstrap(state).actor.id, selected.actor.id);
+  await role(state, "site_manager");
+  await ok(call(state, "/api/auth/logout", {}));
+  assert.equal(demoBootstrap(state).actor.name, "Olamilekan Alaga");
+  state.files["example"] = png;
+  const reset = await ok<ReturnType<typeof demoBootstrap>>(
+    call(state, "/api/demo/reset", {}),
+  );
+  assert.equal(reset.actor.id, selected.actor.id);
+  assert.equal(reset.actor.role, "gate");
+  assert.equal(reset.actor.name, "Olamilekan Alaga");
+  assert.equal(reset.deliveries.length, 5);
+  assert(!reset.deliveries.some((delivery) => delivery.id === captured.id));
+  assert.equal(Object.keys(state.files).length, 0);
+});
+
+test("legacy browser state migrates without changing old actor IDs, records, photos or history", async () => {
+  const state = createDemoState();
+  delete state.gate_profile;
+  state.members = state.members.slice(0, 4);
+  const oldGateId = "d3000000-0000-4000-8000-000000000001";
+  state.members[0].id = oldGateId;
+  state.members[0].name = "Alex · Demo gate";
+  for (const delivery of state.deliveries) {
+    delivery.created_by = oldGateId;
+    delivery.creator_name = "Alex · Demo gate";
+  }
+  state.files["legacy-photo"] = png;
+  const oldDeliveries = structuredClone(state.deliveries),
+    oldHistory = structuredClone(state.audit);
+  const filesBefore = state.files;
+  migrateDemoState(state);
+  migrateDemoState(state);
+  assert.equal(state.members.length, 5);
+  assert.equal(state.gate_profile, "b");
+  assert.equal(demoBootstrap(state).actor.id, oldGateId);
+  assert.equal(demoBootstrap(state).actor.name, "B Traffic Marshal");
+  assert.deepEqual(state.deliveries, oldDeliveries);
+  assert.deepEqual(state.audit, oldHistory);
+  assert.equal(state.files, filesBefore);
+  assert.equal(state.files["legacy-photo"], png);
+  await ok(call(state, "/api/demo/profile", { profile: "olamilekan" }));
+  assert.equal(demoBootstrap(state).actor.name, "Olamilekan Alaga");
+});
+
+test("both marshal profiles require an independent supervisor and cannot store credentials", async () => {
+  for (const profile of demoProfiles) {
+    const state = createDemoState();
+    await ok(
+      call(state, "/api/demo/profile", {
+        profile: profile.id,
+        email: "private@example.com",
+        password: "never-save",
+      }),
+    );
+    const { delivery } = await ok<{ delivery: Delivery }>(
+      call(state, "/api/deliveries", input(state)),
+    );
+    const review = {
+      decision: "Accepted",
+      version: delivery.version,
+      reason: "Fictional check",
+      accepted_quantity: 20,
+      accepted_unit: "tonnes",
+    };
+    assert.equal(
+      (await call(state, `/api/deliveries/${delivery.id}/review`, review))
+        .status,
+      403,
+    );
+    await role(state, "supervisor");
+    const accepted = await ok<{ delivery: Delivery }>(
+      call(state, `/api/deliveries/${delivery.id}/review`, review),
+    );
+    assert.notEqual(
+      accepted.delivery.reviews[0].reviewer_id,
+      delivery.created_by,
+    );
+    assert.equal(accepted.delivery.creator_name, profile.name);
+    assert(!JSON.stringify(state).includes("private@example.com"));
+    assert(!JSON.stringify(state).includes("never-save"));
+  }
+});
+
+test("unrecognised profile selections leave the active identity unchanged", async () => {
+  const state = createDemoState();
+  await ok(call(state, "/api/demo/profile", { profile: "olamilekan" }));
+  const selected = demoBootstrap(state).actor;
+  assert.equal(
+    (await call(state, "/api/demo/profile", { profile: "real-admin" })).status,
+    400,
+  );
+  assert.equal(demoBootstrap(state).actor.id, selected.id);
+  assert.equal(state.gate_profile, "olamilekan");
 });
