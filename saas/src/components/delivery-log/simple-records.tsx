@@ -3,6 +3,21 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, ImageIcon, X } from "lucide-react";
 import type { Bootstrap, Delivery, Evidence } from "@/lib/types";
 import { siteClock } from "@/lib/site-time";
+import {
+  arrivalCounts,
+  periodDeliveries,
+  periodRange,
+  type DateRange,
+  type PeriodPreset,
+} from "@/lib/delivery-records";
+
+const periods: { id: PeriodPreset; label: string }[] = [
+  { id: "all", label: "All dates" },
+  { id: "today", label: "Today" },
+  { id: "3days", label: "Last 3 days" },
+  { id: "7days", label: "Last 7 days" },
+  { id: "month", label: "This month" },
+];
 
 function Photo({
   evidence,
@@ -101,32 +116,71 @@ export function SimpleRecords({
   data: Bootstrap;
   siteId: string;
 }) {
-  const [date, setDate] = useState("");
+  const [range, setRange] = useState<DateRange>({ from: "", to: "" });
+  const [preset, setPreset] = useState<PeriodPreset | "custom">("all");
   const [material, setMaterial] = useState("");
   const [viewing, setViewing] = useState<Delivery | null>(null);
   const timezone = data.sites.find((s) => s.id === siteId)?.timezone || "UTC";
-  const records = data.deliveries
-    .filter(
-      (d) =>
-        d.site_id === siteId &&
-        d.submitted_at &&
-        (!date || siteClock(new Date(d.arrival_at), timezone).date === date) &&
-        (!material || d.material_id === material),
-    )
-    .sort(
-      (a, b) =>
-        Date.parse(b.arrival_at) - Date.parse(a.arrival_at) ||
-        Date.parse(b.created_at) - Date.parse(a.created_at),
-    );
+  const invalidRange = Boolean(range.from && range.to && range.from > range.to);
+  const periodRecords = periodDeliveries(
+    data.deliveries,
+    siteId,
+    timezone,
+    range,
+  );
+  const counts = arrivalCounts(periodRecords);
+  const records = periodRecords.filter(
+    (d) => !material || d.material_id === material,
+  );
+  const summaryMaterials = data.materials.filter(
+    (item) => item.active || counts.byMaterial.has(item.id),
+  );
   return (
     <section className="simple-panel simple-records-panel">
+      <div
+        className="simple-period-shortcuts"
+        role="group"
+        aria-label="Date shortcuts"
+      >
+        {periods.map((period) => (
+          <button
+            key={period.id}
+            type="button"
+            aria-pressed={preset === period.id}
+            onClick={() => {
+              setRange(periodRange(period.id, timezone));
+              setPreset(period.id);
+            }}
+          >
+            {period.label}
+          </button>
+        ))}
+      </div>
       <div className="simple-filters">
-        <label>
-          Date
+        <label className="simple-date-filter">
+          From date
           <input
             type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
+            value={range.from}
+            max={range.to || undefined}
+            aria-invalid={invalidRange}
+            onChange={(e) => {
+              setRange((previous) => ({ ...previous, from: e.target.value }));
+              setPreset("custom");
+            }}
+          />
+        </label>
+        <label className="simple-date-filter">
+          To date
+          <input
+            type="date"
+            value={range.to}
+            min={range.from || undefined}
+            aria-invalid={invalidRange}
+            onChange={(e) => {
+              setRange((previous) => ({ ...previous, to: e.target.value }));
+              setPreset("custom");
+            }}
           />
         </label>
         <label>
@@ -144,14 +198,67 @@ export function SimpleRecords({
           </select>
         </label>
         <button
-          className="secondary"
+          className="secondary simple-clear-filters"
           onClick={() => {
-            setDate("");
+            setRange({ from: "", to: "" });
+            setPreset("all");
             setMaterial("");
           }}
         >
           Clear filters
         </button>
+      </div>
+      {invalidRange && (
+        <p className="simple-range-error" role="alert">
+          Choose a To date on or after the From date.
+        </p>
+      )}
+      <div className="simple-summary-heading">
+        <div>
+          <h2>Delivery totals</h2>
+          <p>
+            Recorded arrivals in selected dates. Select a card to filter the
+            table.
+          </p>
+        </div>
+        <span>
+          <ArrowLeftRight size={16} aria-hidden="true" /> More materials
+        </span>
+      </div>
+      <div
+        className="simple-summary-cards"
+        role="region"
+        aria-label="Delivery summaries"
+        tabIndex={0}
+      >
+        <button
+          type="button"
+          className="simple-summary-card is-total"
+          aria-pressed={!material}
+          aria-label={`Total deliveries: ${counts.total}`}
+          onClick={() => setMaterial("")}
+        >
+          <span>Total deliveries</span>
+          <strong>{counts.total.toLocaleString("en-GB")}</strong>
+          <small>arrivals</small>
+        </button>
+        {summaryMaterials.map((item) => {
+          const count = counts.byMaterial.get(item.id) || 0;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className="simple-summary-card"
+              aria-pressed={material === item.id}
+              aria-label={`${item.name}: ${count} deliveries`}
+              onClick={() => setMaterial(item.id)}
+            >
+              <span>{item.name}</span>
+              <strong>{count.toLocaleString("en-GB")}</strong>
+              <small>deliveries</small>
+            </button>
+          );
+        })}
       </div>
       <p className="simple-table-hint">
         <ArrowLeftRight size={16} aria-hidden="true" />
@@ -224,8 +331,7 @@ export function SimpleRecords({
         <p className="simple-empty">No saved deliveries match these filters.</p>
       )}
       <p className="simple-table-note">
-        {records.length} saved{" "}
-        {records.length === 1 ? "delivery" : "deliveries"} · Site time:{" "}
+        Showing {records.length} of {counts.total} saved deliveries · Site time:{" "}
         {timezone}
       </p>
       {viewing && (

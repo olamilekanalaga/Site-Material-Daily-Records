@@ -1,6 +1,6 @@
 /** Display names only: these sample profiles have no credentials or real accounts. */
 export const demoProfiles = [
-  { id: "b", name: "B", initials: "B" },
+  { id: "b", name: "Bemigho Estano", initials: "BE" },
   { id: "olamilekan", name: "Olamilekan Alaga", initials: "OA" },
 ] as const;
 

@@ -136,7 +136,7 @@ export function SimpleApp({
     return (
       <main className="simple-loading">
         <Brand />
-        <p role="status">Opening DJCU…</p>
+        <p role="status">Opening DJ Civils…</p>
       </main>
     );
   }
@@ -191,7 +191,7 @@ export function SimpleApp({
       <header className="simple-header">
         <a
           href={demo ? (supervisorDemo ? "/demo/supervisor" : "/demo") : "/"}
-          aria-label="DJCU home"
+          aria-label="DJ Civils home"
         >
           <Brand compact />
         </a>
@@ -371,13 +371,26 @@ export function SimpleApp({
                       onClick={() => void selectMarshal(marshal)}
                     >
                       {(demo || data.mode === "local") &&
-                      marshal.name === "Olamilekan Alaga" ? (
+                      (marshal.name === "Olamilekan Alaga" ||
+                        marshal.name === "Bemigho Estano") ? (
                         <Image
-                          src="/marshals/olamilekan-alaga.jpg"
+                          src={
+                            marshal.name === "Bemigho Estano"
+                              ? "/marshals/bemigho-estano.jpg"
+                              : "/marshals/olamilekan-alaga.jpg"
+                          }
                           alt=""
                           fill
                           sizes="(max-width: 650px) 45vw, 230px"
-                          style={{ objectPosition: "50% 65%" }}
+                          style={
+                            marshal.name === "Bemigho Estano"
+                              ? {
+                                  objectFit: "contain",
+                                  objectPosition: "center top",
+                                  backgroundColor: "#0b0b0b",
+                                }
+                              : { objectPosition: "50% 65%" }
+                          }
                         />
                       ) : (
                         <img src="/marshal-placeholder.svg" alt="" />
@@ -417,7 +430,7 @@ export function SimpleApp({
           )}
         </main>
       </div>
-      <footer className="simple-footer">DJCU · Delivery log</footer>
+      <footer className="simple-footer">DJ CIVILS · Delivery log</footer>
     </div>
   );
 }

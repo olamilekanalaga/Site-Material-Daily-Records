@@ -76,7 +76,7 @@ test("marshal selection opens a separate entry view that validates required deta
       creations.push(request.url());
   });
   await login(page);
-  for (const name of ["B", "Olamilekan Alaga"]) {
+  for (const name of ["Bemigho Estano", "Olamilekan Alaga"]) {
     const photo = page
       .getByRole("button", { name, exact: true })
       .locator("img");

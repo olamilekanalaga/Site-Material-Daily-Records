@@ -1,6 +1,6 @@
 # Repository structure
 
-This repository keeps the current DJCU delivery log and an earlier dashboard in separate application roots. Paths below are relative to the repository root.
+This repository keeps the current DJ Civils delivery log and an earlier dashboard in separate application roots. Paths below are relative to the repository root.
 
 ```text
 .

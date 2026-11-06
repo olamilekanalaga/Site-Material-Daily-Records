@@ -206,7 +206,7 @@ export function createDemoState(
     schema: 1,
     role: "gate",
     gate_profile: profile,
-    company: { id: companyId, name: "DJCU Demo Workspace" },
+    company: { id: companyId, name: "DJ Civils Demo Workspace" },
     sites: [
       {
         id: siteId,
@@ -251,6 +251,8 @@ export function createDemoState(
 
 /** Upgrade fictional samples without replacing saved records, photos or history. */
 export function migrateDemoState(state: DemoState): DemoState {
+  if (state.company.name === "DJCU Demo Workspace")
+    state.company.name = "DJ Civils Demo Workspace";
   // Clean only the supplied catalogue labels, retaining operator-entered names.
   const aggregate = state.materials.find(
     (item) =>
@@ -1342,7 +1344,7 @@ function report(state: DemoState, person: Actor, params: URLSearchParams) {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition":
-          'attachment; filename="djcu-fictional-demo-report.csv"',
+          'attachment; filename="dj-civils-demo-report.csv"',
         "Cache-Control": "no-store",
       },
     },
@@ -1373,7 +1375,7 @@ export async function dispatchDemo(
       const profile = object(options.body).profile;
       check(
         demoProfiles.some((item) => item.id === profile),
-        "Select B or Olamilekan Alaga",
+        `Select ${demoProfiles.map((profile) => profile.name).join(" or ")}`,
       );
       const before = { profile: state.gate_profile, role: state.role };
       state.gate_profile = profile as DemoProfileId;
