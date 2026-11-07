@@ -2,6 +2,7 @@ import { before, after, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
+import { upgradeCatalogue } from "../../src/lib/catalogue";
 
 // Real PostgreSQL policies/RPCs, with only provider-owned Auth/Storage metadata
 // mocked. A successful run does not claim hosted Auth or file-service coverage.
@@ -137,6 +138,9 @@ before(async () => {
   ).rows[0].row;
   originalAudit = (await db.query("select * from audit_events order by id"))
     .rows;
+  // Simulate an earlier catalogue with explicitly visible extra default choices.
+  await db.exec(`alter table materials add column capture_hidden boolean;
+    insert into materials(id,company_id,name,capture_hidden) values('${id(24)}','${company}','Cement',false);`);
   await migration("202611070001_live_delivery_backend.sql");
   await as(gate);
   const boot = await rpc("app_bootstrap");
@@ -185,6 +189,9 @@ test("live migration preserves historical values and binds only unambiguous auth
     false,
   );
   assert(!boot.sites.some((s: any) => s.id === hiddenSite));
+  const cement = boot.materials.find((item: any) => item.id === id(24));
+  assert.equal(cement.name, "Cement");
+  assert.equal(cement.capture_hidden, true);
   await db.exec("reset role");
   for (const event of originalAudit as { id: string }[]) {
     assert.deepEqual(
@@ -218,7 +225,7 @@ test("operator-only catalogue seeding is idempotent and normalised duplicates ca
       )
     ).rows,
     [
-      { category: "Aggregates / Sands", total: 19 },
+      { category: "Aggregates / Sands", total: 5 },
       { category: "Other Materials", total: 2 },
       { category: "Services", total: 3 },
     ],
@@ -278,6 +285,59 @@ test("operator-only catalogue seeding is idempotent and normalised duplicates ca
       ]),
     );
   }
+});
+
+test("SQL and browser catalogue defaults agree and manual aggregate restoration survives seeding", async () => {
+  await db.exec("reset role");
+  const definitions = (
+    await db.query<{ result: unknown }>(
+      "select app_material_definitions() result",
+    )
+  ).rows[0].result;
+  assert.deepEqual(
+    definitions,
+    upgradeCatalogue([], company).map(
+      ({
+        name,
+        normalised_name,
+        category,
+        entry_type,
+        synonyms,
+        capture_hidden,
+      }) => ({
+        name,
+        normalised_name,
+        category,
+        entry_type,
+        synonyms,
+        capture_hidden,
+      }),
+    ),
+  );
+  await as(gate);
+  const draft = (
+    await rpc(
+      "log_delivery",
+      fields({ material_id: "", custom_item_name: "cement" }),
+    )
+  ).delivery;
+  assert.equal(draft.material_id, id(24));
+  assert.equal(draft.item_name, "cement");
+  assert.equal(draft.category, "Aggregates / Sands");
+  await as(null, "service_role");
+  await db.query("select app_seed_company_catalogue($1)", [company]);
+  await as(gate);
+  const boot = await rpc("app_bootstrap");
+  assert.equal(
+    boot.materials.find((item: any) => item.id === id(24)).capture_hidden,
+    false,
+  );
+  assert.equal(
+    boot.materials.filter((item: any) => item.normalised_name === "cement")
+      .length,
+    1,
+  );
+  assert(boot.deliveries.some((item: any) => item.id === legacy));
 });
 
 test("staff portrait paths stay private and readable only within the assigned site", async () => {

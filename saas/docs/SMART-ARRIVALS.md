@@ -21,15 +21,15 @@ The form has no tonnage, volume, litres, prices, stock calculations, purchase or
 
 `src/lib/catalogue.ts` holds the options, three categories, entry types, aliases and deterministic search helpers. Shared catalogue items have a stable ID, display name, normalised name, category, entry type, approval status, optional synonyms and capture-visibility metadata. Compatible optional metadata extends the existing material shape rather than replacing historical records.
 
-| Category           | Initial capture options                                                                                                                                                                                                   |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Aggregates / Sands | 6F5; Type 1; Type 2; MOT Type 1; Sand; Building sand; Sharp sand; 10mm shingles; 20mm shingles; Gravel; Crushed stone; Hardcore; Ballast; Ready-mix concrete; Concrete; Concrete blocks; Precast concrete; Cement; Mortar |
-| Other Materials    | Pipes; Cables                                                                                                                                                                                                             |
-| Services           | Fuel; Toilets; Welfare                                                                                                                                                                                                    |
+| Category           | Initial capture options                         |
+| ------------------ | ----------------------------------------------- |
+| Aggregates / Sands | 6F5; Type 1; Sand; 10mm shingles; 20mm shingles |
+| Other Materials    | Pipes; Cables                                   |
+| Services           | Fuel; Toilets; Welfare                          |
 
 Every item list also includes **Other — Enter new item**. This keeps the initial lists compact while allowing marshals to record an unlisted arrival without waiting for an administrator.
 
-All 69 earlier catalogue definitions remain stored. **Pipes**, **Cables**, **Fuel**, **Toilets** and **Welfare** bring the built-in catalogue to 74 names; saved custom items are additional. Earlier default options outside the initial lists are hidden from capture menus only, not deleted from records or reporting. Explicit manual use of an exact known name reuses its existing ID and makes it selectable again. Previously approved custom options remain available.
+All 69 earlier catalogue definitions remain stored. **Pipes**, **Cables**, **Fuel**, **Toilets** and **Welfare** bring the built-in catalogue to 74 names; saved custom items are additional. Earlier default options outside the initial lists are hidden from capture menus only, not deleted from records or reporting. An additive, one-time visibility update also shortens existing browser menus. Explicit manual use of an exact known name reuses its existing ID and makes it selectable again, including after refresh. Previously approved custom options remain available.
 
 Existing approved categories are mapped into the three current groups without rewriting historical delivery snapshots. Earlier aggregate and concrete/cement groups become **Aggregates / Sands**; fuel, toilet, welfare and site-service options use **Services**; remaining construction supplies use **Other Materials**. Legacy pending items with no chosen category remain **Pending classification** rather than being automatically approved.
 
@@ -83,7 +83,7 @@ Entry type remains stored and derived for delivery/service totals, filtering and
 
 Editing **From date** or **To date** switches to a custom range that stays fixed across midnight while the records view remains open. **Clear filters** returns to the automatic current-day view; reopening the page also starts with today. The table, summary cards and arrival CSV use the same effective dates. Additional filters cover item, category, entry type, marshal and pending classification. Dates use the site timezone. Horizontal summary cards follow the selected dates; item selection narrows the table while period totals remain comparable. The supervisor can inspect:
 
-- Total recorded arrivals, material deliveries, service visits and pending classifications separately.
+- Three summary cards: total recorded arrivals, material deliveries and service visits. Pending items still count toward total arrivals and remain available in the classification filter and review list.
 - Counts by item and category, including frequently delivered items.
 - Service visits by type and records by marshal.
 - Pending items with occurrence counts and approval controls.

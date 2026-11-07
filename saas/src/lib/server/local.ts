@@ -2,6 +2,8 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  CAPTURE_MENU_VERSION,
+  compactAggregateCaptureMenu,
   findExactCatalogueItem,
   normaliseItemName,
   PENDING_CATEGORY,
@@ -735,8 +737,23 @@ export const local = {
       const byId = new Map(
         existing.map((item) => [item.id, JSON.stringify(item)]),
       );
-      for (const item of upgradeCatalogue(existing, actor.company_id))
+      const marker = get<{ version: number }>(
+        "catalogue_capture_menu",
+        actor.company_id,
+      );
+      const upgraded = upgradeCatalogue(existing, actor.company_id);
+      const materials =
+        (marker?.version || 0) < CAPTURE_MENU_VERSION
+          ? compactAggregateCaptureMenu(upgraded, actor.company_id)
+          : upgraded;
+      for (const item of materials)
         if (byId.get(item.id) !== JSON.stringify(item)) put("material", item);
+      if ((marker?.version || 0) < CAPTURE_MENU_VERSION)
+        put("catalogue_capture_menu", {
+          id: actor.company_id,
+          company_id: actor.company_id,
+          version: CAPTURE_MENU_VERSION,
+        });
     });
     const deliveries = all<Delivery>("delivery", actor.company_id)
       .filter(

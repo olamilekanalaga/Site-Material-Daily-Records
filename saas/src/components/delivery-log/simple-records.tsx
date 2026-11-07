@@ -9,7 +9,6 @@ import {
   ENTRY_TYPES,
   PENDING_CATEGORY,
   PENDING_ENTRY_TYPE,
-  QUICK_ITEMS,
   itemDetails,
 } from "@/lib/catalogue";
 import { downloadReport } from "@/lib/client/offline";
@@ -269,14 +268,6 @@ export function SimpleRecords({
   const services = detailed.filter(
     ({ item }) => item.entry_type === "Service visit",
   ).length;
-  const pending = detailed.filter(
-    ({ item }) => item.approval_status === "Pending",
-  ).length;
-  const summaryMaterials = data.materials.filter(
-    (item) =>
-      counts.byMaterial.has(item.id) ||
-      QUICK_ITEMS.some((name) => name === item.name),
-  );
   const marshals = new Map<string, string>();
   for (const item of data.marshals || [])
     if (item.site_id === siteId) marshals.set(item.id, item.name);
@@ -489,9 +480,6 @@ export function SimpleRecords({
             table.
           </p>
         </div>
-        <span>
-          <ArrowLeftRight size={16} aria-hidden="true" /> More items
-        </span>
       </div>
       <div
         className="simple-summary-cards"
@@ -534,34 +522,6 @@ export function SimpleRecords({
           <strong>{services.toLocaleString("en-GB")}</strong>
           <small>service arrivals</small>
         </button>
-        <button
-          type="button"
-          className="simple-summary-card"
-          aria-pressed={classification === "Pending"}
-          aria-label={`Pending classifications: ${pending}`}
-          onClick={() => selectSummary({ classification: "Pending" })}
-        >
-          <span>Pending classifications</span>
-          <strong>{pending.toLocaleString("en-GB")}</strong>
-          <small>arrivals to classify</small>
-        </button>
-        {summaryMaterials.map((item) => {
-          const count = counts.byMaterial.get(item.id) || 0;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className="simple-summary-card"
-              aria-pressed={material === item.id}
-              aria-label={`${item.name}: ${count} arrivals`}
-              onClick={() => selectSummary({ material: item.id })}
-            >
-              <span>{item.name}</span>
-              <strong>{count.toLocaleString("en-GB")}</strong>
-              <small>arrivals</small>
-            </button>
-          );
-        })}
       </div>
       {reviewer && (
         <details className={styles.breakdown}>

@@ -8,17 +8,25 @@ At the start of this branch the environment contained no Supabase credentials an
 
 The operator setup can be checked without network using `node --check scripts/provision-site.mjs` and `node scripts/provision-site.mjs --config YOUR_REVIEWED_CONFIG --validate-only`. These checks validate syntax/configuration/local files; they do not create accounts, execute SQL or verify hosted permissions.
 
+## Catalogue and summary simplification — 7 November 2026
+
+The browser records view now has exactly three horizontal summary cards: **Total arrivals**, **Material deliveries** and **Service visits**. Pending-classification and individual-material cards, together with the “More items” hint, were removed. Date filtering and supervisor classification review remain available.
+
+The initial **Aggregates / Sands** menu contains **6F5**, **Type 1**, **Sand**, **10mm shingles** and **20mm shingles**, plus manual entry. Other categories are unchanged. One-time demo/local visibility upgrades retain historical catalogue IDs, delivery rows, evidence and audit history. Explicitly entering a retired option such as Cement makes the same item selectable again after refresh. The unexecuted live migration uses the same defaults; no hosted SQL was applied.
+
+Current simplification checks: **111/111 unit/database checks passed**, TypeScript passed and the complete public browser suite passed **21/21** across phone, tablet and desktop. It includes exactly three summary cards, the five-option dropdown, manual restoration after refresh, date-linked totals, evidence and classification review. Phone screenshots were visually inspected. The final optimised build result is recorded below. The private API/UI counts below belong to the preceding backend-integration run, which was not repeated for this presentation change.
+
 ## Current branch results — 7 November 2026
 
 | Check                                                                                  | Executed result                                                                                                                           |
 | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | TypeScript (`npm run typecheck`)                                                       | Passed                                                                                                                                    |
-| Unit, SQL/RLS, local persistence, demo, configuration and operator guards (`npm test`) | **107/107 passed** in the final combined run                                                                                              |
+| Unit, SQL/RLS, local persistence, demo, configuration and operator guards (`npm test`) | **111/111 passed** in the latest combined run                                                                                             |
 | Current private HTTP API and responsive UI                                             | **34 unique scenarios covered**: 22 API and 12 UI across phone, tablet and desktop                                                        |
 | Final delivery-time ordering and filtered CSV checks                                   | **4/4 passed**: one API export and three viewport UI rechecks                                                                             |
 | Existing public demo regression                                                        | **21/21 passed** in the complete run                                                                                                      |
 | Optimised Next.js build (`npm run build`)                                              | Passed with the default Next.js 16.4.5 Turbopack builder, TypeScript and all 13 static pages                                              |
-| Operator script                                                                        | Syntax, validation-only/no-network and mocked read-only/conflict checks passed; three operator guards are included in the 107-check suite |
+| Operator script                                                                        | Syntax, validation-only/no-network and mocked read-only/conflict checks passed; three operator guards are included in the 111-check suite |
 | Hosted smoke command without protected opt-in credentials                              | **1 skipped**, as intended; not a hosted pass                                                                                             |
 | Production merge, hosted SQL application and production deployment                     | Not performed                                                                                                                             |
 

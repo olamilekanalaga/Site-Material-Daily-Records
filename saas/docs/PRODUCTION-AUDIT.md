@@ -29,7 +29,7 @@ The live integration adds database-backed material/supplier selection and manual
 - Existing `/sign-in/marshal` and `/sign-in/supervisor` entrances remain compatible.
 - The hosted interface has no sample arrivals, demo workspace banner, analytics dashboard, invoice workflow, OCR, vehicle-registration requirement or subscription billing.
 
-The three catalogue groups remain **Aggregates / Sands**, **Other Materials** and **Services**. Known mappings are reused; manually entered names are saved for future selection with their pending status where classification is unknown.
+The three catalogue groups remain **Aggregates / Sands**, **Other Materials** and **Services**. Known mappings are reused; manually entered names are saved for future selection with their pending status where classification is unknown. The aggregate capture menu now starts with only 6F5, Type 1, Sand, 10mm shingles and 20mm shingles; every category retains manual entry. Earlier catalogue rows and delivery records are preserved. The browser records view keeps three summary cards: Total arrivals, Material deliveries and Service visits.
 
 ## Existing schema and access controls
 
@@ -63,6 +63,7 @@ The following source, setup, documentation and test files form this upgrade. Gen
 - `saas/docs/DEPLOYMENT.md`
 - `saas/docs/PRODUCTION-AUDIT.md`
 - `saas/docs/SECURITY.md`
+- `saas/docs/SMART-ARRIVALS.md`
 - `saas/docs/VALIDATION.md`
 - `saas/playwright.config.ts`
 - `saas/playwright.hosted.config.ts`
@@ -86,6 +87,7 @@ The following source, setup, documentation and test files form this upgrade. Gen
 - `saas/src/components/delivery-log/simple-records.tsx`
 - `saas/src/components/delivery-log/supplier-selector.tsx`
 - `saas/src/lib/catalogue.ts`
+- `saas/src/lib/demo/engine.ts`
 - `saas/src/lib/server/config.ts`
 - `saas/src/lib/server/core.ts`
 - `saas/src/lib/server/http.ts`
@@ -94,11 +96,15 @@ The following source, setup, documentation and test files form this upgrade. Gen
 - `saas/src/lib/types.ts`
 - `saas/supabase/migrations/202611070001_live_delivery_backend.sql`
 - `saas/tests/all.ts`
+- `saas/tests/e2e/demo.spec.ts`
 - `saas/tests/e2e/live-api.spec.ts`
 - `saas/tests/e2e/simple-api.spec.ts`
+- `saas/tests/e2e/smart-demo.spec.ts`
 - `saas/tests/e2e/ui.spec.ts`
 - `saas/tests/hosted/live-supabase.spec.ts`
 - `saas/tests/integration/live-database.test.ts`
 - `saas/tests/integration/simple-local.test.ts`
+- `saas/tests/unit/catalogue.test.ts`
 - `saas/tests/unit/config.test.ts`
 - `saas/tests/unit/provision-site.test.ts`
+- `saas/tests/unit/smart-arrivals.test.ts`

@@ -110,17 +110,13 @@ async function save(p: Page, duplicate = false) {
     p.getByLabel("Supplier / Company name", { exact: true }),
   ).toHaveValue("");
 }
-async function summary(p: Page, totals: [number, number, number, number]) {
+async function summary(p: Page, totals: [number, number, number]) {
   const region = p.getByRole("region", {
     name: "Delivery summaries",
     exact: true,
   });
-  const names = [
-    "Total arrivals",
-    "Material deliveries",
-    "Service visits",
-    "Pending classifications",
-  ];
+  const names = ["Total arrivals", "Material deliveries", "Service visits"];
+  await expect(region.getByRole("button")).toHaveCount(3);
   for (const [i, name] of names.entries())
     await expect(
       region.getByRole("button", {
@@ -160,23 +156,19 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
   await expect(
     page.getByRole("searchbox", { name: "Search items", exact: true }),
   ).toBeVisible();
-  const approved = baseline.materials.filter(
-    (item) =>
-      item.active &&
-      item.approval_status === "Approved" &&
-      !item.capture_hidden &&
-      item.category === "Aggregates / Sands",
-  );
-  await expect(itemList(page).getByRole("option")).toHaveCount(
-    approved.length + 1,
-  );
+  const aggregateNames = [
+    "6F5",
+    "Type 1",
+    "Sand",
+    "10mm shingles",
+    "20mm shingles",
+  ];
+  await expect(itemList(page).getByRole("option")).toHaveCount(6);
   expect(
     (await itemList(page).getByRole("option").allTextContents())
       .map((text) => text.trim())
       .sort(),
-  ).toEqual(
-    [...approved.map((item) => item.name), "Other — Enter new item"].sort(),
-  );
+  ).toEqual([...aggregateNames, "Other — Enter new item"].sort());
   await expect(
     page.getByRole("searchbox", { name: "Search items", exact: true }),
   ).not.toBeFocused();
@@ -184,9 +176,7 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
   await expect(selector(page)).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByRole("listbox")).toHaveCount(0);
   await selector(page).click();
-  await expect(itemList(page).getByRole("option")).toHaveCount(
-    approved.length + 1,
-  );
+  await expect(itemList(page).getByRole("option")).toHaveCount(6);
   await page
     .getByRole("heading", { name: "New Delivery", exact: true })
     .click();
@@ -200,8 +190,8 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
   });
   // Only the selected category's items are offered, and normal selection needs no typing.
   await expect(itemOption(page, "Timber")).toHaveCount(0);
-  await expect(itemOption(page, "Concrete")).toHaveCount(1);
-  await expect(itemOption(page, "Cement")).toHaveCount(1);
+  await expect(itemOption(page, "Concrete")).toHaveCount(0);
+  await expect(itemOption(page, "Cement")).toHaveCount(0);
   await itemOption(page, "6F5").click();
   await expect(selector(page)).toHaveText("6F5");
   await expect(selector(page)).toHaveAttribute("aria-expanded", "false");
@@ -234,7 +224,6 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
   expect((await savedState(page)).deliveries).toHaveLength(30);
   for (const [query, name, category] of [
     ["type1", "Type 1", "Aggregates / Sands"],
-    ["cement", "Cement", "Aggregates / Sands"],
     ["pipes", "Pipes", "Other Materials"],
     ["cables", "Cables", "Other Materials"],
     ["toilets", "Toilets", "Services"],
@@ -358,6 +347,28 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
   await expect(categorySelector(page)).toBeEnabled();
   await expect(selector(page)).toBeEnabled();
   expect((await savedState(page)).deliveries).toHaveLength(33);
+
+  // A removed default can still be entered manually without duplicating its
+  // historical catalogue row, then stays selectable after the next refresh.
+  const cement = baseline.materials.find((item) => item.name === "Cement")!;
+  await manual(page, "Cement", "Aggregates / Sands");
+  await attach(page);
+  await save(page);
+  const reactivated = await savedState(page);
+  expect(reactivated.deliveries).toHaveLength(34);
+  expect(reactivated.materials).toHaveLength(baseline.materials.length);
+  expect(
+    reactivated.materials.find((item) => item.id === cement.id),
+  ).toMatchObject({ name: "Cement", capture_hidden: false });
+  expect(
+    reactivated.deliveries.filter((record) => record.material_id === cement.id),
+  ).toHaveLength(1);
+  await page.reload();
+  await expect(categorySelector(page)).toBeEnabled();
+  await choose(page, "cement", "Cement", "Aggregates / Sands");
+  expect(
+    (await savedState(page)).materials.find((item) => item.id === cement.id),
+  ).toMatchObject({ capture_hidden: false });
   if (info.project.name === "demo-mobile")
     await page.setViewportSize({ width: 320, height: 740 });
   await noOverflow(page);
@@ -403,7 +414,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
   await expect(page.getByRole("button", { name: /^Approve / })).toHaveCount(0);
   await page.goto("/demo/supervisor");
   await expect(rows(page)).toHaveCount(32);
-  await summary(page, [32, 24, 0, 8]);
+  await summary(page, [32, 24, 0]);
   const form = page.getByRole("form", {
     name: new RegExp(`^Classify .*${suffix}$`),
   });
@@ -416,7 +427,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
     .selectOption({ label: "Service visit" });
   await form.getByRole("button", { name: /^Approve / }).click();
   await expect(form).toHaveCount(0);
-  await summary(page, [32, 24, 2, 6]);
+  await summary(page, [32, 24, 2]);
   await page.getByText("Arrival breakdown", { exact: true }).click();
   const approvedServices = page
     .getByRole("table", {
@@ -452,7 +463,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
     approved.audit.some((e) => e.action === "catalogue.item.approved"),
   ).toBe(true);
   await page.reload();
-  await summary(page, [32, 24, 2, 6]);
+  await summary(page, [32, 24, 2]);
   await noOverflow(page);
   await page.screenshot({
     path: info.outputPath("smart-classified-records.png"),
@@ -489,7 +500,7 @@ test("supervisor filters and breakdowns reconcile deliveries, services and pendi
   await page.goto("/demo/supervisor");
   const tableRows = rows(page);
   await expect(tableRows).toHaveCount(33);
-  await summary(page, [33, 25, 2, 6]);
+  await summary(page, [33, 25, 2]);
   await page.getByText("More filters", { exact: true }).click();
   await page
     .getByRole("combobox", { name: "Category", exact: true })
@@ -506,7 +517,7 @@ test("supervisor filters and breakdowns reconcile deliveries, services and pendi
     .selectOption({ label: "Approved" });
   await expect(tableRows).toHaveCount(2);
   await expect(tableRows.filter({ hasText: suffix })).toHaveCount(2);
-  await summary(page, [33, 25, 2, 6]);
+  await summary(page, [33, 25, 2]);
   const ready = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export CSV", exact: true }).click();
   const download = await ready;

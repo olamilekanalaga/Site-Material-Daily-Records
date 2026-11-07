@@ -7,6 +7,10 @@ import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { local } from "../../src/lib/server/local";
 import {
+  AGGREGATE_CAPTURE_ITEMS,
+  CAPTURE_MENU_VERSION,
+} from "../../src/lib/catalogue";
+import {
   AppError,
   parseSimpleDelivery,
   parseDelivery,
@@ -368,4 +372,63 @@ test("a supervisor reassigned as gate cannot retrieve former review snapshots", 
   assert(
     !local.bootstrap(reassigned).deliveries.some((d) => d.id === fields.id),
   );
+});
+
+test("local capture menu upgrades once without replacing records or re-hiding a manually restored aggregate", () => {
+  const reader = new DatabaseSync(join(folder, "pilot.sqlite"));
+  const cement = local
+    .bootstrap(gate)
+    .materials.find((item) => item.name === "Cement")!;
+  const recordsBefore = reader
+    .prepare("SELECT id,body FROM objects WHERE kind='delivery' ORDER BY id")
+    .all();
+  reader
+    .prepare("DELETE FROM objects WHERE kind='catalogue_capture_menu' AND id=?")
+    .run(gate.company_id);
+  reader
+    .prepare("UPDATE objects SET body=? WHERE kind='material' AND id=?")
+    .run(JSON.stringify({ ...cement, capture_hidden: false }), cement.id);
+  const upgraded = local.bootstrap(gate);
+  assert.deepEqual(
+    upgraded.materials
+      .filter(
+        (item) =>
+          item.category === "Aggregates / Sands" && !item.capture_hidden,
+      )
+      .map((item) => item.name)
+      .sort(),
+    [...AGGREGATE_CAPTURE_ITEMS].sort(),
+  );
+  assert.deepEqual(
+    reader
+      .prepare("SELECT id,body FROM objects WHERE kind='delivery' ORDER BY id")
+      .all(),
+    recordsBefore,
+  );
+  const marker = reader
+    .prepare(
+      "SELECT body FROM objects WHERE kind='catalogue_capture_menu' AND id=?",
+    )
+    .get(gate.company_id) as { body: string };
+  assert.equal(JSON.parse(marker.body).version, CAPTURE_MENU_VERSION);
+  const saved = local.log(
+    gate,
+    input({
+      capture_kind: "arrival",
+      material_id: "",
+      custom_item_name: "cement",
+      selected_category: "Aggregates / Sands",
+    }),
+  ).delivery;
+  assert.equal(saved.material_id, cement.id);
+  const refreshed = local.bootstrap(gate);
+  assert.equal(
+    refreshed.materials.find((item) => item.id === cement.id)!.capture_hidden,
+    false,
+  );
+  assert.equal(
+    refreshed.materials.filter((item) => item.name === "Cement").length,
+    1,
+  );
+  reader.close();
 });
