@@ -160,7 +160,7 @@
 }
 
 .recordTable.recordTable {
-  min-width: 1060px;
+  min-width: 720px;
 }
 
 .recordTable td {
@@ -175,12 +175,21 @@
   color: #8a5b20;
 }
 
-.timeKind {
+.recordTable .marshalCell {
+  width: 88px;
+  text-align: center;
+  white-space: normal;
+}
+
+.marshalPortrait {
   display: block;
-  margin-top: 4px;
-  color: #7d715d;
-  font-size: 10px;
-  font-weight: 400;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto;
+  border: 1px solid #c9bfaf;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #eee9df;
 }
 
 .emptyReview {

@@ -287,28 +287,82 @@ test("public DJ Civils photo selection opens delivery input first with explicit 
   ).toHaveCount(0);
   const sampleRows = page.locator(".simple-table tbody tr");
   await expect(sampleRows).toHaveCount(30);
-  const marshalCells = sampleRows.locator("td:nth-child(6)");
+  const marshalCells = sampleRows.locator("td:first-child");
   await expect(
-    marshalCells.filter({ hasText: /^Bemigho Estano$/ }),
+    marshalCells.getByRole("img", { name: "Bemigho Estano", exact: true }),
   ).toHaveCount(20);
   await expect(
-    marshalCells.filter({ hasText: /^Olamilekan Alaga$/ }),
+    marshalCells.getByRole("img", { name: "Olamilekan Alaga", exact: true }),
   ).toHaveCount(10);
-  const names = await marshalCells.allTextContents();
+  await expect(marshalCells).toHaveText(Array(30).fill(""));
+  const names = await marshalCells
+    .locator("img")
+    .evaluateAll((images) =>
+      images.map((image) => (image as HTMLImageElement).alt),
+    );
   const nameChanges = names.reduce(
     (changes, name, index) =>
       changes + (index > 0 && name !== names[index - 1] ? 1 : 0),
     0,
   );
   expect(nameChanges).toBeGreaterThan(1);
-  const arrivalClocks = await sampleRows.evaluateAll((rows) =>
-    rows.map(
-      (row) => `${row.children[0].textContent} ${row.children[1].textContent}`,
+  // The table hides timestamps, but its rows still follow the saved arrival order.
+  const expectedOrder = await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const opening = indexedDB.open("djcu-fictional-browser-demo", 1);
+      opening.onsuccess = () => resolve(opening.result);
+      opening.onerror = () => reject(opening.error);
+    });
+    try {
+      const saved = await new Promise<DemoState>((resolve, reject) => {
+        const reading = database
+          .transaction("demo")
+          .objectStore("demo")
+          .get("state");
+        reading.onsuccess = () => resolve(reading.result as DemoState);
+        reading.onerror = () => reject(reading.error);
+      });
+      return saved.deliveries
+        .sort((a, b) => Date.parse(b.arrival_at) - Date.parse(a.arrival_at))
+        .map((record) => [
+          saved.members.find(
+            (member) => member.id === (record.marshal_id || record.created_by),
+          )?.name ??
+            record.marshal_name ??
+            record.creator_name,
+          record.supplier_name ??
+            saved.suppliers.find(
+              (supplier) => supplier.id === record.supplier_id,
+            )?.name,
+        ]);
+    } finally {
+      database.close();
+    }
+  });
+  expect(
+    await sampleRows.evaluateAll((rows) =>
+      rows.map((row) => [
+        row.children[0].querySelector("img")?.alt,
+        row.children[3].textContent,
+      ]),
     ),
-  );
-  expect(arrivalClocks).toEqual(
-    [...arrivalClocks].sort((a, b) => b.localeCompare(a)),
-  );
+  ).toEqual(expectedOrder);
+  for (const [name, source] of [
+    ["Bemigho Estano", "/marshals/bemigho-estano.jpg"],
+    ["Olamilekan Alaga", "/marshals/olamilekan-alaga.jpg"],
+  ]) {
+    const portrait = marshalCells
+      .getByRole("img", { name, exact: true })
+      .first();
+    expect(decodeURIComponent((await portrait.getAttribute("src"))!)).toContain(
+      source,
+    );
+    await expect
+      .poll(() =>
+        portrait.evaluate((image) => (image as HTMLImageElement).naturalWidth),
+      )
+      .toBeGreaterThan(0);
+  }
   await expect(
     page
       .getByRole("region", { name: "Delivery summaries", exact: true })
@@ -373,8 +427,12 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
     page.getByRole("heading", { name: "Daily Records", exact: true }),
   ).toBeVisible();
   await expect(earlyRow).toHaveCount(1);
-  await expect(earlyRow).toContainText("Bemigho Estano");
-  await expect(recentRow).toContainText("Olamilekan Alaga");
+  await expect(
+    earlyRow.getByRole("img", { name: "Bemigho Estano", exact: true }),
+  ).toBeVisible();
+  await expect(
+    recentRow.getByRole("img", { name: "Olamilekan Alaga", exact: true }),
+  ).toBeVisible();
   const rows = await page.getByRole("row").allTextContents();
   expect(rows.findIndex((row) => row.includes(recentSupplier))).toBeLessThan(
     rows.findIndex((row) => row.includes(earlySupplier)),
@@ -386,13 +444,11 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
       .allTextContents()
   ).map((text) => text.replace(/\s/g, "").toLowerCase());
   expect(headers).toEqual([
-    "date",
-    "time",
+    "trafficmarshal",
     "item",
     "category",
-    "company/supplier",
-    "recordedby",
-    "photo/ticketevidence",
+    "logisticscompany",
+    "photo",
   ]);
   await recentRow
     .getByRole("button", { name: "View photo", exact: true })
@@ -509,7 +565,9 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
   await capture(marshalPage, "Olamilekan Alaga", supplier);
   await page.getByRole("button", { name: "Refresh deliveries" }).click();
   const uploadedRow = page.getByRole("row").filter({ hasText: supplier });
-  await expect(uploadedRow).toContainText("Olamilekan Alaga");
+  await expect(
+    uploadedRow.getByRole("img", { name: "Olamilekan Alaga", exact: true }),
+  ).toBeVisible();
   await expect(uploadedRow).toContainText("6F5");
   await expect(page.locator(".simple-table tbody tr")).toHaveCount(31);
 
