@@ -127,9 +127,9 @@ function MarshalPortrait({ name, sample }: { name: string; sample: boolean }) {
       src={portrait || "/marshal-placeholder.svg"}
       alt={name}
       title={name}
-      width={64}
-      height={64}
-      sizes="64px"
+      width={40}
+      height={40}
+      sizes="40px"
       style={
         portrait
           ? name === "Bemigho Estano"

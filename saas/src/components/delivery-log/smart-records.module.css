@@ -176,17 +176,18 @@
 }
 
 .recordTable .marshalCell {
-  width: 130px;
+  width: 88px;
   text-align: center;
+  white-space: normal;
 }
 
 .marshalPortrait {
   display: block;
-  width: 64px;
-  height: 64px;
+  width: 40px;
+  height: 40px;
   margin: 0 auto;
   border: 1px solid #c9bfaf;
-  border-radius: 8px;
+  border-radius: 50%;
   object-fit: cover;
   background: #eee9df;
 }
