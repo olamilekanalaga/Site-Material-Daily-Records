@@ -12,7 +12,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000/demo` for the demo without an email or password, or `/demo/supervisor` for combined records and catalogue review. Demo records, photos and catalogue approvals persist in that browser only; they are not shared across devices. See the [smart arrivals guide](saas/docs/SMART-ARRIVALS.md) for capture, classification and reporting, and the [SaaS guide](saas/README.md) for authenticated development and existing Supabase infrastructure.
+Open `http://localhost:3000` for four aligned sign-in options. **Traffic Marshal sign-in** and **Supervisor / Site Manager sign-in** are disabled; only **Traffic Marshal demo** (`/demo`) and **Supervisor demo** (`/demo/supervisor`) are clickable. No email or password is needed for either demo. Demo records, photos and catalogue approvals persist in that browser only; they are not shared across devices. See the [smart arrivals guide](saas/docs/SMART-ARRIVALS.md) for capture, classification and reporting, and the [SaaS guide](saas/README.md) for authenticated development and existing Supabase infrastructure.
 
 ## Repository map
 

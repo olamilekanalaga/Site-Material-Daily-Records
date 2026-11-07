@@ -14,7 +14,9 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000/demo` and click one of the two square profile cards: **Bemigho Estano** or **Olamilekan Alaga**. Both marshal cards use their supplied portraits. The demo includes 30 sample deliveries: 20 for Bemigho Estano and 10 for Olamilekan Alaga. Open `/demo/supervisor` to see the combined records in arrival-time order. Existing browser records and photos are kept when the sample data is updated. The first page says **Sign in as**. Choosing a square photo opens the selected marshal’s delivery-entry form directly. **View Records** opens the saved table; **Record New Delivery** returns to entry. For a selected marshal, the company-logo Home link also opens the delivery form. Reloading the delivery page keeps the selected profile; select the same marshal again to resume any pending save.
+Open `http://localhost:3000` for four aligned options: **Traffic Marshal sign-in**, **Supervisor / Site Manager sign-in**, **Traffic Marshal demo** and **Supervisor demo**. The two staff sign-in options are disabled. Only the two demo options are clickable; the homepage has no promotional panel, instructions or credential fields.
+
+Choose **Traffic Marshal demo** to open `/demo`, then click one of the two square profile cards: **Bemigho Estano** or **Olamilekan Alaga**. Both marshal cards use their supplied portraits. The demo includes 30 sample deliveries: 20 for Bemigho Estano and 10 for Olamilekan Alaga. Choose **Supervisor demo** (`/demo/supervisor`) to see the combined records in arrival-time order. Existing browser records and photos are kept when the sample data is updated. The marshal demo page says **Sign in as**. Choosing a square photo opens the selected marshal’s delivery-entry form directly. **View Records** opens the saved table; **Record New Delivery** returns to entry. For a selected marshal, the company-logo Home link also opens the delivery form. Reloading the delivery page keeps the selected profile; select the same marshal again to resume any pending save.
 
 **No email, password, Supabase project, environment variables or backend session are needed for `/demo`.** The landing page and interactive demo also work on a deployment with no team backend configured.
 
@@ -56,7 +58,7 @@ Use fictional information only. IndexedDB is not encrypted against someone contr
 
 ## Private sign-in entrances
 
-Use `/sign-in/marshal` for Traffic Marshals and `/sign-in/supervisor` for Supervisors / Site Managers. Both use the existing email/password authentication; no Google sign-in or identity-document upload is required. The selected entrance never changes an account's stored role.
+The public homepage's staff sign-in options are disabled. The existing private routes remain available for configured local development or a later approved team rollout: `/sign-in/marshal` for Traffic Marshals and `/sign-in/supervisor` for Supervisors / Site Managers. Both use the existing email/password authentication; no Google sign-in or identity-document upload is required. The selected entrance never changes an account's stored role. An unconfigured public deployment does not expose a usable private sign-in form.
 
 Private access is invite-only: an operator provisions the Auth user, and an authorised company administrator assigns the company membership, role and site access. There is no public role-selection or account-registration form. Login rejects an unapproved role or missing site before issuing session cookies; company administrators may sign in before a first site exists for setup. The bootstrap endpoint also enforces the selected entrance for existing sessions.
 

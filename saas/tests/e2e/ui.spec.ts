@@ -10,7 +10,7 @@ const png = Buffer.from(
 test.use({ timezoneId: "America/Los_Angeles" });
 
 async function login(page: Page, role: "gate" | "supervisor" = "gate") {
-  await page.goto("/");
+  await page.goto(role === "gate" ? "/sign-in/marshal" : "/sign-in/supervisor");
   await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
   await page.screenshot({
     path: test.info().outputPath("simple-login.png"),
@@ -329,6 +329,26 @@ test("separate staff sign-in forms enforce the chosen entrance and open the assi
   page,
   context,
 }, testInfo) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "Traffic Marshal sign-in", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", {
+      name: "Supervisor / Site Manager sign-in",
+      exact: true,
+    }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("link", { name: "Traffic Marshal demo", exact: true }),
+  ).toHaveAttribute("href", "/demo");
+  await expect(
+    page.getByRole("link", { name: "Supervisor demo", exact: true }),
+  ).toHaveAttribute("href", "/demo/supervisor");
+  await expect(page.getByLabel("Email address", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);
   await page.goto("/sign-in/supervisor");
   await expect(
     page.getByRole("heading", {
@@ -337,7 +357,7 @@ test("separate staff sign-in forms enforce the chosen entrance and open the assi
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Explore demo", exact: true }),
+    page.getByRole("link", { name: "Traffic Marshal demo", exact: true }),
   ).toHaveCount(0);
   await page
     .getByLabel("Email address", { exact: true })
