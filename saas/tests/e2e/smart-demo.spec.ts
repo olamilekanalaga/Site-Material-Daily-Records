@@ -78,6 +78,13 @@ async function choose(p: Page, query: string, name: string, category: string) {
   await search(p, query);
   await itemOption(p, name).click();
 }
+async function manual(p: Page, name: string, category: string) {
+  await pickCategory(p, category);
+  await search(p, name);
+  await itemOption(p, "Other — Enter new item").click();
+  await p.getByLabel("New item name", { exact: true }).fill(name);
+  await selectedCategory(p, category);
+}
 async function selectedCategory(p: Page, category: string) {
   await expect(categorySelector(p)).toHaveValue(category);
   await expect(p.getByText("Entry type", { exact: true })).toHaveCount(0);
@@ -139,7 +146,13 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
   await expect(selector(page)).toHaveText("Choose a category first");
   await expect(selector(page)).toHaveJSProperty("tagName", "BUTTON");
   await expect(categorySelector(page)).toHaveValue("");
-  await pickCategory(page, "Aggregates");
+  await expect(categorySelector(page).locator("option")).toHaveText([
+    "Choose a category",
+    "Aggregates / Sands",
+    "Other Materials",
+    "Services",
+  ]);
+  await pickCategory(page, "Aggregates / Sands");
   await expect(selector(page)).toBeEnabled();
   await expect(selector(page)).toHaveText("Choose an item");
   await selector(page).click();
@@ -151,7 +164,8 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
     (item) =>
       item.active &&
       item.approval_status === "Approved" &&
-      item.category === "Aggregates",
+      !item.capture_hidden &&
+      item.category === "Aggregates / Sands",
   );
   await expect(itemList(page).getByRole("option")).toHaveCount(
     approved.length + 1,
@@ -186,11 +200,12 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
   });
   // Only the selected category's items are offered, and normal selection needs no typing.
   await expect(itemOption(page, "Timber")).toHaveCount(0);
-  await expect(itemOption(page, "Concrete")).toHaveCount(0);
+  await expect(itemOption(page, "Concrete")).toHaveCount(1);
+  await expect(itemOption(page, "Cement")).toHaveCount(1);
   await itemOption(page, "6F5").click();
   await expect(selector(page)).toHaveText("6F5");
   await expect(selector(page)).toHaveAttribute("aria-expanded", "false");
-  await selectedCategory(page, "Aggregates");
+  await selectedCategory(page, "Aggregates / Sands");
   const categoryBox = (await categorySelector(page).boundingBox())!;
   const triggerBox = (await selector(page).boundingBox())!;
   expect(categoryBox.y + categoryBox.height).toBeLessThanOrEqual(triggerBox.y);
@@ -200,24 +215,31 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
     path: info.outputPath("smart-selected-category.png"),
     fullPage: true,
   });
-  await pickCategory(page, "Site services");
+  await pickCategory(page, "Services");
   await expect(selector(page)).toHaveText("Choose an item");
   await expect(
     page.locator('dl[aria-label="Automatic classification"]'),
   ).toHaveCount(0);
   await selector(page).click();
   await expect(itemOption(page, "6F5")).toHaveCount(0);
-  await expect(itemOption(page, "Road sweeper")).toHaveCount(1);
-  await expect(itemOption(page, "Toilet servicing")).toHaveCount(1);
-  await itemOption(page, "Road sweeper").click();
-  await selectedCategory(page, "Site services");
+  await expect(itemOption(page, "Road sweeper")).toHaveCount(0);
+  await expect(itemOption(page, "Toilet servicing")).toHaveCount(0);
+  expect(
+    (await itemList(page).getByRole("option").allTextContents())
+      .map((text) => text.trim())
+      .sort(),
+  ).toEqual(["Fuel", "Toilets", "Welfare", "Other — Enter new item"].sort());
+  await itemOption(page, "Fuel").click();
+  await selectedCategory(page, "Services");
   expect((await savedState(page)).deliveries).toHaveLength(30);
   for (const [query, name, category] of [
-    ["type1", "Type 1", "Aggregates"],
-    ["wood", "Timber", "Timber"],
-    ["sweeper", "Road sweeper", "Site services"],
-    ["toilet servicing", "Toilet servicing", "Site services"],
-    ["10 mm", "10mm shingles", "Aggregates"],
+    ["type1", "Type 1", "Aggregates / Sands"],
+    ["cement", "Cement", "Aggregates / Sands"],
+    ["pipes", "Pipes", "Other Materials"],
+    ["cables", "Cables", "Other Materials"],
+    ["toilets", "Toilets", "Services"],
+    ["welfare", "Welfare", "Services"],
+    ["10 mm", "10mm shingles", "Aggregates / Sands"],
   ]) {
     await choose(page, query, name, category);
     await selectedCategory(page, category);
@@ -229,7 +251,7 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
   await expect(
     page.getByLabel(/tonnage|quantity|litres|cost|price/i),
   ).toHaveCount(0);
-  await choose(page, "6F5", "6F5", "Aggregates");
+  await choose(page, "6F5", "6F5", "Aggregates / Sands");
   await page.clock.fastForward(7 * 60 * 1000);
   const before = await page.evaluate(() => Date.now());
   await attach(page);
@@ -317,11 +339,11 @@ test("category-first dropdown narrows items and repeated arrivals use actual sav
     },
   );
   await page.reload();
-  await expect(categorySelector(page)).toHaveValue("Timber");
+  await expect(categorySelector(page)).toHaveValue("Other Materials");
   await expect(categorySelector(page)).toBeDisabled();
   await expect(selector(page)).toHaveText("Timber");
   await expect(selector(page)).toBeDisabled();
-  await selectedCategory(page, "Timber");
+  await selectedCategory(page, "Other Materials");
   await save(page, true);
   const recovered = (await savedState(page)).deliveries.filter(
     (record) => record.id === recoveredId,
@@ -355,16 +377,8 @@ test("unknown names deduplicate pending items and remain intact after supervisor
   const suffix = randomUUID().slice(0, 8),
     raw = `Trial  Gate Pump ${suffix}`,
     variant = raw.toLowerCase().replace(/\s+/g, " ");
-  await pickCategory(page, "Pending classification");
-  await expect(page.getByLabel("New item name", { exact: true })).toBeVisible();
   for (const name of [raw, variant]) {
-    await pickCategory(page, "Aggregates");
-    await search(page, name);
-    await page
-      .getByRole("option", { name: "Other — Enter new item", exact: true })
-      .click();
-    await page.getByLabel("New item name", { exact: true }).fill(name);
-    await selectedCategory(page, "Pending classification");
+    await manual(page, name, "Other Materials");
     await attach(page);
     await save(page);
   }
@@ -375,6 +389,13 @@ test("unknown names deduplicate pending items and remain intact after supervisor
   expect(added.every((record) => record.entry_type === "Pending review")).toBe(
     true,
   );
+  expect(
+    added.every(
+      (record) =>
+        record.category === "Other Materials" &&
+        record.selected_category === "Other Materials",
+    ),
+  ).toBe(true);
   expect(new Set(added.map((r) => r.material_id)).size).toBe(1);
   const candidates = pending.materials.filter((i) => i.name.includes(suffix));
   expect(candidates).toHaveLength(1);
@@ -389,7 +410,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
   await expect(form).toContainText("2 arrivals");
   await form
     .getByRole("combobox", { name: /^Category for / })
-    .selectOption({ label: "Site services" });
+    .selectOption({ label: "Services" });
   await form
     .getByRole("combobox", { name: /^Entry type for / })
     .selectOption({ label: "Service visit" });
@@ -409,7 +430,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
   expect(
     approved.materials.find((i) => i.id === candidates[0].id),
   ).toMatchObject({
-    category: "Site services",
+    category: "Services",
     entry_type: "Service visit",
     approval_status: "Approved",
   });
@@ -438,8 +459,8 @@ test("unknown names deduplicate pending items and remain intact after supervisor
     fullPage: true,
   });
   await entry(page, "b");
-  await choose(page, suffix, raw.replace(/\s+/g, " "), "Site services");
-  await selectedCategory(page, "Site services");
+  await choose(page, suffix, raw.replace(/\s+/g, " "), "Services");
+  await selectedCategory(page, "Services");
   await expect(page.getByRole("button", { name: /^Approve / })).toHaveCount(0);
   expect(
     (await context.cookies()).some((c) => c.name === "delivery_session"),
@@ -454,11 +475,11 @@ test("supervisor filters and breakdowns reconcile deliveries, services and pendi
   await entry(page);
   const suffix = randomUUID().slice(0, 8);
   for (const [name, category] of [
-    ["Road sweeper", "Site services"],
-    ["Toilet servicing", "Site services"],
-    ["Timber", "Timber"],
+    ["Road sweeper", "Services"],
+    ["Toilet servicing", "Services"],
+    ["Timber", "Other Materials"],
   ]) {
-    await choose(page, name, name, category);
+    await manual(page, name, category);
     await page
       .getByLabel("Supplier / Company name", { exact: true })
       .fill(`Sample ${name} ${suffix}`);
@@ -472,7 +493,7 @@ test("supervisor filters and breakdowns reconcile deliveries, services and pendi
   await page.getByText("More filters", { exact: true }).click();
   await page
     .getByRole("combobox", { name: "Category", exact: true })
-    .selectOption({ label: "Site services" });
+    .selectOption({ label: "Services" });
   await expect(tableRows).toHaveCount(2);
   await page
     .getByRole("combobox", { name: "Entry type", exact: true })
@@ -534,7 +555,7 @@ test("supervisor filters and breakdowns reconcile deliveries, services and pendi
   await page.getByText("Arrival breakdown", { exact: true }).click();
   for (const [table, name, total] of [
     ["Service visits by type", "Road sweeper", "1"],
-    ["Arrivals by category", "Site services", "2"],
+    ["Arrivals by category", "Services", "2"],
     ["Records by traffic marshal", "Olamilekan Alaga", "13"],
     ["Records by traffic marshal", "Bemigho Estano", "20"],
   ])

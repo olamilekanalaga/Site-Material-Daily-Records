@@ -6,16 +6,9 @@ import type {
 } from "./types";
 
 export const CATEGORIES = [
-  "Aggregates",
-  "Concrete and cement",
-  "Timber",
-  "Fuel and related supplies",
-  "Plant and equipment",
-  "Site facilities",
-  "Site services",
-  "Waste containers",
-  "Drainage and utilities",
-  "Other construction supplies",
+  "Aggregates / Sands",
+  "Other Materials",
+  "Services",
 ] as const;
 export const ENTRY_TYPES = ["Delivery", "Service visit"] as const;
 export const PENDING_CATEGORY = "Pending classification";
@@ -144,6 +137,8 @@ const groups: ReadonlyArray<readonly [string, readonly string[]]> = [
       "General building supplies",
     ],
   ],
+  ["Other Materials", ["Pipes", "Cables"]],
+  ["Services", ["Fuel", "Toilets", "Welfare"]],
 ];
 const aliases: Record<string, string[]> = {
   "6F5": ["6 f5", "6f 5"],
@@ -183,15 +178,56 @@ const aliases: Record<string, string[]> = {
   "Reinforcement steel": ["reinforcing steel"],
   Rebar: ["re bar", "reinforcing bar"],
   PPE: ["personal protective equipment", "protective equipment"],
+  Pipes: ["pipe"],
+  Cables: ["cable", "electrical cable", "electrical cables"],
+  Toilets: ["toilet"],
 };
+
+/** Legacy category labels are interpreted for display, without rewriting events. */
+function currentCategory(category: string | undefined, name = "") {
+  if ((CATEGORIES as readonly string[]).includes(category || ""))
+    return category;
+  if (category === "Aggregates" || category === "Concrete and cement")
+    return "Aggregates / Sands";
+  if (
+    category === "Fuel and related supplies" ||
+    category === "Site services" ||
+    (category === "Site facilities" &&
+      ["Portable toilet", "Welfare cabin"].includes(name))
+  )
+    return "Services";
+  if (
+    [
+      "Timber",
+      "Plant and equipment",
+      "Site facilities",
+      "Waste containers",
+      "Drainage and utilities",
+      "Other construction supplies",
+    ].includes(category || "")
+  )
+    return "Other Materials";
+  return undefined;
+}
+
 const definitions: Definition[] = groups.flatMap(([category, names]) =>
   names.map((name) => ({
     name,
-    category,
+    category: currentCategory(category, name)!,
     entry_type: category === "Site services" ? "Service visit" : "Delivery",
     synonyms: aliases[name] || [],
   })),
 );
+
+function hiddenByDefault(definition: Definition | undefined) {
+  return Boolean(
+    definition &&
+    definition.category !== "Aggregates / Sands" &&
+    !["Pipes", "Cables", "Fuel", "Toilets", "Welfare"].includes(
+      definition.name,
+    ),
+  );
+}
 
 /** Matching only: the original display/entered text is never replaced by this key. */
 export function normaliseItemName(value: string): string {
@@ -215,7 +251,10 @@ function definitionFor(name: string) {
 function metadata(item: CatalogueItem): CatalogueItem {
   const definition = definitionFor(item.name);
   // Pending is an explicit review state; an upgrade must never auto-approve it.
-  const category = item.category || definition?.category;
+  const category = currentCategory(
+    item.category || definition?.category,
+    definition?.name || item.name,
+  );
   const entryType = item.entry_type || definition?.entry_type;
   const approved =
     item.approval_status !== "Pending" &&
@@ -224,9 +263,11 @@ function metadata(item: CatalogueItem): CatalogueItem {
   return {
     ...item,
     normalised_name: normaliseItemName(item.name),
-    category: approved ? category : PENDING_CATEGORY,
+    category: category || PENDING_CATEGORY,
     entry_type: approved ? entryType : PENDING_ENTRY_TYPE,
     approval_status: approved ? "Approved" : "Pending",
+    // Retain legacy options for reports/aliases while keeping initial capture compact.
+    capture_hidden: item.capture_hidden ?? hiddenByDefault(definition),
     synonyms: [
       ...new Set([...(definition?.synonyms || []), ...(item.synonyms || [])]),
     ],
@@ -278,6 +319,7 @@ export function upgradeCatalogue(
       category: definition.category,
       entry_type: definition.entry_type,
       approval_status: "Approved",
+      capture_hidden: hiddenByDefault(definition),
       synonyms: [...definition.synonyms],
     });
     keys.add(key);
@@ -384,7 +426,12 @@ export type ItemDetails = {
 export function itemDetails(
   delivery: Pick<
     Delivery,
-    "material_id" | "item_name" | "category" | "entry_type" | "catalogue_status"
+    | "material_id"
+    | "item_name"
+    | "category"
+    | "entry_type"
+    | "catalogue_status"
+    | "selected_category"
   >,
   materials: CatalogueItem[],
 ): ItemDetails {
@@ -398,7 +445,11 @@ export function itemDetails(
     current.entry_type !== PENDING_ENTRY_TYPE;
   return {
     name: delivery.item_name ?? current?.name ?? "Historical item",
-    category: approved ? current.category! : PENDING_CATEGORY,
+    category: approved
+      ? current.category!
+      : currentCategory(
+          delivery.selected_category || delivery.category || current?.category,
+        ) || PENDING_CATEGORY,
     entry_type: approved ? current.entry_type! : PENDING_ENTRY_TYPE,
     approval_status: approved ? "Approved" : "Pending",
   };

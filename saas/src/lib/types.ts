@@ -47,6 +47,7 @@ export type CatalogueItem = {
   entry_type?: EntryType;
   approval_status?: ApprovalStatus;
   synonyms?: string[];
+  capture_hidden?: boolean;
 };
 export type Marshal = {
   id: string;
@@ -87,6 +88,7 @@ export type Delivery = {
   capture_mode?: "simple" | "legacy";
   item_name?: string;
   category?: string;
+  selected_category?: string;
   entry_type?: EntryType;
   recorded_at?: string;
   catalogue_status?: ApprovalStatus;
@@ -119,6 +121,7 @@ export type SimpleDeliveryInput = {
   intent: "draft" | "submit";
   version?: number;
   custom_item_name?: string;
+  selected_category?: string;
   recorded_at?: string;
   capture_kind?: "arrival";
 };

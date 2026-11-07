@@ -23,8 +23,13 @@ const legacy = (id: string, name: string): CatalogueItem => ({
 
 test("the complete initial arrival catalogue classifies deliveries and service visits without adding records", () => {
   const catalogue = upgradeCatalogue([], company);
-  assert.equal(catalogue.length, 69);
-  assert.equal(new Set(catalogue.map((item) => item.normalised_name)).size, 69);
+  assert.equal(catalogue.length, 74);
+  assert.equal(new Set(catalogue.map((item) => item.normalised_name)).size, 74);
+  assert.deepEqual(CATEGORIES, [
+    "Aggregates / Sands",
+    "Other Materials",
+    "Services",
+  ]);
   assert.deepEqual(
     new Set(catalogue.map((item) => item.category)),
     new Set(CATEGORIES),
@@ -35,18 +40,22 @@ test("the complete initial arrival catalogue classifies deliveries and service v
       /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-8[\da-f]{3}-[\da-f]{12}$/,
     );
     assert.equal(item.approval_status, "Approved");
-    assert.equal(
-      item.entry_type,
-      item.category === "Site services" ? "Service visit" : "Delivery",
-    );
+    assert(["Delivery", "Service visit"].includes(item.entry_type!));
     assert(!/muckaway|collection|departure/i.test(item.name));
   }
   for (const [name, category, type] of [
-    ["6F5", "Aggregates", "Delivery"],
-    ["Timber", "Timber", "Delivery"],
-    ["Road sweeper", "Site services", "Service visit"],
-    ["Toilet servicing", "Site services", "Service visit"],
-    ["Waste skip", "Waste containers", "Delivery"],
+    ["6F5", "Aggregates / Sands", "Delivery"],
+    ["Cement", "Aggregates / Sands", "Delivery"],
+    ["Concrete", "Aggregates / Sands", "Delivery"],
+    ["Timber", "Other Materials", "Delivery"],
+    ["Pipes", "Other Materials", "Delivery"],
+    ["Cables", "Other Materials", "Delivery"],
+    ["Fuel", "Services", "Delivery"],
+    ["Toilets", "Services", "Delivery"],
+    ["Welfare", "Services", "Delivery"],
+    ["Road sweeper", "Services", "Service visit"],
+    ["Toilet servicing", "Services", "Service visit"],
+    ["Waste skip", "Other Materials", "Delivery"],
   ]) {
     const item = catalogue.find((candidate) => candidate.name === name)!;
     assert.equal(item.category, category);
@@ -54,6 +63,97 @@ test("the complete initial arrival catalogue classifies deliveries and service v
   }
   for (const name of QUICK_ITEMS)
     assert(catalogue.some((item) => item.name === name));
+  assert.deepEqual(
+    catalogue
+      .filter((item) => item.category === "Services" && !item.capture_hidden)
+      .map((item) => item.name)
+      .sort(),
+    ["Fuel", "Toilets", "Welfare"],
+  );
+  assert.deepEqual(
+    catalogue
+      .filter(
+        (item) => item.category === "Other Materials" && !item.capture_hidden,
+      )
+      .map((item) => item.name)
+      .sort(),
+    ["Cables", "Pipes"],
+  );
+  assert.equal(
+    catalogue.filter(
+      (item) => item.category === "Aggregates / Sands" && !item.capture_hidden,
+    ).length,
+    19,
+  );
+});
+
+test("three-category upgrades regroup old labels without renaming items or hiding approved custom options", () => {
+  const existing: CatalogueItem[] = [
+    {
+      ...legacy("aggregate", "6F5"),
+      category: "Aggregates",
+      entry_type: "Delivery",
+      approval_status: "Approved",
+    },
+    {
+      ...legacy("cement", "Cement"),
+      category: "Concrete and cement",
+      entry_type: "Delivery",
+      approval_status: "Approved",
+    },
+    {
+      ...legacy("wood", "Timber"),
+      category: "Timber",
+      entry_type: "Delivery",
+      approval_status: "Approved",
+    },
+    {
+      ...legacy("sweeper", "Road sweeper"),
+      category: "Site services",
+      entry_type: "Service visit",
+      approval_status: "Approved",
+    },
+    {
+      ...legacy("custom", "Approved inspection visit"),
+      category: "Site services",
+      entry_type: "Service visit",
+      approval_status: "Approved",
+    },
+    {
+      ...legacy("pending", "A new panel"),
+      category: "Other Materials",
+      entry_type: "Pending review",
+      approval_status: "Pending",
+    },
+  ];
+  const before = structuredClone(existing);
+  const upgraded = upgradeCatalogue(existing, company);
+  for (const [id, category] of [
+    ["aggregate", "Aggregates / Sands"],
+    ["cement", "Aggregates / Sands"],
+    ["wood", "Other Materials"],
+    ["sweeper", "Services"],
+    ["custom", "Services"],
+    ["pending", "Other Materials"],
+  ]) {
+    const item = upgraded.find((item) => item.id === id)!;
+    assert.equal(item.category, category);
+    assert.equal(item.name, existing.find((item) => item.id === id)!.name);
+  }
+  assert.notEqual(
+    upgraded.find((item) => item.id === "custom")!.capture_hidden,
+    true,
+  );
+  assert.equal(
+    upgraded.find((item) => item.id === "pending")!.approval_status,
+    "Pending",
+  );
+  assert.equal(
+    upgraded.find((item) => item.id === "pending")!.entry_type,
+    "Pending review",
+  );
+  assert.deepEqual(existing, before);
+  assert.deepEqual(upgradeCatalogue(upgraded, company), upgraded);
 });
 
 test("catalogue upgrades preserve historical IDs, names, pending decisions and company boundaries", () => {
@@ -176,13 +276,13 @@ test("classification approval changes current reporting while preserving exact r
   });
   const approved: CatalogueItem = {
     ...pending,
-    category: "Plant and equipment",
+    category: "Other Materials",
     entry_type: "Delivery",
     approval_status: "Approved",
   };
   assert.deepEqual(itemDetails(record, [approved]), {
     name: original,
-    category: "Plant and equipment",
+    category: "Other Materials",
     entry_type: "Delivery",
     approval_status: "Approved",
   });
