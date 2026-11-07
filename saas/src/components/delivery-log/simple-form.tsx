@@ -72,6 +72,7 @@ export function SimpleForm({
         setMaterial(saved.input.material_id);
         setCustom(Boolean(saved.input.custom_item_name));
         setCustomName(saved.input.custom_item_name || "");
+        setCategoryFilter(saved.input.selected_category || "");
         setSupplier(saved.input.supplier_name);
         setPhoto(saved.photo);
         setClock(siteClock(new Date(saved.input.arrival_at), site.timezone));
@@ -112,13 +113,19 @@ export function SimpleForm({
   const selectedItem = custom
     ? findExactCatalogueItem(data.materials, customName)
     : data.materials.find((item) => item.id === material);
-  const category = selectedItem?.category || PENDING_CATEGORY;
   const hasItem = Boolean(material || (custom && customName.trim()));
-  // A restored draft retains its catalogue classification. The picker only
-  // narrows selection; it never assigns a guessed category to an unknown name.
-  const chosenCategory = hasItem || custom ? category : categoryFilter;
+  // Known names keep their established classification. For a new item the
+  // marshal explicitly chooses one of the three groups before entering its name.
+  // Older prepared drafts can still retry without inventing a missing category.
+  const chosenCategory =
+    pending?.input.selected_category ||
+    (hasItem && selectedItem?.approval_status === "Approved"
+      ? selectedItem.category || categoryFilter
+      : categoryFilter ||
+        selectedItem?.category ||
+        (pending ? PENDING_CATEGORY : ""));
   const availableItems = searchCatalogue(data.materials, "", usage).filter(
-    (item) => item.category === chosenCategory,
+    (item) => !item.capture_hidden && item.category === chosenCategory,
   );
 
   const choosePhoto = (file: File | undefined, element: HTMLInputElement) => {
@@ -158,6 +165,8 @@ export function SimpleForm({
             : "Choose a material, enter the supplier/company name and add a delivery image.",
         );
       if (!pending) {
+        if (demo && !CATEGORIES.some((name) => name === chosenCategory))
+          throw new Error("Choose a category before saving the arrival.");
         if (demo && custom && !normaliseItemName(customName).length)
           throw new Error("Enter an item name containing letters or numbers.");
         const bytes = new Uint8Array(await photo.slice(0, 16).arrayBuffer());
@@ -208,6 +217,7 @@ export function SimpleForm({
             ? {
                 capture_kind: "arrival" as const,
                 recorded_at: recordedAt,
+                selected_category: chosenCategory,
                 ...(custom ? { custom_item_name: customName } : {}),
               }
             : {}),
@@ -276,7 +286,7 @@ export function SimpleForm({
                     const next = event.target.value;
                     setCategoryFilter(next);
                     setMaterial("");
-                    setCustom(next === PENDING_CATEGORY);
+                    setCustom(false);
                     setCustomName("");
                     setError("");
                     setNotice("");
@@ -288,7 +298,11 @@ export function SimpleForm({
                       {name}
                     </option>
                   ))}
-                  <option value={PENDING_CATEGORY}>Other / Not listed</option>
+                  {pending && chosenCategory === PENDING_CATEGORY && (
+                    <option value={PENDING_CATEGORY}>
+                      Unclassified saved draft
+                    </option>
+                  )}
                 </select>
               </label>
               <ItemSelector
@@ -307,16 +321,16 @@ export function SimpleForm({
                 onCustom={(next) => {
                   setCustom(next);
                   if (next) {
-                    setCategoryFilter(PENDING_CATEGORY);
+                    setCategoryFilter(chosenCategory);
                     setCustomName("");
                   }
                 }}
                 onCustomName={setCustomName}
               />
-              {hasItem && category === PENDING_CATEGORY && (
+              {hasItem && selectedItem?.approval_status !== "Approved" && (
                 <p className={styles.pending}>
-                  This arrival can be saved now. A supervisor will review its
-                  classification.
+                  This arrival can be saved now. A supervisor can review the new
+                  item.
                 </p>
               )}
             </>

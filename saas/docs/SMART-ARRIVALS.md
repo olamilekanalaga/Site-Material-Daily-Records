@@ -9,7 +9,7 @@ The proposed company pilot remains unofficial. Included deliveries and suppliers
 The homepage lists four aligned options: **Traffic Marshal sign-in**, **Supervisor / Site Manager sign-in**, **Traffic Marshal demo** and **Supervisor demo**. The two staff sign-in options are disabled; only the demos are clickable. Promotional text and credential fields are omitted from this chooser. Existing private sign-in infrastructure remains separate for configured local development or an approved future team workspace.
 
 1. Choose **Traffic Marshal demo** to open `/demo`, then choose **Bemigho Estano** or **Olamilekan Alaga**. Their delivery-entry form opens directly.
-2. Select **Category** first. The item dropdown is enabled for that category and shows only its items. Optional **Search items** inside the dropdown helps find a name or alias within that category.
+2. Select **Category** first: **Aggregates / Sands**, **Other Materials** or **Services**. These are the only normal capture categories. The item dropdown is enabled for that category and shows only its available items. Optional **Search items** inside the dropdown helps find a name or alias within that category.
 3. The item dropdown shows names only. Selecting a known item derives its classification internally. Changing category clears the previous item selection so an item from another category cannot remain selected.
 4. Add the company/supplier if known. Take or upload an image of the delivery evidence, such as a retained ticket where permitted. A truck photograph is not specifically required.
 5. Press **Save Delivery**. The app associates the selected marshal, records the timestamp and confirms the browser save. The known item remains selected for repeated arrivals; supplier and evidence are cleared for the next arrival.
@@ -19,44 +19,45 @@ The form has no tonnage, volume, litres, prices, stock calculations, purchase or
 
 ## Central catalogue
 
-`src/lib/catalogue.ts` holds the initial options, categories, entry types, aliases and deterministic search helpers. Shared catalogue items have a stable ID, display name, normalised name, category, entry type, approval status and optional synonyms. Compatible optional metadata extends the existing material shape rather than replacing historical records.
+`src/lib/catalogue.ts` holds the options, three categories, entry types, aliases and deterministic search helpers. Shared catalogue items have a stable ID, display name, normalised name, category, entry type, approval status, optional synonyms and capture-visibility metadata. Compatible optional metadata extends the existing material shape rather than replacing historical records.
 
-| Category                    | Initial options                                                                                                                          | Default entry type |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| Aggregates                  | 6F5; Type 1; Type 2; MOT Type 1; Sand; Building sand; Sharp sand; 10mm shingles; 20mm shingles; Gravel; Crushed stone; Hardcore; Ballast | Delivery           |
-| Concrete and cement         | Ready-mix concrete; Concrete; Concrete blocks; Precast concrete; Cement; Mortar                                                          | Delivery           |
-| Timber                      | Timber; Plywood; Wooden boards; Timber beams; Wooden pallets; Formwork timber                                                            | Delivery           |
-| Fuel and related supplies   | Diesel; Petrol; HVO fuel; AdBlue; Fuel delivery                                                                                          | Delivery           |
-| Plant and equipment         | Excavator; Dumper; Roller; Telehandler; Generator; Compressor; Machinery delivery; Tools; Site equipment                                 | Delivery           |
-| Site facilities             | Portable toilet; Welfare cabin; Water tank; Storage container; Site cabin; Temporary fencing                                             | Delivery           |
-| Site services               | Road sweeper; Toilet servicing; Toilet cleaning; Plant maintenance; Equipment servicing; Site cleaning                                   | Service visit      |
-| Waste containers            | Waste skip; Waste bin; Wheelie bin; Empty skip delivery                                                                                  | Delivery           |
-| Drainage and utilities      | Drainage pipes; Manhole; Ducting; Drainage channels; Pipe fittings; Water pipes                                                          | Delivery           |
-| Other construction supplies | Bricks; Reinforcement steel; Rebar; Steel mesh; Barriers; Fencing; PPE; General building supplies                                        | Delivery           |
+| Category           | Initial capture options                                                                                                                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Aggregates / Sands | 6F5; Type 1; Type 2; MOT Type 1; Sand; Building sand; Sharp sand; 10mm shingles; 20mm shingles; Gravel; Crushed stone; Hardcore; Ballast; Ready-mix concrete; Concrete; Concrete blocks; Precast concrete; Cement; Mortar |
+| Other Materials    | Pipes; Cables                                                                                                                                                                                                             |
+| Services           | Fuel; Toilets; Welfare                                                                                                                                                                                                    |
 
-This workflow records **arrivals**. Waste-container delivery options do not introduce outgoing waste collection or muckaway departure tracking.
+Every item list also includes **Other — Enter new item**. This keeps the initial lists compact while allowing marshals to record an unlisted arrival without waiting for an administrator.
+
+All 69 earlier catalogue definitions remain stored. **Pipes**, **Cables**, **Fuel**, **Toilets** and **Welfare** bring the built-in catalogue to 74 names; saved custom items are additional. Earlier default options outside the initial lists are hidden from capture menus only, not deleted from records or reporting. Explicit manual use of an exact known name reuses its existing ID and makes it selectable again. Previously approved custom options remain available.
+
+Existing approved categories are mapped into the three current groups without rewriting historical delivery snapshots. Earlier aggregate and concrete/cement groups become **Aggregates / Sands**; fuel, toilet, welfare and site-service options use **Services**; remaining construction supplies use **Other Materials**. Legacy pending items with no chosen category remain **Pending classification** rather than being automatically approved.
+
+Category and entry type stay separate. Fuel, toilet and welfare deliveries retain **Delivery**; known road-sweeper and cleaning visits retain **Service visit**. The **Services** category does not itself mark an arrival as a service visit. This workflow records **arrivals** and does not introduce outgoing waste collection or muckaway departure tracking.
 
 ### Search and matching
 
-Search works within the selected category, ignores capitalisation and normalises spacing and punctuation. Item names and explicit aliases provide matches; frequently used items are prioritised, and deterministic spelling suggestions help with minor typos. Examples include `type1` → **Type 1** in Aggregates, `wood` → **Timber** in Timber, `sweeper` → **Road sweeper** in Site services, and `10 mm` → **10mm shingles** in Aggregates.
+Search works within the selected category's available capture options, ignores capitalisation and normalises spacing and punctuation. Item names and explicit aliases provide matches; frequently used items are prioritised, and deterministic spelling suggestions help with minor typos. Examples include `type1` → **Type 1** and `10 mm` → **10mm shingles** in **Aggregates / Sands**. Earlier aliases, such as `wood` → **Timber** and `sweeper` → **Road sweeper**, remain recognised when a marshal enters those names manually; exact use reactivates the corresponding item in its current category.
 
 Search suggestions require an explicit selection. An unfamiliar manually entered name is not assigned a category by fuzzy matching or an external model. Exact normalised names and registered aliases can reuse an existing item; spelling similarity alone cannot approve an unknown item.
 
-Existing material IDs and names remain available. Ambiguous legacy names such as **G1** or **6I** are preserved and await classification rather than being silently reinterpreted as 6F5. Adding catalogue options does not create individual deliveries from historical tally summaries.
+Existing material IDs and names remain available in saved records. Ambiguous legacy names such as **G1** or **6I** are preserved and await classification rather than being silently reinterpreted as 6F5. Adding catalogue options does not create individual deliveries from historical tally summaries.
 
 ## Unknown items and supervisor approval
 
-Choose **Other / Not listed** in Category, or **Other — Enter new item** from any item list, and enter the item's name when no existing option fits. The manual-entry route preserves that exact entered text on the arrival, sets an unknown item's category to **Pending classification** and its entry type to **Pending review**, and saves without requiring classification first. A category used to browse the catalogue is not applied as a guess to a new item. Other normal save requirements, including evidence, still apply.
+Choose one of the three categories, then **Other — Enter new item** from its item list and enter the item's name when no option fits. There is no fourth **Other / Not listed** category. A new unknown item preserves the exact entered text and explicitly chosen category, while its catalogue approval remains **Pending** and its entry type is **Pending review**. It can be saved immediately and contributes to the day's arrival total. No entry type is guessed from the selected category. Other normal save requirements, including evidence, still apply.
 
-The new name must contain at least one letter or number and be at most 160 characters. Whitespace-only or punctuation-only names are rejected with an editable validation error; valid unknown names do not need a guessed classification before saving.
+The new name must contain at least one letter or number and be at most 160 characters. Whitespace-only or punctuation-only names are rejected with an editable validation error; valid unknown names do not need supervisor approval before saving. Legacy pending items without an explicitly selected category retain their earlier **Pending classification** state.
 
-Normalisation is used to reuse an existing catalogue entry and prevent separate pending items caused by case or spacing differences. Individual arrivals still keep their own original text and record IDs. Repeated arrivals for an unknown item therefore count separately while sharing one pending catalogue item.
+Normalisation is used to reuse an existing catalogue entry and prevent separate pending items caused by case or spacing differences. Exact matches and aliases reuse the existing item's classification; a hidden known item becomes available in capture again after explicit manual use. Individual arrivals still keep their own original text and record IDs. Repeated arrivals for an unknown item therefore count separately while sharing one pending catalogue item.
+
+Each new arrival also retains its explicit `selected_category` for pending classification and immutable retry checks. Reusing a pending name under another category does not rewrite earlier arrivals. Once a supervisor approves the catalogue item, reports use its current approved classification while original arrival snapshots remain intact.
 
 To approve an item:
 
 1. Open `/demo/supervisor` in the same browser profile.
 2. Set the date range to include the affected arrivals. Expand **Pending classification** if necessary; each item shows its occurrence count in the selected period.
-3. Select an allowed category and either **Delivery** or **Service visit**.
+3. Confirm or choose one of the three categories and either **Delivery** or **Service visit**.
 4. Choose **Approve item**. The demo engine checks the supervisor, site-manager or company-administrator role, validates both choices and records an audit event.
 5. Return to a marshal's form and select the approved category. The approved item becomes a normal searchable option within it and remains available after a refresh.
 
@@ -68,7 +69,7 @@ The separate demo entrances simulate roles for demonstration. They are not a pro
 
 For new smart-demo records, the demo engine generates an ISO 8601 timestamp when the Save workflow first creates the record. The UI labels this **Recorded at** and displays it in **Europe/London**, including daylight-saving changes. Opening the form does not set this timestamp. The timestamp is a recording event; it is not an independent observation of when the vehicle physically arrived.
 
-The original `created_at` is retained, and retries reuse the already-created record and timestamp. Legacy arrivals keep their original `arrival_at` and creation history, and continue to display their existing arrival time. The upgrade does not invent missing timestamps or add a new historical-editing workflow.
+The original `created_at` is retained, and retries reuse the already-created record and timestamp. Legacy arrivals keep their original `arrival_at` and creation history for filtering and exports; dates and times remain hidden from the records table. The upgrade does not invent missing timestamps or add a new historical-editing workflow.
 
 CSV exports follow the same distinction: a legacy row's **Recorded at ISO** is empty when no recording timestamp exists, while its original creation timestamp remains separate. A historical arrival time is never relabelled as a confirmed recording timestamp.
 
@@ -93,7 +94,7 @@ A photograph supports the record but does not independently prove physical deliv
 
 ## Persistence and compatibility
 
-The demo keeps the existing IndexedDB database **`djcu-fictional-browser-demo`**, object store **`demo`**, state key **`state`**. Its state contains records, evidence files, catalogue metadata and audit events. Catalogue migration adds options and compatible metadata without resetting stored deliveries, IDs, photos or review history. The 30 existing sample arrivals remain mixed across the two marshals: 20 Bemigho and 10 Olamilekan, alongside any separately saved browser records.
+The demo keeps the existing IndexedDB database **`djcu-fictional-browser-demo`**, object store **`demo`**, state key **`state`**. Its state contains records, evidence files, catalogue metadata and audit events. Catalogue migration adds options, maps current catalogue categories and records capture visibility without resetting stored deliveries, IDs, photos or review history. Historical event snapshots are not rewritten. The 30 existing sample arrivals remain mixed across the two marshals: 20 Bemigho and 10 Olamilekan, alongside any separately saved browser records.
 
 Prepared demo attempts use **`djcu-simple-demo-drafts`**; authenticated team attempts use the separate **`djcu-simple-team-drafts`** database. The browser transport serialises state changes and uses a browser lock where supported. Stable submission and evidence IDs prevent repeated save clicks or retrying an interrupted upload from creating duplicate arrivals.
 
@@ -124,7 +125,7 @@ npx playwright test tests/e2e/simple-api.spec.ts tests/e2e/portal-api.spec.ts --
 
 Use `npm run build -- --webpack` if the environment blocks Turbopack's worker port. `test:demo` starts the credential-free browser demo; the explicit UI and API subsets use the separate authenticated local adapter. The older `api.spec.ts` expects image-free legacy submissions that the existing simple logger no longer accepts and is not the current regression target. A full `npm run test:e2e` pass is not claimed. Chromium must be available for browser tests. No paid API or Supabase credentials are needed for the public demo suite.
 
-The smart-arrivals tests should verify known-item classification, aliases and typo suggestions, unknown-item deduplication, exact entered text, approval and persistence, actual save-time timestamps, separate repeated arrivals, duplicate retries, profile navigation, reconciled totals, historical records and narrow-screen layouts. Existing authenticated and SQL suites remain necessary compatibility checks. Passing browser-demo tests do not substitute for a real hosted Supabase Auth/Storage smoke test.
+The smart-arrivals tests should verify exactly three capture categories, their initial item lists, preserved historical catalogue IDs, manual reactivation of hidden known items, aliases and typo suggestions, unknown-item deduplication with the chosen category, exact entered text, approval and persistence, actual save-time timestamps, separate repeated arrivals, duplicate retries, profile navigation, reconciled totals, historical records and narrow-screen layouts. Existing authenticated and SQL suites remain necessary compatibility checks. Passing browser-demo tests do not substitute for a real hosted Supabase Auth/Storage smoke test.
 
 Run these checks against the current checkout before deployment. Deployment access, a production release and a verified updated URL are separate outcomes and are not implied by this guide. See the [SaaS guide](../README.md), [deployment instructions](DEPLOYMENT.md) and [recorded validation](VALIDATION.md) for the surrounding setup.
 

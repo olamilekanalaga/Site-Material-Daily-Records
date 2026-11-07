@@ -36,18 +36,18 @@ function input(
   item: string,
   custom = false,
 ): SimpleDeliveryInput {
+  const material = state.materials.find((candidate) => candidate.name === item);
   return {
     id: crypto.randomUUID(),
     site_id: state.sites[0].id,
-    material_id: custom
-      ? ""
-      : state.materials.find((candidate) => candidate.name === item)!.id,
+    material_id: custom ? "" : material!.id,
     marshal_id: demoBootstrap(state).actor.id,
     supplier_name: "",
     // An old form-open timestamp must never become a newly saved arrival time.
     arrival_at: "2020-01-01T00:00:00.000Z",
     recorded_at: "2020-01-01T00:00:00.000Z",
     capture_kind: "arrival",
+    selected_category: custom ? "Other Materials" : material?.category,
     ...(custom ? { custom_item_name: item } : {}),
     intent: "draft",
   };
@@ -85,10 +85,16 @@ async function capture(state: DemoState, fields: SimpleDeliveryInput) {
 test("known items derive trusted categories and entry types without quantities", async () => {
   const state = createDemoState();
   for (const [name, category, entryType] of [
-    ["6F5", "Aggregates", "Delivery"],
-    ["Timber", "Timber", "Delivery"],
-    ["Road sweeper", "Site services", "Service visit"],
-    ["Toilet servicing", "Site services", "Service visit"],
+    ["6F5", "Aggregates / Sands", "Delivery"],
+    ["Cement", "Aggregates / Sands", "Delivery"],
+    ["Timber", "Other Materials", "Delivery"],
+    ["Pipes", "Other Materials", "Delivery"],
+    ["Cables", "Other Materials", "Delivery"],
+    ["Fuel", "Services", "Delivery"],
+    ["Toilets", "Services", "Delivery"],
+    ["Welfare", "Services", "Delivery"],
+    ["Road sweeper", "Services", "Service visit"],
+    ["Toilet servicing", "Services", "Service visit"],
   ]) {
     const delivery = await capture(state, input(state, name));
     assert.equal(delivery.category, category);
@@ -102,11 +108,11 @@ test("known items derive trusted categories and entry types without quantities",
   const { delivery } = await ok<{ delivery: Delivery }>(
     call(state, "/api/log-deliveries", {
       ...input(state, "6F5"),
-      category: "Site services",
+      category: "Services",
       entry_type: "Service visit",
     }),
   );
-  assert.equal(delivery.category, "Aggregates");
+  assert.equal(delivery.category, "Aggregates / Sands");
   assert.equal(delivery.entry_type, "Delivery");
 });
 
@@ -123,7 +129,7 @@ test("unknown arrivals preserve entered text, count immediately and share one pe
   assert.equal(first.item_name, "  Specialist   Pump Visit  ");
   assert.equal(second.item_name, "SPECIALIST pump visit");
   assert.equal(first.material_id, second.material_id);
-  assert.equal(first.category, "Pending classification");
+  assert.equal(first.category, "Other Materials");
   assert.equal(first.entry_type, "Pending review");
   assert.equal(
     state.materials.filter(
@@ -150,6 +156,102 @@ test("unknown arrivals preserve entered text, count immediately and share one pe
   assert.equal(first.supplier_name, "");
 });
 
+test("manual entries keep the marshal-selected category, reject invalid groups and freeze retries without duplicating names", async () => {
+  const state = createDemoState();
+  const firstFields = input(state, "   Bespoke fire hose  ", true);
+  const { delivery: draft } = await ok<{ delivery: Delivery }>(
+    call(state, "/api/log-deliveries", firstFields),
+  );
+  assert.equal(draft.category, "Other Materials");
+  assert.equal(draft.selected_category, "Other Materials");
+  assert.equal(
+    (
+      await call(state, "/api/log-deliveries", {
+        ...firstFields,
+        selected_category: "Services",
+      })
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await call(state, "/api/log-deliveries", {
+        ...input(state, "Unknown hose", true),
+        selected_category: "Invented category",
+      })
+    ).status,
+    400,
+  );
+  await ok(call(state, `/api/deliveries/${draft.id}/evidence`, photo()));
+  const submission = {
+    ...firstFields,
+    intent: "submit",
+    version: draft.version,
+  };
+  const { delivery: first } = await ok<{ delivery: Delivery }>(
+    call(state, "/api/log-deliveries", submission),
+  );
+  const second = await capture(state, {
+    ...input(state, "BESPOKE fire hose", true),
+    selected_category: "Services",
+  });
+  assert.equal(second.material_id, first.material_id);
+  assert.equal(second.category, "Services");
+  assert.equal(itemDetails(first, state.materials).category, "Other Materials");
+  assert.equal(itemDetails(second, state.materials).category, "Services");
+  state.role = "supervisor";
+  await ok(
+    call(state, "/api/demo/catalogue/review", {
+      item_id: first.material_id,
+      category: "Services",
+      entry_type: "Service visit",
+    }),
+  );
+  state.role = "gate";
+  const retry = await ok<{ delivery: Delivery }>(
+    call(state, "/api/log-deliveries", submission),
+  );
+  assert.equal(retry.delivery.id, first.id);
+  assert.equal(retry.delivery.recorded_at, first.recorded_at);
+  assert.equal(retry.delivery.selected_category, "Other Materials");
+  assert.equal(
+    state.deliveries.filter((record) => record.id === first.id).length,
+    1,
+  );
+  assert.equal(itemDetails(first, state.materials).category, "Services");
+});
+
+test("manually reusing a hidden historical option preserves identity and makes it selectable again", async () => {
+  const state = createDemoState();
+  const original = state.materials.find(
+    (item) => item.name === "Road sweeper",
+  )!;
+  assert.equal(original.capture_hidden, true);
+  const saved = await capture(state, {
+    ...input(state, "road sweeper", true),
+    selected_category: "Services",
+  });
+  assert.equal(saved.material_id, original.id);
+  assert.equal(saved.item_name, "road sweeper");
+  assert.equal(saved.category, "Services");
+  assert.equal(saved.entry_type, "Service visit");
+  assert.equal(
+    state.materials.find((item) => item.id === original.id)!.capture_hidden,
+    false,
+  );
+  const restored = migrateDemoState(structuredClone(state));
+  assert.equal(
+    restored.materials.find((item) => item.id === original.id)!.capture_hidden,
+    false,
+  );
+  assert.equal(
+    restored.materials.filter(
+      (item) => normaliseItemName(item.name) === "roadsweeper",
+    ).length,
+    1,
+  );
+});
+
 test("supervisor approval persists and reclassifies reporting without rewriting original arrival evidence", async () => {
   const state = createDemoState();
   const first = await capture(
@@ -161,7 +263,7 @@ test("supervisor approval persists and reclassifies reporting without rewriting 
   );
   const approval = {
     item_id: first.material_id,
-    category: "Site services",
+    category: "Services",
     entry_type: "Service visit",
   };
   assert.equal(
@@ -205,7 +307,7 @@ test("supervisor approval persists and reclassifies reporting without rewriting 
   const visible = demoBootstrap(restored).deliveries.find(
     (row) => row.id === first.id,
   )!;
-  assert.equal(visible.category, "Site services");
+  assert.equal(visible.category, "Services");
   assert.equal(visible.entry_type, "Service visit");
   assert.equal(visible.item_name, original.item_name);
   assert.equal(
@@ -219,6 +321,48 @@ test("supervisor approval persists and reclassifies reporting without rewriting 
   assert.equal(
     restored.files[first.evidence[0].id].size,
     original.evidence[0].size,
+  );
+});
+
+test("approving a migrated pending built-in makes it selectable without changing its historical record", async () => {
+  const state = createDemoState();
+  const timber = state.materials.find((item) => item.name === "Timber")!;
+  timber.category = "Timber";
+  timber.entry_type = "Pending review";
+  timber.approval_status = "Pending";
+  delete timber.capture_hidden;
+  const historical = state.deliveries[0];
+  historical.material_id = timber.id;
+  historical.item_name = "Timber";
+  historical.category = "Timber";
+  historical.entry_type = "Pending review";
+  const original = structuredClone(historical);
+  const migrated = migrateDemoState(structuredClone(state));
+  const pending = migrated.materials.find((item) => item.id === timber.id)!;
+  assert.equal(pending.capture_hidden, true);
+  assert.equal(pending.approval_status, "Pending");
+  migrated.role = "supervisor";
+  await ok(
+    call(migrated, "/api/demo/catalogue/review", {
+      item_id: timber.id,
+      category: "Other Materials",
+      entry_type: "Delivery",
+    }),
+  );
+  const restored = migrateDemoState(structuredClone(migrated));
+  const approved = restored.materials.find((item) => item.id === timber.id)!;
+  assert.equal(approved.capture_hidden, false);
+  assert.equal(approved.approval_status, "Approved");
+  assert.equal(approved.category, "Other Materials");
+  assert(
+    searchCatalogue(
+      restored.materials.filter((item) => !item.capture_hidden),
+      "Timber",
+    ).some((item) => item.id === timber.id),
+  );
+  assert.deepEqual(
+    restored.deliveries.find((record) => record.id === historical.id),
+    original,
   );
 });
 
@@ -307,7 +451,7 @@ test("signed-in profile and assigned site constrain capture, classification and 
     (
       await call(state, "/api/demo/catalogue/review", {
         item_id: delivery.material_id,
-        category: "Plant and equipment",
+        category: "Other Materials",
         entry_type: "Delivery",
       })
     ).status,
@@ -388,8 +532,8 @@ test("arrival CSV includes pending and service records, matches inclusive site-d
   assert(!lines[0].includes('"Entry type"'));
   assert(!lines[0].includes("quantity"));
   assert(report.includes('"2026-10-01","00:30"'));
-  assert(report.includes('"Pending classification"'));
-  assert(report.includes('"Road sweeper","Site services"'));
+  assert(report.includes('"Other Materials"'));
+  assert(report.includes('"Road sweeper","Services"'));
   assert(report.includes('"\'=HYPERLINK(""example"")"'));
   assert(report.includes('"\'+Example supplier"'));
   assert(!report.includes(excluded.id));
@@ -404,7 +548,7 @@ test("arrival CSV includes pending and service records, matches inclusive site-d
   const serviceReport = await (
     await call(
       state,
-      `${url}&category=Site%20services&entry_type=Service%20visit&marshal_id=${service.marshal_id}`,
+      `${url}&category=Services&entry_type=Service%20visit&marshal_id=${service.marshal_id}`,
     )
   ).text();
   assert(serviceReport.includes(service.id));
@@ -443,12 +587,12 @@ test("punctuation-only custom names cannot create pending duplicates and approve
     400,
   );
   const first = await capture(state, input(state, "Other", true));
-  assert.equal(first.category, "Pending classification");
+  assert.equal(first.category, "Other Materials");
   state.role = "supervisor";
   await ok(
     call(state, "/api/demo/catalogue/review", {
       item_id: first.material_id,
-      category: "Other construction supplies",
+      category: "Other Materials",
       entry_type: "Delivery",
     }),
   );
@@ -456,7 +600,7 @@ test("punctuation-only custom names cannot create pending duplicates and approve
   const next = await capture(state, input(state, "Other"));
   assert.equal(next.material_id, first.material_id);
   assert.equal(next.item_name, "Other");
-  assert.equal(next.category, "Other construction supplies");
+  assert.equal(next.category, "Other Materials");
   assert.equal(next.entry_type, "Delivery");
 });
 

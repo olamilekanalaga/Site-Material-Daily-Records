@@ -678,6 +678,13 @@ function parseSimpleDelivery(value: unknown): SimpleDeliveryInput {
       normaliseItemName(custom).length > 0,
       "Enter an item name containing letters or numbers",
     );
+  const selectedCategory = smart ? raw.selected_category : undefined;
+  if (selectedCategory !== undefined)
+    check(
+      typeof selectedCategory === "string" &&
+        (CATEGORIES as readonly string[]).includes(selectedCategory),
+      "Select a valid category",
+    );
   return {
     id: uuid(raw.id),
     site_id: uuid(raw.site_id),
@@ -692,6 +699,9 @@ function parseSimpleDelivery(value: unknown): SimpleDeliveryInput {
     version: raw.version as number | undefined,
     ...(smart ? { capture_kind: "arrival" as const } : {}),
     ...(custom !== undefined ? { custom_item_name: custom as string } : {}),
+    ...(selectedCategory !== undefined
+      ? { selected_category: selectedCategory as string }
+      : {}),
   };
 }
 
@@ -752,7 +762,9 @@ function saveSimple(
         (!smart ||
           (input.custom_item_name !== undefined
             ? previous.item_name === input.custom_item_name
-            : previous.material_id === input.material_id)),
+            : previous.material_id === input.material_id)) &&
+        (input.selected_category === undefined ||
+          previous.selected_category === input.selected_category),
       "This saved draft has different details. Start a new delivery to change them.",
       409,
     );
@@ -804,7 +816,7 @@ function saveSimple(
         company_id: person.company_id,
         name: input.custom_item_name,
         normalised_name: normaliseItemName(input.custom_item_name),
-        category: PENDING_CATEGORY,
+        category: input.selected_category || PENDING_CATEGORY,
         entry_type: PENDING_ENTRY_TYPE,
         approval_status: "Pending",
         synonyms: [],
@@ -818,6 +830,19 @@ function saveSimple(
         material.id,
         input.site_id,
         null,
+        material,
+      );
+    }
+    if (material.capture_hidden) {
+      const before = clone(material);
+      material.capture_hidden = false;
+      audit(
+        state,
+        person,
+        "catalogue.item.available",
+        material.id,
+        input.site_id,
+        before,
         material,
       );
     }
@@ -869,8 +894,14 @@ function saveSimple(
       ? {
           item_name: input.custom_item_name ?? material.name,
           recorded_at: stamp,
-          category: material.category ?? PENDING_CATEGORY,
+          category:
+            material.approval_status === "Pending"
+              ? input.selected_category || material.category || PENDING_CATEGORY
+              : (material.category ?? PENDING_CATEGORY),
           entry_type: material.entry_type ?? PENDING_ENTRY_TYPE,
+          ...(input.selected_category
+            ? { selected_category: input.selected_category }
+            : {}),
         }
       : {}),
   };
@@ -938,6 +969,7 @@ function classifyCatalogueItem(
   item.category = category;
   item.entry_type = entryType as CatalogueItem["entry_type"];
   item.approval_status = "Approved";
+  item.capture_hidden = false;
   item.normalised_name = normaliseItemName(item.name);
   const auditSite =
     state.deliveries.find(
