@@ -12,7 +12,7 @@ This repository keeps the current DJ Civils delivery log and an earlier dashboar
 ├── saas/                         # Current Next.js application; Vercel root
 │   ├── docs/                     # Smart arrivals, deployment, security and validation
 │   ├── public/                   # Logo, marshal photos, icons and PWA files
-│   ├── scripts/                  # Supabase demo provisioning
+│   ├── scripts/                  # Reviewed operator and separate demo provisioning
 │   ├── src/
 │   │   ├── app/                  # Next.js pages, layout and API routes
 │   │   ├── components/
@@ -50,7 +50,7 @@ This repository keeps the current DJ Civils delivery log and an earlier dashboar
 | Task                                                  | Location                                                                                     |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Home, marshal selection or delivery entry             | `saas/src/components/delivery-log/`                                                          |
-| Supervisor records and photo viewer                   | `saas/src/components/delivery-log/simple-records.tsx`                                        |
+| Supervisor records and photo viewer                   | `saas/src/components/delivery-log/live-records.tsx` (live), `simple-records.tsx` (demo)      |
 | Daily records, site-day rollover and custom ranges    | `saas/src/components/delivery-log/simple-records.tsx` and `saas/src/lib/delivery-records.ts` |
 | Category-first item selection                         | `saas/src/components/delivery-log/item-selector.tsx` and `simple-form.tsx`                   |
 | Supervisor catalogue approval controls                | `saas/src/components/delivery-log/classification-review.tsx`                                 |
@@ -65,9 +65,9 @@ This repository keeps the current DJ Civils delivery log and an earlier dashboar
 | Production setup                                      | `saas/docs/DEPLOYMENT.md` and `saas/.env.example`                                            |
 | Browser demo capture, classification and limitations  | `saas/docs/SMART-ARRIVALS.md`                                                                |
 
-The public entrypoint is `saas/src/app/page.tsx`: a four-option chooser with two disabled staff sign-in options and two active demo links. Demo entrypoints under `saas/src/app/demo/` cover marshal selection, `delivery/[profile]/`, `records/` and the separate `supervisor/` records view. **Traffic Marshal demo** opens marshal selection; choosing a portrait opens `delivery/[profile]/` first, and **View Records** opens their records. **Supervisor demo** enters combined records directly. Existing private portal routes and backend authentication remain for configured local development or a later approved team workspace. Components under `components/legacy/` retain the earlier pilot interface for reference and compatibility; active pages do not import them. Existing backend routes and historical records remain available.
+The public entrypoint is `saas/src/app/page.tsx`: configured workspaces offer approved staff entrances; unconfigured deployments retain the four-option chooser with two disabled staff choices and two active demos. `/gate` and `/records` are the two authenticated live pages. Demo entrypoints under `saas/src/app/demo/` cover marshal selection, `delivery/[profile]/`, `records/` and the separate `supervisor/` records view. **Traffic Marshal demo** opens marshal selection; choosing a portrait opens `delivery/[profile]/` first, and **View Records** opens their records. **Supervisor demo** enters combined records directly. Existing private portal routes remain compatible with the configured authenticated workspace. Components under `components/legacy/` retain the earlier pilot interface for reference and compatibility; active pages do not import them. Existing backend routes and historical records remain available.
 
-The smart arrivals upgrade operates within the browser demo. `lib/catalogue.ts` is a shared, deterministic catalogue; `lib/demo/engine.ts` applies demo capture and supervisor classification decisions, and `lib/demo/browser.ts` persists them through the existing IndexedDB store. The existing authenticated APIs, storage adapters, applied SQL migrations and independent earlier dashboard are preserved. See the [smart arrivals guide](../saas/docs/SMART-ARRIVALS.md) before changing demo data or catalogue migration behaviour.
+The preserved smart-arrivals demo operates within browser storage; live capture and records use the separate database-backed components. `lib/catalogue.ts` is a shared, deterministic catalogue; `lib/demo/engine.ts` applies demo capture and supervisor classification decisions, and `lib/demo/browser.ts` persists them through the existing IndexedDB store. The authenticated APIs, storage adapters and ordered SQL migrations are extended additively; the independent earlier dashboard is preserved. Review [production integration audit](../saas/docs/PRODUCTION-AUDIT.md) and [setup](../saas/docs/DEPLOYMENT.md) before connecting a hosted project. See the [smart arrivals guide](../saas/docs/SMART-ARRIVALS.md) before changing demo data or catalogue migration behaviour.
 
 ## Conventions
 

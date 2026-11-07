@@ -9,6 +9,7 @@ import type {
   Bootstrap,
   SimpleDeliveryInput,
   Delivery,
+  Marshal,
 } from "../../src/lib/types";
 
 const baseURL = "http://127.0.0.1:3100";
@@ -20,7 +21,8 @@ let gate: APIRequestContext,
   supervisor: APIRequestContext,
   admin: APIRequestContext,
   anonymous: APIRequestContext,
-  boot: Bootstrap;
+  boot: Bootstrap,
+  ownMarshal: Marshal;
 async function login(email: string) {
   const context = await request.newContext({
     baseURL,
@@ -38,7 +40,7 @@ const fields = (
   id: randomUUID(),
   site_id: boot.sites[0].id,
   material_id: boot.materials[0].id,
-  marshal_id: boot.marshals![1].id,
+  marshal_id: ownMarshal.id,
   supplier_name: `Fictional supplier ${randomUUID().slice(0, 8)}`,
   arrival_at: new Date().toISOString(),
   intent: "draft",
@@ -72,6 +74,10 @@ test.beforeAll(async () => {
     extraHTTPHeaders: { Origin: baseURL },
   });
   boot = await (await gate.get("/api/bootstrap")).json();
+  ownMarshal = boot.marshals!.find(
+    (item) => (item as Marshal & { can_record?: boolean }).can_record,
+  )!;
+  expect(ownMarshal).toBeTruthy();
 });
 test.afterAll(async () => {
   await Promise.all(
@@ -88,19 +94,23 @@ test("simple logging API requires authentication, validated fields and a recordi
   expect(
     (await post(gate, fields({ marshal_id: randomUUID() }))).status(),
   ).toBe(403);
+  const colleague = boot.marshals!.find((item) => item.id !== ownMarshal.id)!;
+  expect(
+    (await post(gate, fields({ marshal_id: colleague.id }))).status(),
+  ).toBe(403);
   expect(
     (await post(gate, fields({ material_id: randomUUID() }))).status(),
   ).toBe(400);
   const forged = {
     ...fields(),
-    created_by: boot.marshals![1].id,
+    created_by: randomUUID(),
     submitted_at: "2000-01-01",
     marshal_name: "Forged",
     status: "Accepted",
   };
   const created = await draft(forged);
   expect(created.created_by).toBe(boot.actor.id);
-  expect(created.marshal_name).toBe(boot.marshals![1].name);
+  expect(created.marshal_name).toBe(ownMarshal.name);
   expect(created.submitted_at).toBeNull();
   expect(created.status).toBe("Draft");
 });

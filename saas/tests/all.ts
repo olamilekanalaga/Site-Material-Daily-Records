@@ -12,3 +12,6 @@ import "./unit/access.test";
 import "./unit/catalogue.test";
 import "./unit/smart-arrivals.test";
 import "./unit/smart-drafts.test";
+import "./integration/live-database.test";
+import "./unit/config.test";
+import "./unit/provision-site.test";

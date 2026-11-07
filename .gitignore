@@ -2,6 +2,8 @@ node_modules/
 .vercel/
 .env*
 !.env.example
+saas/site-config.local.json
+saas/site-config.*.local.json
 source/dist/
 source/.data-app-offline/
 .DS_Store

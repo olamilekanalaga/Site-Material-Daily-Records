@@ -1,0 +1,37 @@
+{
+  "project_url": "https://YOUR-PROJECT.supabase.co",
+  "company": {
+    "id": "REPLACE_WITH_COMPANY_UUID",
+    "name": "REPLACE_WITH_APPROVED_COMPANY_NAME"
+  },
+  "site": {
+    "id": "REPLACE_WITH_SITE_UUID",
+    "name": "REPLACE_WITH_APPROVED_SITE_NAME",
+    "timezone": "Europe/London"
+  },
+  "staff": [
+    {
+      "user_id": "REPLACE_WITH_FIRST_MARSHAL_AUTH_USER_UUID",
+      "name": "REPLACE_WITH_FIRST_MARSHAL_NAME",
+      "role": "gate",
+      "marshal": {
+        "id": "REPLACE_WITH_FIRST_MARSHAL_CARD_UUID",
+        "photo_file": "REPLACE_WITH_LOCAL_APPROVED_PORTRAIT_PATH"
+      }
+    },
+    {
+      "user_id": "REPLACE_WITH_SECOND_MARSHAL_AUTH_USER_UUID",
+      "name": "REPLACE_WITH_SECOND_MARSHAL_NAME",
+      "role": "gate",
+      "marshal": {
+        "id": "REPLACE_WITH_SECOND_MARSHAL_CARD_UUID",
+        "photo_file": "REPLACE_WITH_LOCAL_APPROVED_PORTRAIT_PATH"
+      }
+    },
+    {
+      "user_id": "REPLACE_WITH_SUPERVISOR_AUTH_USER_UUID",
+      "name": "REPLACE_WITH_SUPERVISOR_NAME",
+      "role": "supervisor"
+    }
+  ]
+}

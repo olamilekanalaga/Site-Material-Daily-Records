@@ -21,7 +21,7 @@ import {
   type DateRange,
 } from "@/lib/delivery-records";
 
-function Photo({
+export function Photo({
   evidence,
   demo,
   thumbnail = false,
@@ -69,7 +69,7 @@ function Photo({
     />
   );
 }
-function PhotoDialog({
+export function PhotoDialog({
   delivery,
   demo,
   onClose,

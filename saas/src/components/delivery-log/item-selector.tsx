@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { ChevronDown } from "lucide-react";
 import type { CatalogueItem } from "@/lib/types";
-import { searchCatalogue } from "@/lib/catalogue";
+import { normaliseItemName, searchCatalogue } from "@/lib/catalogue";
 import styles from "./smart-entry.module.css";
 
 export function ItemSelector({
@@ -15,6 +15,14 @@ export function ItemSelector({
   disabled,
   placeholder = "Choose an item",
   selectedLabel,
+  label = "Item / material / activity",
+  searchLabel = "Search items",
+  otherLabel = "Other — Enter new item",
+  customLabel = "New item name",
+  customPlaceholder = "Enter the item or service name",
+  maxLength = 160,
+  includePending = false,
+  plainNames = false,
   onSelect,
   onCustom,
   onCustomName,
@@ -27,6 +35,14 @@ export function ItemSelector({
   disabled: boolean;
   placeholder?: string;
   selectedLabel?: string;
+  label?: string;
+  searchLabel?: string;
+  otherLabel?: string;
+  customLabel?: string;
+  customPlaceholder?: string;
+  maxLength?: number;
+  includePending?: boolean;
+  plainNames?: boolean;
   onSelect: (id: string) => void;
   onCustom: (selected: boolean) => void;
   onCustomName: (name: string) => void;
@@ -39,7 +55,20 @@ export function ItemSelector({
   const trigger = useRef<HTMLButtonElement>(null);
   const selectedName =
     items.find((item) => item.id === value)?.name || selectedLabel || "";
-  const matches = searchCatalogue(items, query, usage);
+  const searchKey = normaliseItemName(query);
+  const matches = plainNames
+    ? items
+        .filter((item) => item.active)
+        .filter(
+          (item) =>
+            !searchKey || normaliseItemName(item.name).includes(searchKey),
+        )
+        .sort(
+          (a, b) =>
+            (usage[b.id] || 0) - (usage[a.id] || 0) ||
+            a.name.localeCompare(b.name, "en-GB"),
+        )
+    : searchCatalogue(items, query, usage, { includePending });
   const expanded = open && !disabled;
 
   useEffect(() => {
@@ -105,7 +134,7 @@ export function ItemSelector({
       }}
     >
       <label id={`${id}-label`} htmlFor={id}>
-        Item / material / activity
+        {label}
       </label>
       <div className={styles.dropdown}>
         <button
@@ -125,19 +154,21 @@ export function ItemSelector({
           onClick={() => (expanded ? setOpen(false) : openDropdown())}
           onKeyDown={keyboard}
         >
-          <span>
-            {custom ? "Other — Enter new item" : selectedName || placeholder}
-          </span>
+          <span>{custom ? otherLabel : selectedName || placeholder}</span>
           <ChevronDown size={20} aria-hidden="true" />
         </button>
         {expanded && (
           <div className={styles.dropdownPanel}>
             <label className={styles.dropdownSearch}>
-              Search items
+              {searchLabel}
               <input
                 type="search"
                 autoComplete="off"
-                placeholder="Search materials or services"
+                placeholder={
+                  searchLabel === "Search items"
+                    ? "Search materials or services"
+                    : searchLabel
+                }
                 value={query}
                 aria-controls={`${id}-options`}
                 onKeyDown={keyboard}
@@ -170,6 +201,9 @@ export function ItemSelector({
                   onClick={() => select(item)}
                 >
                   <span>{item.name}</span>
+                  {includePending && item.approval_status === "Pending" && (
+                    <small> · Pending classification</small>
+                  )}
                 </button>
               ))}
               <button
@@ -182,7 +216,7 @@ export function ItemSelector({
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => select()}
               >
-                Other — Enter new item
+                {otherLabel}
               </button>
             </div>
           </div>
@@ -190,13 +224,13 @@ export function ItemSelector({
       </div>
       {custom && (
         <label className={styles.customField}>
-          New item name
+          {customLabel}
           <input
             required
-            maxLength={160}
+            maxLength={maxLength}
             value={customName}
             disabled={disabled}
-            placeholder="Enter the item or service name"
+            placeholder={customPlaceholder}
             onChange={(event) => onCustomName(event.target.value)}
           />
         </label>

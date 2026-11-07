@@ -386,12 +386,17 @@ export function searchCatalogue(
   items: CatalogueItem[],
   query: string,
   usage: Record<string, number> = {},
+  options: { includePending?: boolean } = {},
 ): CatalogueItem[] {
   const normalised = normaliseItemName(query);
   const seen = new Set<string>();
   return items
     .map(metadata)
-    .filter((item) => item.active && item.approval_status === "Approved")
+    .filter(
+      (item) =>
+        item.active &&
+        (item.approval_status === "Approved" || options.includePending),
+    )
     .map((item) => ({ item, score: matchScore(item, normalised) }))
     .filter(({ score }) => score > 0)
     .sort(

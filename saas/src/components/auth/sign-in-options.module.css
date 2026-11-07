@@ -70,13 +70,13 @@
   color: #827b70;
 }
 
-.demo {
+.active {
   border-color: #292c24;
   background: #292c24;
   color: #fff8e8;
 }
 
-.demo:hover {
+.active:hover {
   border-color: #6a5537;
   background: #3a3c32;
 }

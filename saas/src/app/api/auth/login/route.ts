@@ -22,7 +22,13 @@ export async function POST(request: Request) {
       throw new AppError(400, "Choose a valid sign-in entrance.");
     }
     const email = text(input.email, 200, true).toLowerCase();
-    const password = text(input.password, 200, true);
+    const password = input.password;
+    assert(
+      typeof password === "string" &&
+        password.length > 0 &&
+        password.length <= 200,
+      "Valid password required",
+    );
     assert(email.includes("@"), "Valid email required");
     if (appMode() === "local") {
       const token = local.login(
