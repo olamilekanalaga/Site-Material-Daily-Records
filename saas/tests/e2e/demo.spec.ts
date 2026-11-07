@@ -100,7 +100,78 @@ test("public DJ Civils photo selection opens delivery input first with explicit 
   request,
 }, testInfo) => {
   const apiRequests = monitorBackendRequests(page);
-  await openDemo(page);
+  await page.goto("/");
+  const choices = [
+    page.getByRole("button", { name: "Traffic Marshal sign-in", exact: true }),
+    page.getByRole("button", {
+      name: "Supervisor / Site Manager sign-in",
+      exact: true,
+    }),
+    page.getByRole("link", { name: "Traffic Marshal demo", exact: true }),
+    page.getByRole("link", { name: "Supervisor demo", exact: true }),
+  ];
+  await expect(
+    page.getByRole("group", { name: "Sign-in options", exact: true }),
+  ).toBeVisible();
+  for (const choice of choices) await expect(choice).toBeVisible();
+  await expect(choices[0]).toBeDisabled();
+  await expect(choices[1]).toBeDisabled();
+  await expect(choices[2]).toHaveAttribute("href", "/demo");
+  await expect(choices[3]).toHaveAttribute("href", "/demo/supervisor");
+  const options = page.getByRole("group", {
+    name: "Sign-in options",
+    exact: true,
+  });
+  await expect(options.getByRole("button")).toHaveCount(2);
+  await expect(options.getByRole("link")).toHaveCount(2);
+  await expect(page.getByRole("link", { name: /sign-in$/ })).toHaveCount(0);
+  await expect(page.getByLabel("Email address", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(
+    /Every arrival|A clearer record|INTERACTIVE SAMPLE WORKSPACE|Try the delivery log|No email or password needed|Demo changes and photos stay in your browser|Quick delivery entry|Private sign-in will be available/,
+  );
+  const optionBoxes = await Promise.all(
+    choices.map((choice) => choice.boundingBox()),
+  );
+  for (let index = 0; index < optionBoxes.length; index++) {
+    const box = optionBoxes[index]!;
+    expect(box).not.toBeNull();
+    expect(box.height).toBeGreaterThanOrEqual(48);
+    expect(Math.abs(box.width - optionBoxes[0]!.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(box.height - optionBoxes[0]!.height)).toBeLessThanOrEqual(
+      2,
+    );
+    expect(Math.abs(box.x - optionBoxes[0]!.x)).toBeLessThanOrEqual(2);
+    if (index)
+      expect(box.y).toBeGreaterThanOrEqual(
+        optionBoxes[index - 1]!.y + optionBoxes[index - 1]!.height,
+      );
+  }
+  await noOverflow(page);
+  await page.screenshot({
+    path: testInfo.outputPath("sign-in-options.png"),
+    fullPage: true,
+  });
+  for (const portal of ["marshal", "supervisor"]) {
+    await page.goto(`/sign-in/${portal}`);
+    await expect(
+      page.getByRole("group", { name: "Sign-in options", exact: true }),
+    ).toBeVisible();
+    await expect(choices[0]).toBeDisabled();
+    await expect(choices[1]).toBeDisabled();
+    await expect(page.getByLabel("Email address", { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);
+  }
+  await page.goto("/");
+  await choices[2].click();
+  await expect(page).toHaveURL(/\/demo\/?$/);
+  await expect(
+    page.getByRole("heading", { name: "Sign in as", exact: true }),
+  ).toBeVisible();
   await expect(page).toHaveTitle(/DJ CIVILS/i);
   const logo = page.locator('img[src="/djcu-logo.jpg"]:visible').first();
   await expect(logo).toBeVisible();
@@ -203,7 +274,17 @@ test("public DJ Civils photo selection opens delivery input first with explicit 
   await page.getByRole("button", { name: "View Records", exact: true }).click();
   await expect(page).toHaveURL(/\/demo\/records\?profile=olamilekan$/);
   await expect(page.locator(".simple-table tbody tr")).toHaveCount(10);
-  await page.goto("/demo/supervisor");
+  await page.goto("/");
+  await page
+    .getByRole("link", { name: "Supervisor demo", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/demo\/supervisor\/?$/);
+  await expect(
+    page.getByRole("heading", { name: "Daily Records", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "New Delivery", exact: true }),
+  ).toHaveCount(0);
   const sampleRows = page.locator(".simple-table tbody tr");
   await expect(sampleRows).toHaveCount(30);
   const marshalCells = sampleRows.locator("td:nth-child(6)");

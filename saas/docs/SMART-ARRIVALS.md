@@ -6,7 +6,9 @@ The proposed company pilot remains unofficial. Included deliveries and suppliers
 
 ## Record an arrival
 
-1. Open `/demo`, then choose **Bemigho Estano** or **Olamilekan Alaga**. Their delivery-entry form opens directly.
+The homepage lists four aligned options: **Traffic Marshal sign-in**, **Supervisor / Site Manager sign-in**, **Traffic Marshal demo** and **Supervisor demo**. The two staff sign-in options are disabled; only the demos are clickable. Promotional text and credential fields are omitted from this chooser. Existing private sign-in infrastructure remains separate for configured local development or an approved future team workspace.
+
+1. Choose **Traffic Marshal demo** to open `/demo`, then choose **Bemigho Estano** or **Olamilekan Alaga**. Their delivery-entry form opens directly.
 2. Select **Category** first. The item dropdown is enabled for that category and shows only its items. Optional **Search items** inside the dropdown helps find a name or alias within that category.
 3. The item dropdown shows names only. Selecting a known item derives its classification internally. Changing category clears the previous item selection so an item from another category cannot remain selected.
 4. Add the company/supplier if known. Take or upload an image of the delivery evidence, such as a retained ticket where permitted. A truck photograph is not specifically required.

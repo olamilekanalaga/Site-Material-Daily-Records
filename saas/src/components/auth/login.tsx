@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { request } from "@/lib/client/offline";
 import { Brand } from "../shared/brand";
 import type { SignInPortal } from "@/lib/access";
+import styles from "./sign-in-options.module.css";
 
 export function Login({
   onLogin,
@@ -22,6 +23,39 @@ export function Login({
     [password, setPassword] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+
+  if (!portal || !workspaceEnabled) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.panel}>
+          <header className={styles.brand}>
+            <Brand />
+          </header>
+          <div
+            className={styles.options}
+            role="group"
+            aria-label="Sign-in options"
+          >
+            <button className={styles.option} type="button" disabled>
+              Traffic Marshal sign-in
+            </button>
+            <button className={styles.option} type="button" disabled>
+              Supervisor / Site Manager sign-in
+            </button>
+            <a className={`${styles.option} ${styles.demo}`} href="/demo">
+              Traffic Marshal demo
+            </a>
+            <a
+              className={`${styles.option} ${styles.demo}`}
+              href="/demo/supervisor"
+            >
+              Supervisor demo
+            </a>
+          </div>
+        </div>
+      </main>
+    );
+  }
   return (
     <main className="login-layout">
       <section className="login-story">
@@ -50,132 +84,75 @@ export function Login({
         <h2>
           {portal === "marshal"
             ? "Traffic Marshal sign-in"
-            : portal === "supervisor"
-              ? "Supervisor / Site Manager sign-in"
-              : "Explore DJ Civils"}
+            : "Supervisor / Site Manager sign-in"}
         </h2>
+        <p>Use your approved staff account.</p>
+        <div className="login-divider">Approved accounts</div>
         <p>
-          {portal
-            ? "Use your approved staff account."
-            : "Quick delivery entry. Clear saved records."}
+          Your administrator assigns your access. Contact them if you need an
+          account.
         </p>
-        {!portal && (
-          <div
-            className="staff-sign-in-choices"
-            aria-label="Staff sign-in entrances"
-          >
-            <a className="secondary" href="/sign-in/marshal">
-              Traffic Marshal sign-in
-            </a>
-            <a className="secondary" href="/sign-in/supervisor">
-              Supervisor / Site Manager sign-in
-            </a>
-          </div>
-        )}
-        {!portal && (
-          <div className="demo-entry">
-            <span className="eyebrow">INTERACTIVE SAMPLE WORKSPACE</span>
-            <h3>Try the delivery log</h3>
-            <p>
-              Record a sample delivery and view the saved records. No email or
-              password needed.
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setError("");
+            try {
+              await request("/api/auth/login", {
+                method: "POST",
+                body: JSON.stringify({
+                  email,
+                  password,
+                  portal,
+                }),
+              });
+              await onLogin();
+            } catch (e) {
+              const message = (e as Error).message;
+              setError(
+                /APP_MODE|Supabase|Local demo storage|Configure/.test(message)
+                  ? "Staff sign-in is unavailable. Return to sign-in options to use a demo."
+                  : message,
+              );
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label>
+            Email address
+            <input
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+          {(error || startupError) && (
+            <p role="alert" className="error-text">
+              {error ||
+                "Your team session is unavailable. Sign in again or explore the demo."}
             </p>
-            <a className="primary" href="/demo">
-              Explore demo <ArrowRight size={18} />
-            </a>
-            <a className="secondary" href="/demo/supervisor">
-              Supervisor demo
-            </a>
-            <small>
-              Sample records. Demo changes and photos stay in your browser.
-            </small>
-          </div>
-        )}
-        {workspaceEnabled ? (
-          <>
-            <div className="login-divider">
-              {portal ? "Approved accounts" : "Team sign-in"}
-            </div>
-            <p>
-              {portal
-                ? "Your administrator assigns your access. Contact them if you need an account."
-                : "Use your assigned workspace account."}
-            </p>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                setBusy(true);
-                setError("");
-                try {
-                  await request("/api/auth/login", {
-                    method: "POST",
-                    body: JSON.stringify({
-                      email,
-                      password,
-                      ...(portal ? { portal } : {}),
-                    }),
-                  });
-                  await onLogin();
-                } catch (e) {
-                  const message = (e as Error).message;
-                  setError(
-                    /APP_MODE|Supabase|Local demo storage|Configure/.test(
-                      message,
-                    )
-                      ? "Team sign-in is not available yet. You can explore the demo above."
-                      : message,
-                  );
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <label>
-                Email address
-                <input
-                  type="email"
-                  autoComplete="username"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </label>
-              <label>
-                Password
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </label>
-              {(error || startupError) && (
-                <p role="alert" className="error-text">
-                  {error ||
-                    "Your team session is unavailable. Sign in again or explore the demo."}
-                </p>
-              )}
-              <button className="primary" disabled={busy}>
-                {busy ? "Signing in…" : "Sign in"}
-                <ArrowRight size={18} />
-              </button>
-            </form>
-          </>
-        ) : (
-          <div className="workspace-note">
-            <ShieldCheck size={19} />
-            <p>
-              Private sign-in will be available when your team workspace is
-              connected.
-            </p>
-          </div>
-        )}
-        {portal && (
-          <a className="text-button" href="/">
-            Choose another sign-in
-          </a>
-        )}
+          )}
+          <button className="primary" disabled={busy}>
+            {busy ? "Signing in…" : "Sign in"}
+            <ArrowRight size={18} />
+          </button>
+        </form>
+        <a className="text-button" href="/">
+          Choose another sign-in
+        </a>
         {localDemo && (
           <details className="demo-logins">
             <summary>Local development accounts</summary>
