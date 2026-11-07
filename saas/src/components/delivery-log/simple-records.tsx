@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { ArrowLeftRight, ImageIcon, X } from "lucide-react";
 import type { Bootstrap, CatalogueItem, Delivery, Evidence } from "@/lib/types";
 import { siteClock } from "@/lib/site-time";
@@ -111,6 +112,34 @@ function PhotoDialog({
   );
 }
 type BreakdownRow = { id: string; name: string; total: number };
+
+function MarshalPortrait({ name, sample }: { name: string; sample: boolean }) {
+  const portrait = sample
+    ? {
+        "Bemigho Estano": "/marshals/bemigho-estano.jpg",
+        "Olamilekan Alaga": "/marshals/olamilekan-alaga.jpg",
+      }[name]
+    : undefined;
+
+  return (
+    <Image
+      className={styles.marshalPortrait}
+      src={portrait || "/marshal-placeholder.svg"}
+      alt={name}
+      title={name}
+      width={64}
+      height={64}
+      sizes="64px"
+      style={
+        portrait
+          ? name === "Bemigho Estano"
+            ? { objectFit: "contain", backgroundColor: "#0b0b0b" }
+            : { objectPosition: "50% 42%" }
+          : undefined
+      }
+    />
+  );
+}
 
 function sortBreakdown(rows: BreakdownRow[]) {
   return rows.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
@@ -602,29 +631,24 @@ export function SimpleRecords({
         >
           <thead>
             <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Time</th>
+              <th scope="col" className={styles.marshalCell}>
+                Traffic marshal
+              </th>
               <th scope="col">Item</th>
               <th scope="col">Category</th>
-              <th scope="col">Company/supplier</th>
-              <th scope="col">Recorded by</th>
-              <th scope="col">Photo/ticket evidence</th>
+              <th scope="col">Logistics company</th>
+              <th scope="col">Photo</th>
             </tr>
           </thead>
           <tbody>
             {records.map(({ record, item }) => {
-              const clock = siteClock(
-                new Date(record.recorded_at || record.arrival_at),
-                timezone,
-              );
               return (
                 <tr key={record.id}>
-                  <td className="simple-date-cell">{clock.date}</td>
-                  <td className="simple-time-cell">
-                    {clock.time}
-                    <small className={styles.timeKind}>
-                      {record.recorded_at ? "Recorded at" : "Arrival time"}
-                    </small>
+                  <td className={styles.marshalCell}>
+                    <MarshalPortrait
+                      name={record.marshal_name || record.creator_name}
+                      sample={data.mode === "demo" || data.mode === "local"}
+                    />
                   </td>
                   <td className={styles.itemName}>{item.name}</td>
                   <td
@@ -642,9 +666,6 @@ export function SimpleRecords({
                         (supplier) => supplier.id === record.supplier_id,
                       )?.name ||
                       "Not recorded"}
-                  </td>
-                  <td className="simple-marshal-cell">
-                    {record.marshal_name || record.creator_name}
                   </td>
                   <td>
                     {record.evidence.length ? (

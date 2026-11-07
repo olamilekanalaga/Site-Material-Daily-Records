@@ -76,7 +76,7 @@ One saved arrival contributes one count. Two confirmed saves for separate 6F5 ar
 
 ## Records and supervisor reporting
 
-The seven-column **Daily Records** table includes **Date**, **Time**, **Item**, **Category**, **Company/supplier**, **Recorded by** and **Photo/ticket evidence**. Newest records appear first. The default view covers the current Europe/London site day, from site midnight to the following midnight, and automatically advances when the next site day begins. Earlier records remain stored and available through custom date ranges. Open evidence using the existing photo viewer; absence of legacy evidence remains visible rather than being fabricated.
+The five-column **Daily Records** table includes **Traffic marshal** (portrait), **Item**, **Category**, **Logistics company** and **Photo**. The two sample marshals use their supplied portraits, with names available to assistive technology and on hover; other staff use a placeholder. Date and time columns are hidden, while their original values remain stored for newest-first ordering, custom date filters and CSV exports. The default view covers the current Europe/London site day, from site midnight to the following midnight, and automatically advances when the next site day begins. Earlier records remain stored and available through custom date ranges. Open evidence using the existing photo viewer; absence of legacy evidence remains visible rather than being fabricated.
 
 Entry type remains stored and derived for delivery/service totals, filtering and supervisor catalogue approval. It has no field on the delivery form and no column in the records table or arrival CSV. Existing legacy report exports retain their compatible format.
 
@@ -84,7 +84,7 @@ Editing **From date** or **To date** switches to a custom range that stays fixed
 
 - Total recorded arrivals, material deliveries, service visits and pending classifications separately.
 - Counts by item and category, including frequently delivered items.
-- Service visits by type, arrival/recording time and records by marshal.
+- Service visits by type and records by marshal.
 - Pending items with occurrence counts and approval controls.
 
 All valid arrivals, including pending ones, contribute to the overall total. Material-delivery totals exclude service visits. Existing reporting routes remain intact; the records view's CSV export uses the filtered rows. No cost, stock or payment analysis is introduced.

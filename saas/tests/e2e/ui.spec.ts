@@ -259,7 +259,9 @@ test("failed photo upload retries one persisted record that an authenticated sup
   const row = page.getByRole("row").filter({ hasText: supplier });
   await expect(row).toHaveCount(1);
   await expect(row).toContainText("6F5");
-  await expect(row).toContainText("Olamilekan Alaga");
+  await expect(
+    row.getByRole("img", { name: "Olamilekan Alaga", exact: true }),
+  ).toBeVisible();
   const state = await (await page.request.get("/api/bootstrap")).json();
   const matches = state.deliveries.filter(
     (record: { supplier_name?: string }) => record.supplier_name === supplier,
@@ -290,6 +292,20 @@ test("failed photo upload retries one persisted record that an authenticated sup
     .getByRole("row")
     .filter({ hasText: supplier });
   await expect(supervisorRow).toHaveCount(1);
+  await expect(
+    supervisorRow.getByRole("img", { name: "Olamilekan Alaga", exact: true }),
+  ).toBeVisible();
+  await expect(
+    reviewPage
+      .getByRole("table", { name: "Saved delivery records", exact: true })
+      .getByRole("columnheader"),
+  ).toHaveText([
+    "Traffic marshal",
+    "Item",
+    "Category",
+    "Logistics company",
+    "Photo",
+  ]);
   await supervisorRow
     .getByRole("button", { name: "View photo", exact: true })
     .click();
