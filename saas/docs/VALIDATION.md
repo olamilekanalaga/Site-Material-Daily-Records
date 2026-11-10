@@ -1,3 +1,13 @@
+# DJ Civils home-screen icon
+
+The app artwork now reads **DJ Civils**, with versioned opaque PNGs for Apple touch (180px), manifest (192/512px), maskable installation (512px) and browser tabs (32px). Application and Apple web-app titles are DJ Civils. The original company JPEG, app start URL, internal storage identifiers and records are unchanged.
+
+TypeScript and the optimised Next.js build passed. A Chromium smoke check against the locally running production build verified the application/Apple titles, Apple icon URL, manifest names/start URL, all five PNG responses and dimensions, maskable declaration, SVG branding, 30 visible demo records and no page errors. The 180px artwork was visually inspected. The preceding 117-unit/24-browser workflow results below belong to the earlier UI revision and were not repeated for this asset/metadata-only change.
+
+Physical iPhone installation and replacement of an already cached home-screen icon are not verified. Versioned paths support fresh installation; iOS may still retain an existing icon. Keep the old installed app until local records are exported or verified elsewhere. No hosted backend or production release was performed.
+
+---
+
 # Demo display defaults — all recorded dates
 
 Both public demo record views now open on **All recorded dates**. Clear filters restores all dates; a custom range still applies to records, cards, workload, review and CSV. Older entries remain visible after refresh, reopening and day changes. Original delivery objects, dates and timestamps are unchanged. The live staff records page, marshal entry form, storage engine/schema and backend configuration are unchanged.

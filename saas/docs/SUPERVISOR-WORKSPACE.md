@@ -56,7 +56,15 @@ Paths are relative to the repository root.
 - `saas/docs/SMART-ARRIVALS.md`
 - `saas/docs/SUPERVISOR-WORKSPACE.md`
 - `saas/docs/VALIDATION.md`
+- `saas/public/icon.svg`
+- `saas/public/icons/dj-civils-v2-180.png`
+- `saas/public/icons/dj-civils-v2-192.png`
+- `saas/public/icons/dj-civils-v2-32.png`
+- `saas/public/icons/dj-civils-v2-512-maskable.png`
+- `saas/public/icons/dj-civils-v2-512.png`
 - `saas/src/app/demo/supervisor/page.tsx`
+- `saas/src/app/layout.tsx`
+- `saas/src/app/manifest.ts`
 - `saas/src/components/delivery-log/classification-review.tsx`
 - `saas/src/components/delivery-log/simple-app.tsx`
 - `saas/src/components/delivery-log/simple-records.tsx`

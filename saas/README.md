@@ -4,6 +4,12 @@ DJ Civils is an existing site-arrival application with two separate modes: an au
 
 The original reporting app remains outside `saas/` and is not served by DJ Civils.
 
+## App icon
+
+The installed-app artwork reads **DJ Civils** in white on black with bronze rules. Versioned PNG assets provide a 180px Apple touch icon, 192/512px manifest icons, a maskable icon and a 32px browser icon. The supplied company-logo JPEG remains unchanged. Existing internal storage identifiers are retained so branding changes do not reset browser records.
+
+iOS may retain an older installed icon. Open the updated app URL in Safari to add its corrected home-screen icon. Keep the original installed app until any local records have been exported or verified elsewhere; do not clear website data as an icon-refresh step. Different preview origins have separate browser records.
+
 ## Live staff workspace
 
 The production integration is prepared on `feat/production-delivery-backend` for pull-request review. **Do not merge or deploy production without approval.** The existing Vercel project/root and hosted demo are preserved.
