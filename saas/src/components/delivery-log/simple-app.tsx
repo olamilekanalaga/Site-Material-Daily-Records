@@ -405,12 +405,7 @@ export function SimpleApp({
           ) : recordsPage && !demo ? (
             <LiveRecords key={site.id} data={data} siteId={site.id} />
           ) : recordsPage ? (
-            <SimpleRecords
-              key={site.id}
-              data={data}
-              siteId={site.id}
-              onRefresh={load}
-            />
+            <SimpleRecords key={site.id} data={data} siteId={site.id} />
           ) : (
             <>
               {choosingProfile && (

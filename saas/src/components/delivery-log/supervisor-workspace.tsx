@@ -30,7 +30,6 @@ import styles from "./supervisor-workspace.module.css";
 
 const tabs = ["Records", "Workload", "Review"] as const;
 type Tab = (typeof tabs)[number];
-type CountRow = { id: string; name: string; total: number };
 
 function displayClock(timestamp: string, timezone: string) {
   return Number.isFinite(Date.parse(timestamp))
@@ -62,34 +61,6 @@ function RecordedTime({
         </span>
       )}
     </time>
-  );
-}
-
-function CountTable({ title, rows }: { title: string; rows: CountRow[] }) {
-  return (
-    <section className={styles.breakdownBlock}>
-      <h3>{title}</h3>
-      {rows.length ? (
-        <table className={styles.breakdownTable} aria-label={title}>
-          <thead>
-            <tr>
-              <th scope="col">Item</th>
-              <th scope="col">Arrivals</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td>{row.name}</td>
-                <td>{row.total}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <p className={styles.muted}>No arrivals in this period.</p>
-      )}
-    </section>
   );
 }
 
@@ -254,9 +225,6 @@ export function SupervisorWorkspace({
 }) {
   const timezone =
     data.sites.find((site) => site.id === siteId)?.timezone || "Europe/London";
-  const [today, setToday] = useState(
-    () => siteClock(new Date(), timezone).date,
-  );
   const [customRange, setCustomRange] = useState<DateRange | null>(null);
   const [filters, setFilters] = useState<SupervisorFilters>({});
   const [tab, setTab] = useState<Tab>("Records");
@@ -271,7 +239,7 @@ export function SupervisorWorkspace({
   const exportLock = useRef(false);
   const tabButtons = useRef<Array<HTMLButtonElement | null>>([]);
   const prefix = useId();
-  const range = customRange || { from: today, to: today };
+  const range = customRange || { from: "", to: "" };
   const invalidRange = Boolean(range.from && range.to && range.from > range.to);
   const view = buildSupervisorView(data, siteId, range, filters);
   const extraFilterCount = [
@@ -282,23 +250,7 @@ export function SupervisorWorkspace({
   ].filter(Boolean).length;
   const periodLabel = customRange
     ? `${range.from || "First record"} — ${range.to || "Latest record"}`
-    : "Today";
-
-  useEffect(() => {
-    const updateDay = () => setToday(siteClock(new Date(), timezone).date);
-    const resume = () => {
-      if (document.visibilityState === "visible") updateDay();
-    };
-    updateDay();
-    const timer = window.setInterval(updateDay, 15000);
-    window.addEventListener("focus", updateDay);
-    document.addEventListener("visibilitychange", resume);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", updateDay);
-      document.removeEventListener("visibilitychange", resume);
-    };
-  }, [timezone]);
+    : "All recorded dates";
 
   async function refresh() {
     if (refreshLock.current || busy) return;
@@ -314,7 +266,6 @@ export function SupervisorWorkspace({
 
   function clearFilters() {
     setCustomRange(null);
-    setToday(siteClock(new Date(), timezone).date);
     setFilters({});
     setExportError("");
   }
@@ -565,7 +516,7 @@ export function SupervisorWorkspace({
                       aria-invalid={invalidRange}
                       onChange={(event) =>
                         setCustomRange((previous) => ({
-                          ...(previous || { from: today, to: today }),
+                          ...(previous || { from: "", to: "" }),
                           from: event.target.value,
                         }))
                       }
@@ -580,17 +531,13 @@ export function SupervisorWorkspace({
                       aria-invalid={invalidRange}
                       onChange={(event) =>
                         setCustomRange((previous) => ({
-                          ...(previous || { from: today, to: today }),
+                          ...(previous || { from: "", to: "" }),
                           to: event.target.value,
                         }))
                       }
                     />
                   </label>
                 </div>
-                <p>
-                  Whole site days are included. A custom range stays fixed until
-                  cleared.
-                </p>
               </details>
               {(error || exportError || invalidRange) && (
                 <div className={styles.alert} role="alert">
@@ -765,34 +712,6 @@ export function SupervisorWorkspace({
                   unavailable.
                 </span>
               </p>
-              <details className={styles.breakdowns}>
-                <summary>
-                  Arrival breakdown
-                  <ChevronDown size={15} aria-hidden="true" />
-                </summary>
-                <div className={styles.breakdownGrid}>
-                  <CountTable
-                    title="Arrivals by item"
-                    rows={view.breakdowns.materials}
-                  />
-                  <CountTable
-                    title="Arrivals by category"
-                    rows={view.breakdowns.categories}
-                  />
-                  <CountTable
-                    title="Service visits by type"
-                    rows={view.breakdowns.services}
-                  />
-                  <CountTable
-                    title="Records by traffic marshal"
-                    rows={view.workload.map((marshal) => ({
-                      id: marshal.id,
-                      name: marshal.name,
-                      total: marshal.total,
-                    }))}
-                  />
-                </div>
-              </details>
             </div>
             <div
               role="tabpanel"
@@ -901,11 +820,6 @@ export function SupervisorWorkspace({
             >
               <div className={styles.panelHeading}>
                 <h2>Catalogue review</h2>
-                <p>
-                  To Classify counts distinct pending catalogue items with
-                  arrivals in this view. Repeated arrivals for the same item
-                  count once.
-                </p>
               </div>
               <ClassificationReview
                 materials={data.materials}

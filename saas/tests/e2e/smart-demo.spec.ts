@@ -441,15 +441,19 @@ test("unknown names deduplicate pending items and remain intact after supervisor
   await expect(form).toHaveCount(0);
   await summary(page, [32, 2, 1]);
   await page.getByRole("tab", { name: "Records", exact: true }).click();
-  await disclose(page, "Arrival breakdown");
-  const approvedServices = page
-    .getByRole("table", {
-      name: "Service visits by type",
-      exact: true,
-    })
-    .locator("tbody tr");
-  await expect(approvedServices).toHaveCount(1);
-  await expect(approvedServices.locator("td:nth-child(2)")).toHaveText("2");
+  await expect(
+    page.getByText("Arrival breakdown", { exact: true }),
+  ).toHaveCount(0);
+  await disclose(page, "More filters");
+  await page
+    .getByRole("combobox", { name: "Entry type", exact: true })
+    .selectOption({ label: "Service visit" });
+  await expect(rows(page)).toHaveCount(2);
+  await summary(page, [2, 1, 0]);
+  await page
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
+  await summary(page, [32, 2, 1]);
   const approved = await savedState(page);
   expect(
     approved.materials.find((i) => i.id === candidates[0].id),
@@ -493,7 +497,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
   expect(observed).toEqual({ apiRequests: [], errors: [] });
 });
 
-test("supervisor filters and breakdowns reconcile deliveries, services and pending arrivals and exports visible rows", async ({
+test("supervisor filters and workload reconcile deliveries, services and pending arrivals and export visible rows", async ({
   page,
 }, info) => {
   const observed = monitor(page);
@@ -584,17 +588,12 @@ test("supervisor filters and breakdowns reconcile deliveries, services and pendi
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
-  await disclose(page, "Arrival breakdown");
-  for (const [table, name, total] of [
-    ["Service visits by type", "Road sweeper", "1"],
-    ["Arrivals by category", "Services", "2"],
-  ])
-    await expect(
-      page
-        .getByRole("table", { name: table, exact: true })
-        .getByRole("row")
-        .filter({ hasText: name }),
-    ).toContainText(total);
+  await expect(
+    page.getByText("Arrival breakdown", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("No arrivals in this period.", { exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("tab", { name: "Workload", exact: true }).click();
   const olaActivity = page.getByRole("article", {
     name: "Activity for Olamilekan Alaga",

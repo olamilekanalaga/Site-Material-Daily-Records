@@ -1,3 +1,13 @@
+# Demo display defaults — all recorded dates
+
+Both public demo record views now open on **All recorded dates**. Clear filters restores all dates; a custom range still applies to records, cards, workload, review and CSV. Older entries remain visible after refresh, reopening and day changes. Original delivery objects, dates and timestamps are unchanged. The live staff records page, marshal entry form, storage engine/schema and backend configuration are unchanged.
+
+The extra Arrival breakdown section and explanatory/empty classification paragraphs were removed. Existing pending approval controls and success/error feedback remain in Review.
+
+Validation for this revision: TypeScript passed; **117/117 unit/database tests passed**; **24/24 browser scenarios passed** across phone, tablet and desktop. The updated date scenario checks a multi-day historical dataset, midnight changes, refresh/reopen, custom October ranges and CSV, Clear filters returning to all records, the marshal own-records view, and exact unchanged stored delivery snapshots. The optimised Next.js 16.4.5 / Turbopack build passed, including TypeScript and all 13 static pages.
+
+---
+
 # Gate supervisor workspace — 10 November 2026
 
 The `feat/supervisor-workspace` branch adds a frontend-only supervisor view on top of the existing demo. It is based on the existing unmerged backend-review branch so the reviewed demo continues to work; this change does not activate Supabase, production authentication or a live database. The marshal form, IndexedDB schema/engine, existing catalogue, migrations, archived dashboard and Vercel configuration are unchanged.

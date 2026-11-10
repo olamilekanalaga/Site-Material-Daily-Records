@@ -78,17 +78,10 @@ export function ClassificationReview({
     }
   }
 
+  if (!pending.length && !error && !notice) return null;
+
   const body = (
     <div className={styles.reviewBody}>
-      <p>
-        Items used by arrivals in the selected dates. Choose their category and
-        entry type; this does not verify physical receipt.
-      </p>
-      {!pending.length && (
-        <p className={styles.emptyReview}>
-          No items awaiting classification in this period.
-        </p>
-      )}
       {pending.map((item) => {
         const choice = choices[item.id] || { category: "", entryType: "" };
         return (

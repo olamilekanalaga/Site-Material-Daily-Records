@@ -109,6 +109,9 @@ test("supervisor tabs share marshal filters and expose activity with keyboard na
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
   await expect(table.locator("tbody tr")).toHaveCount(30);
+  await expect(
+    page.getByText("Arrival breakdown", { exact: true }),
+  ).toHaveCount(0);
   // Check the requested dark hierarchy and card layout without locking to a
   // fabricated reference screenshot or a single device's font rendering.
   const background = await heading.evaluate((element) => {
@@ -123,14 +126,12 @@ test("supervisor tabs share marshal filters and expose activity with keyboard na
   const rgb = background.match(/\d+/g)?.slice(0, 3).map(Number) || [];
   expect(rgb).toHaveLength(3);
   expect(Math.max(...rgb)).toBeLessThan(65);
-  const boxes = await summary
-    .getByRole("group")
-    .evaluateAll((cards) =>
-      cards.map((card) => ({
-        top: card.getBoundingClientRect().top,
-        width: card.getBoundingClientRect().width,
-      })),
-    );
+  const boxes = await summary.getByRole("group").evaluateAll((cards) =>
+    cards.map((card) => ({
+      top: card.getBoundingClientRect().top,
+      width: card.getBoundingClientRect().width,
+    })),
+  );
   expect(new Set(boxes.map((box) => Math.round(box.top))).size).toBe(1);
   expect(
     Math.max(...boxes.map((box) => box.width)) -
@@ -157,6 +158,8 @@ test("supervisor tabs share marshal filters and expose activity with keyboard na
     path: info.outputPath("supervisor-review.png"),
     fullPage: true,
   });
+  // Reopening on a later day must not hide the stored sample history.
+  await page.clock.fastForward(5 * 24 * 60 * 60 * 1000);
   await page.reload();
   await expect(records).toHaveAttribute("aria-selected", "true");
   await expect(table.locator("tbody tr")).toHaveCount(30);

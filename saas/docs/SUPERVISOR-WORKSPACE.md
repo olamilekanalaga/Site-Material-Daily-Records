@@ -8,7 +8,7 @@ The referenced supervisor screenshot was not attached to the implementation requ
 
 The workspace reads the existing IndexedDB database, `djcu-fictional-browser-demo`, through the existing demo bootstrap. There is no new store, record migration, seed reset or duplicate dataset. Open or refresh the supervisor page in the same browser profile **and website origin** after a marshal saves an arrival. Data does not synchronise across devices or different preview domains.
 
-All tabs and cards use the same selected site, inclusive date range and active filters. The default is the current Europe/London site day and advances at midnight; a custom range remains fixed while the page is open. Clear filters returns to today. Existing date selection follows the arrival date, including for older records. The marshal dropdown lists marshals represented in the selected period.
+All tabs and cards use the same selected site, inclusive date range and active filters. Both public demo record views default to all saved dates, so older entries stay visible on opening, refresh and after the day changes. A custom range remains available and stays fixed while the page is open. Clear filters restores all dates. No record timestamps are changed or pinned to an illustrative day. Existing date selection follows the arrival date, including for older records. The marshal dropdown lists marshals represented in the selected period.
 
 - **Arrivals:** unique submitted delivery-record IDs matching the filters. Drafts, retries and other sites/companies are excluded.
 - **Marshals:** distinct recorded marshal IDs among those arrivals, with the original creator ID as the legacy fallback. This is not a count of all configured staff.
@@ -20,7 +20,7 @@ These are recorded arrivals and staff activity counts, not material quantities, 
 
 The compact table shows Item, Marshal and Time. Open an item for the original record details, company/supplier, category, timestamps, identifiers and evidence. Existing photographs remain in the original browser store and use the existing evidence viewer. The displayed time uses `recorded_at` for newer captures; an older record without that value displays its retained arrival time with a legacy label. The app never invents an original recording timestamp.
 
-Date controls, additional item/category/type/classification filters, arrival breakdowns and filtered CSV export remain available without adding extra permanent table columns. CSV export uses the existing reporting transport and includes the original record identifiers and timestamp fields.
+Date controls, additional item/category/type/classification filters and filtered CSV export remain available without adding extra permanent table columns. CSV export uses the existing reporting transport and includes the original record identifiers and timestamp fields.
 
 ## Workload
 
@@ -28,7 +28,7 @@ Each marshal's section shows recorded arrivals, materials, recorded times and ac
 
 ## Review
 
-The Review tab reuses the supervisor demo's catalogue approval operation. For each pending item it shows the original entered names and matching-arrival count. Select one of the three catalogue categories and either Delivery or Service visit, then approve explicitly.
+The extra Arrival breakdown section and explanatory/empty classification paragraphs are omitted from Records. The Review tab reuses the supervisor demo's catalogue approval operation, showing actual pending controls and approval/error feedback only. For each pending item it shows the original entered names and matching-arrival count. Select one of the three catalogue categories and either Delivery or Service visit, then approve explicitly.
 
 Approval updates catalogue metadata and adds the existing audit event. It does not create arrivals or rewrite the original entry text, photographs, arrival/recording timestamps or historical physical-review decisions. The approved item becomes selectable on the marshal form after its next load. If filters exclude the newly approved classification, its records leave the filtered view but remain stored.
 
@@ -53,11 +53,13 @@ Paths are relative to the repository root.
 
 - `docs/REPOSITORY-STRUCTURE.md`
 - `saas/README.md`
+- `saas/docs/SMART-ARRIVALS.md`
 - `saas/docs/SUPERVISOR-WORKSPACE.md`
 - `saas/docs/VALIDATION.md`
 - `saas/src/app/demo/supervisor/page.tsx`
 - `saas/src/components/delivery-log/classification-review.tsx`
 - `saas/src/components/delivery-log/simple-app.tsx`
+- `saas/src/components/delivery-log/simple-records.tsx`
 - `saas/src/components/delivery-log/smart-records.module.css`
 - `saas/src/components/delivery-log/supervisor-workspace.module.css`
 - `saas/src/components/delivery-log/supervisor-workspace.tsx`

@@ -2,8 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ArrowLeftRight, ImageIcon, X } from "lucide-react";
-import type { Bootstrap, CatalogueItem, Delivery, Evidence } from "@/lib/types";
-import { siteClock } from "@/lib/site-time";
+import type { Bootstrap, Delivery, Evidence } from "@/lib/types";
 import {
   CATEGORIES,
   ENTRY_TYPES,
@@ -12,7 +11,6 @@ import {
   itemDetails,
 } from "@/lib/catalogue";
 import { downloadReport } from "@/lib/client/offline";
-import { ClassificationReview } from "./classification-review";
 import styles from "./smart-records.module.css";
 import {
   arrivalCounts,
@@ -110,8 +108,6 @@ export function PhotoDialog({
     </dialog>
   );
 }
-type BreakdownRow = { id: string; name: string; total: number };
-
 function MarshalPortrait({ name, sample }: { name: string; sample: boolean }) {
   const portrait = sample
     ? {
@@ -140,100 +136,17 @@ function MarshalPortrait({ name, sample }: { name: string; sample: boolean }) {
   );
 }
 
-function sortBreakdown(rows: BreakdownRow[]) {
-  return rows.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
-}
-
-function countNames(names: string[]) {
-  const counts = new Map<string, number>();
-  for (const name of names) counts.set(name, (counts.get(name) || 0) + 1);
-  return sortBreakdown(
-    [...counts].map(([name, total]) => ({ id: name, name, total })),
-  );
-}
-
-function countItems(records: Delivery[], materials: CatalogueItem[]) {
-  const names = new Map(materials.map((item) => [item.id, item.name]));
-  const counts = new Map<string, BreakdownRow>();
-  for (const record of records) {
-    const previous = counts.get(record.material_id);
-    counts.set(record.material_id, {
-      id: record.material_id,
-      name:
-        names.get(record.material_id) ?? itemDetails(record, materials).name,
-      total: (previous?.total || 0) + 1,
-    });
-  }
-  return sortBreakdown([...counts.values()]);
-}
-
-function Breakdown({
-  title,
-  rows,
-  name,
-}: {
-  title: string;
-  rows: BreakdownRow[];
-  name: string;
-}) {
-  return (
-    <section className={styles.breakdownBlock}>
-      <h3>{title}</h3>
-      {rows.length ? (
-        <table className={styles.breakdownTable} aria-label={title}>
-          <thead>
-            <tr>
-              <th scope="col">{name}</th>
-              <th scope="col">Arrivals</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ id, name, total }) => (
-              <tr key={id}>
-                <td>{name}</td>
-                <td>{total}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <p className="simple-help">No arrivals in this period.</p>
-      )}
-    </section>
-  );
-}
-
 export function SimpleRecords({
   data,
   siteId,
-  onRefresh,
 }: {
   data: Bootstrap;
   siteId: string;
-  onRefresh?: () => Promise<unknown>;
 }) {
   const timezone =
     data.sites.find((s) => s.id === siteId)?.timezone || "Europe/London";
-  const [today, setToday] = useState(
-    () => siteClock(new Date(), timezone).date,
-  );
   const [customRange, setCustomRange] = useState<DateRange | null>(null);
-  useEffect(() => {
-    const refreshDay = () => setToday(siteClock(new Date(), timezone).date);
-    refreshDay();
-    const timer = window.setInterval(refreshDay, 15_000);
-    const resume = () => {
-      if (document.visibilityState === "visible") refreshDay();
-    };
-    window.addEventListener("focus", refreshDay);
-    document.addEventListener("visibilitychange", resume);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refreshDay);
-      document.removeEventListener("visibilitychange", resume);
-    };
-  }, [timezone]);
-  const range = customRange || { from: today, to: today };
+  const range = customRange || { from: "", to: "" };
   const [material, setMaterial] = useState("");
   const [category, setCategory] = useState("");
   const [entryType, setEntryType] = useState("");
@@ -285,17 +198,6 @@ export function SimpleRecords({
     marshal,
     classification,
   ].filter(Boolean).length;
-  const categoryRows = countNames(detailed.map(({ item }) => item.category));
-  const serviceRows = countItems(
-    detailed
-      .filter(({ item }) => item.entry_type === "Service visit")
-      .map(({ record }) => record),
-    data.materials,
-  );
-  const frequentRows = countItems(periodRecords, data.materials).slice(0, 5);
-  const marshalRows = countNames(
-    periodRecords.map((record) => record.marshal_name || record.creator_name),
-  );
 
   function selectSummary(
     next: {
@@ -347,8 +249,7 @@ export function SimpleRecords({
   return (
     <section className="simple-panel simple-records-panel">
       <p className={styles.periodNote}>
-        {customRange ? "Custom date range" : "Today · updates automatically"}
-        {" · "}Site time: {timezone}
+        {customRange ? "Custom date range" : "All recorded dates"}
       </p>
       <div className="simple-filters">
         <label className="simple-date-filter">
@@ -360,7 +261,7 @@ export function SimpleRecords({
             aria-invalid={invalidRange}
             onChange={(event) =>
               setCustomRange((previous) => ({
-                ...(previous || { from: today, to: today }),
+                ...(previous || { from: "", to: "" }),
                 from: event.target.value,
               }))
             }
@@ -375,7 +276,7 @@ export function SimpleRecords({
             aria-invalid={invalidRange}
             onChange={(event) =>
               setCustomRange((previous) => ({
-                ...(previous || { from: today, to: today }),
+                ...(previous || { from: "", to: "" }),
                 to: event.target.value,
               }))
             }
@@ -398,7 +299,6 @@ export function SimpleRecords({
         <button
           className="secondary simple-clear-filters"
           onClick={() => {
-            setToday(siteClock(new Date(), timezone).date);
             setCustomRange(null);
             selectSummary();
             setExportError("");
@@ -475,10 +375,6 @@ export function SimpleRecords({
       <div className="simple-summary-heading">
         <div>
           <h2>Arrival totals</h2>
-          <p>
-            Recorded arrivals in selected dates. Select a card to filter the
-            table.
-          </p>
         </div>
       </div>
       <div
@@ -523,43 +419,8 @@ export function SimpleRecords({
           <small>service arrivals</small>
         </button>
       </div>
-      {reviewer && (
-        <details className={styles.breakdown}>
-          <summary>Arrival breakdown</summary>
-          <div className={styles.breakdownGrid}>
-            <Breakdown
-              title="Arrivals by category"
-              name="Category"
-              rows={categoryRows}
-            />
-            <Breakdown
-              title="Service visits by type"
-              name="Service"
-              rows={serviceRows}
-            />
-            <Breakdown
-              title="Most frequent items"
-              name="Item"
-              rows={frequentRows}
-            />
-            <Breakdown
-              title="Records by traffic marshal"
-              name="Traffic marshal"
-              rows={marshalRows}
-            />
-          </div>
-        </details>
-      )}
-      {reviewer && data.mode === "demo" && (
-        <ClassificationReview
-          materials={data.materials}
-          records={periodRecords}
-          onRefresh={onRefresh}
-        />
-      )}
       {reviewer && data.mode === "demo" && (
         <div className={styles.exportBar}>
-          <span>Export the rows shown below.</span>
           <button
             type="button"
             className="secondary"

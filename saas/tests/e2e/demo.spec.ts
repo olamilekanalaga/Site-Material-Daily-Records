@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import type { DemoState } from "../../src/lib/demo/engine";
 
 const png = Buffer.from(
@@ -619,7 +620,7 @@ test("direct supervisor workspace stays read-only and keeps photo access while m
   await bPage.close();
 });
 
-test("daily records roll over at London midnight while custom ranges retain period totals", async ({
+test("saved records open across all dates while custom ranges still filter without changing history", async ({
   page,
 }, testInfo) => {
   const apiRequests = monitorBackendRequests(page);
@@ -656,6 +657,9 @@ test("daily records roll over at London midnight while custom ranges retain peri
         reading.onerror = () => reject(reading.error);
       });
       const template = saved.deliveries[0];
+      const marshal = saved.members.find(
+        (member) => member.name === "Bemigho Estano",
+      )!;
       const fixtures = [
         ["Before October", "2026-09-30T22:59:59.999Z", "6F5"],
         ["October first", "2026-09-30T23:00:00.000Z", "6F5"],
@@ -669,6 +673,10 @@ test("daily records roll over at London midnight while custom ranges retain peri
         ...template,
         id: crypto.randomUUID(),
         supplier_name: supplier,
+        created_by: marshal.id,
+        creator_name: marshal.name,
+        marshal_id: marshal.id,
+        marshal_name: marshal.name,
         material_id: saved.materials.find((item) => item.name === material)!.id,
         item_name: material,
         category: undefined,
@@ -693,6 +701,7 @@ test("daily records roll over at London midnight while custom ranges retain peri
       database.close();
     }
   });
+  const originalRecords = (await demoState(page)).deliveries;
   await page.reload();
   await disclosure(page, "Date range");
   await disclosure(page, "More filters");
@@ -703,11 +712,17 @@ test("daily records roll over at London midnight while custom ranges retain peri
     name: "Item",
     exact: true,
   });
-  await stat(page, "Arrivals", 1);
+  await stat(page, "Arrivals", 7);
   await stat(page, "Marshals", 1);
-  await expect(from).toHaveValue("2026-11-06");
-  await expect(to).toHaveValue("2026-11-06");
-  await expect(rows).toHaveCount(1);
+  await expect(from).toHaveValue("");
+  await expect(to).toHaveValue("");
+  await expect(rows).toHaveCount(7);
+  await expect(
+    page.getByText("Arrival breakdown", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("No arrivals in this period.", { exact: true }),
+  ).toHaveCount(0);
   await expect(rows.first().locator("time")).toHaveAttribute(
     "datetime",
     "2026-11-06T23:59:59.999Z",
@@ -716,11 +731,12 @@ test("daily records roll over at London midnight while custom ranges retain peri
     "title",
     /arrival|legacy/i,
   );
+  // The default remains the whole saved history as the current day changes.
   await page.clock.fastForward(12 * 60 * 60 * 1000 + 15_000);
-  await expect(from).toHaveValue("2026-11-07");
-  await expect(to).toHaveValue("2026-11-07");
-  await expect(rows).toHaveCount(0);
-  await stat(page, "Arrivals", 0);
+  await expect(from).toHaveValue("");
+  await expect(to).toHaveValue("");
+  await expect(rows).toHaveCount(7);
+  await stat(page, "Arrivals", 7);
   await from.fill("2026-10-01");
   await to.fill("2026-10-30");
   await expect(rows).toHaveCount(2);
@@ -743,6 +759,14 @@ test("daily records roll over at London midnight while custom ranges retain peri
   await expect(rows).toHaveCount(3);
   await stat(page, "Arrivals", 3);
   await expect(rows.first()).toContainText("Type 1");
+  const exporting = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export CSV", exact: true }).click();
+  const csv = await readFile((await (await exporting).path())!, "utf8");
+  expect(csv.trim().split(/\r?\n/)).toHaveLength(4);
+  for (const name of ["October first", "October last", "October thirty-first"])
+    expect(csv).toContain(name);
+  expect(csv).not.toContain("Before October");
+  expect(csv).not.toContain("Today arrival");
   await from.fill("2026-11-07");
   await expect(
     page.getByRole("alert").filter({ hasText: "Choose a To date" }),
@@ -752,17 +776,13 @@ test("daily records roll over at London midnight while custom ranges retain peri
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
-  await expect(from).toHaveValue("2026-11-08");
-  await expect(to).toHaveValue("2026-11-08");
-  await expect(rows).toHaveCount(0);
-  await stat(page, "Arrivals", 0);
+  await expect(from).toHaveValue("");
+  await expect(to).toHaveValue("");
+  await expect(rows).toHaveCount(7);
+  await stat(page, "Arrivals", 7);
   await expect(
     page.getByRole("alert").filter({ hasText: "Choose a To date" }),
   ).toHaveCount(0);
-  await from.fill("");
-  await to.fill("");
-  await expect(rows).toHaveCount(7);
-  await stat(page, "Arrivals", 7);
   await from.fill("2000-01-01");
   await to.fill("2000-01-03");
   await expect(rows).toHaveCount(0);
@@ -772,14 +792,47 @@ test("daily records roll over at London midnight while custom ranges retain peri
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
-  await expect(from).toHaveValue("2026-11-08");
-  await expect(to).toHaveValue("2026-11-08");
-  await stat(page, "Arrivals", 0);
+  await expect(from).toHaveValue("");
+  await expect(to).toHaveValue("");
+  await stat(page, "Arrivals", 7);
+  await expect(rows).toHaveCount(7);
+  await from.fill("2026-10-01");
+  await to.fill("2026-10-31");
+  await expect(rows).toHaveCount(3);
+  await page.reload();
+  await expect(rows).toHaveCount(7);
+  await disclosure(page, "Date range");
+  await expect(from).toHaveValue("");
+  await expect(to).toHaveValue("");
+  await stat(page, "Arrivals", 7);
+  await expect(
+    page.getByText("Arrival breakdown", { exact: true }),
+  ).toHaveCount(0);
   await noOverflow(page);
   await page.screenshot({
     path: testInfo.outputPath("workspace-historical-date-filters.png"),
     fullPage: true,
   });
+  // The marshal's own records also open the saved history instead of an empty
+  // current day. Filtering changes only the view, never the underlying times.
+  await page.goto("/demo/records?profile=b");
+  const marshalRows = page.locator(".simple-table tbody tr");
+  await expect(marshalRows).toHaveCount(7);
+  await expect(page.getByLabel("From date", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("To date", { exact: true })).toHaveValue("");
+  await expect(
+    page.getByText("Arrival breakdown", { exact: true }),
+  ).toHaveCount(0);
+  await page.getByLabel("From date", { exact: true }).fill("2026-10-01");
+  await page.getByLabel("To date", { exact: true }).fill("2026-10-31");
+  await expect(marshalRows).toHaveCount(3);
+  await page
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
+  await expect(marshalRows).toHaveCount(7);
+  await page.reload();
+  await expect(marshalRows).toHaveCount(7);
+  expect((await demoState(page)).deliveries).toEqual(originalRecords);
   expect(apiRequests).toEqual([]);
   expect(pageErrors).toEqual([]);
 });
