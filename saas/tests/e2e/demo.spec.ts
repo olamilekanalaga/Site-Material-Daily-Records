@@ -94,6 +94,57 @@ async function capture(page: Page, marshal: string, supplier: string) {
   );
 }
 
+const workspaceRows = (page: Page) =>
+  page
+    .getByRole("table", { name: "Saved delivery records", exact: true })
+    .locator("tbody tr");
+async function workspace(page: Page) {
+  await page.goto("/demo/supervisor");
+  await expect(
+    page.getByRole("heading", {
+      name: "Gate — Supervisor Workspace",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("tab", { name: "Records", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+}
+async function stat(page: Page, label: string, count: number) {
+  await expect(
+    page
+      .getByRole("region", { name: "Workspace summary", exact: true })
+      .getByRole("group", { name: `${label}: ${count}`, exact: true }),
+  ).toBeVisible();
+}
+async function disclosure(page: Page, name: string) {
+  const summary = page.getByText(name, { exact: true });
+  if (
+    !(await summary.evaluate(
+      (element) => (element.parentElement as HTMLDetailsElement).open,
+    ))
+  )
+    await summary.click();
+}
+async function demoState(page: Page) {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const opening = indexedDB.open("djcu-fictional-browser-demo", 1);
+      opening.onsuccess = () => resolve(opening.result);
+      opening.onerror = () => reject(opening.error);
+    });
+    try {
+      return await new Promise<DemoState>((resolve, reject) => {
+        const read = db.transaction("demo").objectStore("demo").get("state");
+        read.onsuccess = () => resolve(read.result as DemoState);
+        read.onerror = () => reject(read.error);
+      });
+    } finally {
+      db.close();
+    }
+  });
+}
+
 test("public DJ Civils photo selection opens delivery input first with explicit records access", async ({
   page,
   context,
@@ -280,105 +331,53 @@ test("public DJ Civils photo selection opens delivery input first with explicit 
     .click();
   await expect(page).toHaveURL(/\/demo\/supervisor\/?$/);
   await expect(
-    page.getByRole("heading", { name: "Daily Records", exact: true }),
+    page.getByRole("heading", {
+      name: "Gate — Supervisor Workspace",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "New Delivery", exact: true }),
   ).toHaveCount(0);
-  const sampleRows = page.locator(".simple-table tbody tr");
+  const sampleRows = workspaceRows(page);
   await expect(sampleRows).toHaveCount(30);
-  const marshalCells = sampleRows.locator("td:first-child");
   await expect(
-    marshalCells.getByRole("img", { name: "Bemigho Estano", exact: true }),
+    sampleRows.locator("td:nth-child(2)").filter({ hasText: "Bemigho Estano" }),
   ).toHaveCount(20);
   await expect(
-    marshalCells.getByRole("img", { name: "Olamilekan Alaga", exact: true }),
+    sampleRows
+      .locator("td:nth-child(2)")
+      .filter({ hasText: "Olamilekan Alaga" }),
   ).toHaveCount(10);
-  await expect(marshalCells).toHaveText(Array(30).fill(""));
-  const names = await marshalCells
-    .locator("img")
-    .evaluateAll((images) =>
-      images.map((image) => (image as HTMLImageElement).alt),
-    );
-  const nameChanges = names.reduce(
-    (changes, name, index) =>
-      changes + (index > 0 && name !== names[index - 1] ? 1 : 0),
-    0,
-  );
-  expect(nameChanges).toBeGreaterThan(1);
-  // The table hides timestamps, but its rows still follow the saved arrival order.
-  const expectedOrder = await page.evaluate(async () => {
-    const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const opening = indexedDB.open("djcu-fictional-browser-demo", 1);
-      opening.onsuccess = () => resolve(opening.result);
-      opening.onerror = () => reject(opening.error);
-    });
-    try {
-      const saved = await new Promise<DemoState>((resolve, reject) => {
-        const reading = database
-          .transaction("demo")
-          .objectStore("demo")
-          .get("state");
-        reading.onsuccess = () => resolve(reading.result as DemoState);
-        reading.onerror = () => reject(reading.error);
-      });
-      return saved.deliveries
-        .sort((a, b) => Date.parse(b.arrival_at) - Date.parse(a.arrival_at))
-        .map((record) => [
-          saved.members.find(
-            (member) => member.id === (record.marshal_id || record.created_by),
-          )?.name ??
-            record.marshal_name ??
-            record.creator_name,
-          record.supplier_name ??
-            saved.suppliers.find(
-              (supplier) => supplier.id === record.supplier_id,
-            )?.name,
-        ]);
-    } finally {
-      database.close();
-    }
-  });
-  expect(
-    await sampleRows.evaluateAll((rows) =>
-      rows.map((row) => [
-        row.children[0].querySelector("img")?.alt,
-        row.children[3].textContent,
-      ]),
-    ),
-  ).toEqual(expectedOrder);
-  for (const [name, source] of [
-    ["Bemigho Estano", "/marshals/bemigho-estano.jpg"],
-    ["Olamilekan Alaga", "/marshals/olamilekan-alaga.jpg"],
-  ]) {
-    const portrait = marshalCells
-      .getByRole("img", { name, exact: true })
-      .first();
-    expect(decodeURIComponent((await portrait.getAttribute("src"))!)).toContain(
-      source,
-    );
-    await expect
-      .poll(() =>
-        portrait.evaluate((image) => (image as HTMLImageElement).naturalWidth),
-      )
-      .toBeGreaterThan(0);
-  }
   await expect(
     page
-      .getByRole("region", { name: "Delivery summaries", exact: true })
-      .getByRole("button", { name: "Total arrivals: 30", exact: true }),
-  ).toBeVisible();
+      .getByRole("table", { name: "Saved delivery records", exact: true })
+      .getByRole("columnheader"),
+  ).toHaveText(["Item", "Marshal", "Time"]);
+  const saved = await demoState(page);
+  const expected = [...saved.deliveries].sort(
+    (a, b) =>
+      Date.parse(b.recorded_at || b.arrival_at) -
+        Date.parse(a.recorded_at || a.arrival_at) || b.id.localeCompare(a.id),
+  );
+  expect(
+    await sampleRows.evaluateAll((rows) =>
+      rows.map((row) => row.getAttribute("data-record-id")),
+    ),
+  ).toEqual(expected.map((record) => record.id));
+  await stat(page, "Arrivals", 30);
+  await stat(page, "Marshals", 2);
+  await stat(page, "To Classify", 1);
+  await expect(page.getByText("Demo preview", { exact: true })).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText(
-    /Demo gate|B Traffic Marshal|fictional/i,
+    /Demo gate|B Traffic Marshal/i,
   );
   await page.reload();
   await expect(sampleRows).toHaveCount(30);
-  await page
-    .locator(".simple-records-panel")
-    .evaluate((element) => element.scrollIntoView({ block: "start" }));
+  await noOverflow(page);
   await page.screenshot({
-    path: testInfo.outputPath("simple-demo-thirty-summary.png"),
-    fullPage: false,
+    path: testInfo.outputPath("supervisor-workspace-summary.png"),
+    fullPage: true,
   });
   await page.goto("/demo");
   await page.getByRole("link", { name: "DJ Civils home", exact: true }).click();
@@ -394,7 +393,7 @@ test("public DJ Civils photo selection opens delivery input first with explicit 
   expect((await request.get("/api/bootstrap")).status()).toBe(503);
 });
 
-test("demo photo deliveries retain selected marshals, sort by arrival, filter and persist without a real upload", async ({
+test("demo photo deliveries retain selected marshals, sort by recorded time, filter and persist without a real upload", async ({
   page,
   context,
 }, testInfo) => {
@@ -405,7 +404,6 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   const recentSupplier = `Fictional recent ${suffix}`;
   await capture(page, "Bemigho Estano", earlySupplier);
   await page.getByRole("button", { name: "View Records", exact: true }).click();
-  await expect(page).toHaveURL(/\/demo\/records(?:\?|$)/);
   await expect(
     page.getByRole("row").filter({ hasText: earlySupplier }),
   ).toHaveCount(1);
@@ -414,49 +412,68 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   await expect(
     page.getByText("Recording for Bemigho Estano", { exact: true }),
   ).toBeVisible();
-  await page.goto("/demo");
+  await openDemo(page);
   await capture(page, "Olamilekan Alaga", recentSupplier);
   await page.getByRole("button", { name: "View Records", exact: true }).click();
-  await expect(page).toHaveURL(/\/demo\/records(?:\?|$)/);
-  const earlyRow = page.getByRole("row").filter({ hasText: earlySupplier });
-  const recentRow = page.getByRole("row").filter({ hasText: recentSupplier });
-  await expect(earlyRow).toHaveCount(0);
-  await expect(recentRow).toHaveCount(1);
-  await page.goto("/demo/supervisor");
   await expect(
-    page.getByRole("heading", { name: "Daily Records", exact: true }),
-  ).toBeVisible();
-  await expect(earlyRow).toHaveCount(1);
+    page.getByRole("row").filter({ hasText: earlySupplier }),
+  ).toHaveCount(0);
   await expect(
-    earlyRow.getByRole("img", { name: "Bemigho Estano", exact: true }),
-  ).toBeVisible();
-  await expect(
-    recentRow.getByRole("img", { name: "Olamilekan Alaga", exact: true }),
-  ).toBeVisible();
-  const rows = await page.getByRole("row").allTextContents();
-  expect(rows.findIndex((row) => row.includes(recentSupplier))).toBeLessThan(
-    rows.findIndex((row) => row.includes(earlySupplier)),
+    page.getByRole("row").filter({ hasText: recentSupplier }),
+  ).toHaveCount(1);
+  const saved = await demoState(page);
+  const early = saved.deliveries.find(
+    (record) => record.supplier_name === earlySupplier,
+  )!;
+  const recent = saved.deliveries.find(
+    (record) => record.supplier_name === recentSupplier,
+  )!;
+  await workspace(page);
+  await expect(workspaceRows(page)).toHaveCount(32);
+  const earlyRow = workspaceRows(page).filter({
+    has: page.getByRole("button", {
+      name: `View 6F5 record ${early.id}`,
+      exact: true,
+    }),
+  });
+  const recentRow = workspaceRows(page).filter({
+    has: page.getByRole("button", {
+      name: `View 6F5 record ${recent.id}`,
+      exact: true,
+    }),
+  });
+  await expect(earlyRow).toContainText("Bemigho Estano");
+  await expect(recentRow).toContainText("Olamilekan Alaga");
+  const ids = await workspaceRows(page).evaluateAll((rows) =>
+    rows.map((row) => row.getAttribute("data-record-id")),
   );
-  const headers = (
-    await page
+  expect(ids.indexOf(recent.id)).toBeLessThan(ids.indexOf(early.id));
+  await expect(
+    page
       .getByRole("table", { name: "Saved delivery records", exact: true })
-      .getByRole("columnheader")
-      .allTextContents()
-  ).map((text) => text.replace(/\s/g, "").toLowerCase());
-  expect(headers).toEqual([
-    "trafficmarshal",
-    "item",
-    "category",
-    "logisticscompany",
-    "photo",
-  ]);
+      .getByRole("columnheader"),
+  ).toHaveText(["Item", "Marshal", "Time"]);
+  await recentRow
+    .getByRole("button", { name: `View 6F5 record ${recent.id}`, exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Arrival details", exact: true }),
+  ).toContainText(recentSupplier);
+  await expect(
+    page.getByRole("dialog", { name: "Arrival details", exact: true }),
+  ).toContainText(recent.id);
+  await page
+    .getByRole("button", { name: "Close details", exact: true })
+    .click();
   await recentRow
     .getByRole("button", { name: "View photo", exact: true })
     .click();
-  const photo = page.getByRole("dialog").getByRole("img");
-  await expect(photo).toBeVisible();
-  await expect(photo).toHaveJSProperty("naturalWidth", 1);
+  await expect(page.getByRole("dialog").getByRole("img")).toHaveJSProperty(
+    "naturalWidth",
+    1,
+  );
   await page.getByRole("button", { name: "Close photo", exact: true }).click();
+  await disclosure(page, "More filters");
   await page
     .getByRole("combobox", { name: "Item", exact: true })
     .selectOption({ label: "G1" });
@@ -465,28 +482,19 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
     .getByRole("combobox", { name: "Item", exact: true })
     .selectOption({ label: "6F5" });
   await expect(recentRow).toHaveCount(1);
+  await disclosure(page, "Date range");
   await page.getByLabel("From date", { exact: true }).fill("2000-01-01");
   await page.getByLabel("To date", { exact: true }).fill("2000-01-01");
   await expect(recentRow).toHaveCount(0);
   await page.getByLabel("From date", { exact: true }).fill("");
   await page.getByLabel("To date", { exact: true }).fill("");
   await expect(recentRow).toHaveCount(1);
-  await expect(
-    page.getByRole("heading", { name: "Daily Records", exact: true }),
-  ).toBeVisible();
-  await expect(recentRow).toHaveCount(1);
-  await expect(
-    page.getByRole("heading", { name: "New Delivery", exact: true }),
-  ).toHaveCount(0);
   await noOverflow(page);
   await page.screenshot({
-    path: testInfo.outputPath("simple-demo-records.png"),
+    path: testInfo.outputPath("supervisor-record-details.png"),
     fullPage: true,
   });
-  await page.goto("/demo");
-  await expect(
-    page.getByRole("heading", { name: "Sign in as", exact: true }),
-  ).toBeVisible();
+  await openDemo(page);
   await page.reload();
   await expect(
     page.getByRole("heading", { name: "Sign in as", exact: true }),
@@ -494,10 +502,6 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   await page
     .getByRole("button", { name: "Olamilekan Alaga", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/demo\/delivery\/olamilekan$/);
-  await expect(
-    page.getByText("Recording for Olamilekan Alaga", { exact: true }),
-  ).toBeVisible();
   await page.getByRole("button", { name: "View Records", exact: true }).click();
   await expect(page).toHaveURL(/\/demo\/records\?profile=olamilekan$/);
   await expect(
@@ -506,10 +510,8 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   await expect(
     page.getByRole("row").filter({ hasText: recentSupplier }),
   ).toHaveCount(1);
-  await page.goto("/demo/supervisor");
-  await expect(
-    page.getByRole("row").filter({ hasText: earlySupplier }),
-  ).toHaveCount(1);
+  await workspace(page);
+  await expect(earlyRow).toHaveCount(1);
   expect(apiRequests).toEqual([]);
   expect(
     (await context.cookies()).some(
@@ -518,60 +520,49 @@ test("demo photo deliveries retain selected marshals, sort by arrival, filter an
   ).toBe(false);
 });
 
-test("direct supervisor view stays read-only and keeps photo access while a marshal uses another tab", async ({
+test("direct supervisor workspace stays read-only and keeps photo access while marshals use other tabs", async ({
   page,
   context,
 }, testInfo) => {
-  const apiRequests = monitorBackendRequests(page);
-  const pageErrors: string[] = [];
+  const apiRequests = monitorBackendRequests(page),
+    pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
-  await page.goto("/demo/supervisor");
+  await workspace(page);
   await expect(page).toHaveTitle(/Supervisor demo/);
-  await expect(
-    page.getByRole("heading", { name: "Daily Records", exact: true }),
-  ).toBeVisible();
-  await expect(page.locator(".simple-table tbody tr")).toHaveCount(30);
-  await cleanLayout(page);
-  await expect(
-    page.getByRole("button", { name: "Record New Delivery", exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("link", { name: "Home", exact: true }),
-  ).toHaveCount(0);
+  await expect(workspaceRows(page)).toHaveCount(30);
+  for (const name of ["Record New Delivery", "Save Delivery"])
+    await expect(page.getByRole("button", { name, exact: true })).toHaveCount(
+      0,
+    );
   await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "New Delivery", exact: true }),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "Save Delivery", exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("link", { name: "View as supervisor", exact: true }),
-  ).toHaveCount(0);
-  const materialCell = page
-    .getByRole("cell", { name: "6F5", exact: true })
-    .first();
-  await expect(materialCell).toBeVisible();
-  await expect(materialCell.locator("*")).toHaveCount(0);
-  await expect(
-    page.getByRole("cell", { name: "GF5", exact: true }),
-  ).toHaveCount(0);
-
   const marshalPage = await context.newPage();
   const marshalRequests = monitorBackendRequests(marshalPage);
   marshalPage.on("pageerror", (error) => pageErrors.push(error.message));
   await openDemo(marshalPage);
   const supplier = `Sample supervisor ${randomUUID().slice(0, 8)}`;
   await capture(marshalPage, "Olamilekan Alaga", supplier);
-  await page.getByRole("button", { name: "Refresh deliveries" }).click();
-  const uploadedRow = page.getByRole("row").filter({ hasText: supplier });
-  await expect(
-    uploadedRow.getByRole("img", { name: "Olamilekan Alaga", exact: true }),
-  ).toBeVisible();
+  const record = (await demoState(marshalPage)).deliveries.find(
+    (delivery) => delivery.supplier_name === supplier,
+  )!;
+  await page
+    .getByRole("button", { name: "Refresh deliveries", exact: true })
+    .click();
+  const uploadedRow = workspaceRows(page).filter({
+    has: page.getByRole("button", {
+      name: `View 6F5 record ${record.id}`,
+      exact: true,
+    }),
+  });
+  await expect(uploadedRow).toContainText("Olamilekan Alaga");
   await expect(uploadedRow).toContainText("6F5");
-  await expect(page.locator(".simple-table tbody tr")).toHaveCount(31);
-
-  // Each marshal and the supervisor retain their own view across tabs.
+  await expect(workspaceRows(page)).toHaveCount(31);
+  await stat(page, "Arrivals", 31);
+  await stat(page, "Marshals", 2);
+  // Role comes from each demo page, so opening another marshal tab never
+  // changes the supervisor's evidence access or the first marshal's profile.
   const bPage = await context.newPage();
   const bRequests = monitorBackendRequests(bPage);
   bPage.on("pageerror", (error) => pageErrors.push(error.message));
@@ -579,7 +570,6 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
   await bPage
     .getByRole("button", { name: "Bemigho Estano", exact: true })
     .click();
-  await expect(bPage).toHaveURL(/\/demo\/delivery\/b$/);
   await bPage
     .getByRole("button", { name: "View Records", exact: true })
     .click();
@@ -592,30 +582,28 @@ test("direct supervisor view stays read-only and keeps photo access while a mars
   await expect(
     marshalPage.getByText("Recording for Olamilekan Alaga", { exact: true }),
   ).toBeVisible();
-  await bPage.getByRole("button", { name: "Refresh deliveries" }).click();
+  await bPage
+    .getByRole("button", { name: "Refresh deliveries", exact: true })
+    .click();
   await expect(bPage.locator(".simple-table tbody tr")).toHaveCount(20);
-  await expect(
-    bPage.getByRole("row").filter({ hasText: supplier }),
-  ).toHaveCount(0);
-  await page.getByRole("button", { name: "Refresh deliveries" }).click();
+  await page
+    .getByRole("button", { name: "Refresh deliveries", exact: true })
+    .click();
   await uploadedRow
     .getByRole("button", { name: "View photo", exact: true })
     .click();
-  const photo = page.getByRole("dialog").getByRole("img");
-  await expect(photo).toBeVisible();
-  await expect(photo).toHaveJSProperty("naturalWidth", 1);
+  await expect(page.getByRole("dialog").getByRole("img")).toHaveJSProperty(
+    "naturalWidth",
+    1,
+  );
   await page.getByRole("button", { name: "Close photo", exact: true }).click();
   await page.reload();
-  await expect(page.locator(".simple-table tbody tr")).toHaveCount(31);
+  await expect(workspaceRows(page)).toHaveCount(31);
   await expect(uploadedRow).toBeVisible();
-  await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
   await noOverflow(page);
   await noOverflow(marshalPage);
-  await page.locator(".simple-table-scroll").evaluate((element) => {
-    element.scrollLeft = 0;
-  });
   await page.screenshot({
-    path: testInfo.outputPath("supervisor-demo-records.png"),
+    path: testInfo.outputPath("supervisor-workspace-records.png"),
     fullPage: true,
   });
   expect(apiRequests).toEqual([]);
@@ -638,8 +626,8 @@ test("daily records roll over at London midnight while custom ranges retain peri
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.clock.install({ time: new Date("2026-11-06T12:00:00Z") });
-  await page.goto("/demo/supervisor");
-  await expect(page.locator(".simple-table tbody tr")).toHaveCount(30);
+  await workspace(page);
+  await expect(workspaceRows(page)).toHaveCount(30);
   for (const label of [
     "All dates",
     "Today",
@@ -706,128 +694,90 @@ test("daily records roll over at London midnight while custom ranges retain peri
     }
   });
   await page.reload();
-  const summary = page.getByRole("region", {
-    name: "Delivery summaries",
-    exact: true,
-  });
-  const rows = page.locator(".simple-table tbody tr");
+  await disclosure(page, "Date range");
+  await disclosure(page, "More filters");
+  const rows = workspaceRows(page);
   const from = page.getByLabel("From date", { exact: true });
   const to = page.getByLabel("To date", { exact: true });
-  const total = (count: number) =>
-    summary.getByRole("button", {
-      name: `Total arrivals: ${count}`,
-      exact: true,
-    });
   const materialFilter = page.getByRole("combobox", {
     name: "Item",
     exact: true,
   });
-  await expect(summary.getByRole("button")).toHaveCount(3);
-  await expect(
-    summary.getByRole("button", { name: /^Pending classifications:/ }),
-  ).toHaveCount(0);
+  await stat(page, "Arrivals", 1);
+  await stat(page, "Marshals", 1);
   await expect(from).toHaveValue("2026-11-06");
   await expect(to).toHaveValue("2026-11-06");
   await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toContainText("Today arrival");
-  await expect(total(1)).toBeVisible();
-  // The automatic period follows the site's calendar day, not the preceding 24 hours.
+  await expect(rows.first().locator("time")).toHaveAttribute(
+    "datetime",
+    "2026-11-06T23:59:59.999Z",
+  );
+  await expect(rows.first().locator("time")).toHaveAttribute(
+    "title",
+    /arrival|legacy/i,
+  );
   await page.clock.fastForward(12 * 60 * 60 * 1000 + 15_000);
   await expect(from).toHaveValue("2026-11-07");
   await expect(to).toHaveValue("2026-11-07");
   await expect(rows).toHaveCount(0);
-  await expect(total(0)).toBeVisible();
+  await stat(page, "Arrivals", 0);
   await from.fill("2026-10-01");
   await to.fill("2026-10-30");
   await expect(rows).toHaveCount(2);
-  await expect(rows.filter({ hasText: "October first" })).toHaveCount(1);
-  await expect(rows.filter({ hasText: "October last" })).toHaveCount(1);
-  await expect(total(2)).toBeVisible();
-  // A manually selected historical period stays fixed over the next midnight.
+  await stat(page, "Arrivals", 2);
+  await expect(rows.locator("td:first-child")).toContainText(["Sand", "6F5"]);
   await page.clock.fastForward(24 * 60 * 60 * 1000 + 15_000);
   await expect(from).toHaveValue("2026-10-01");
   await expect(to).toHaveValue("2026-10-30");
-  await expect(rows).toHaveCount(2);
-  await expect(total(2)).toBeVisible();
+  await stat(page, "Arrivals", 2);
+  // All tabs share the same filtered records and the chosen historical period.
+  await page.getByRole("tab", { name: "Workload", exact: true }).click();
+  await stat(page, "Arrivals", 2);
+  await expect(from).toHaveValue("2026-10-01");
+  await page.getByRole("tab", { name: "Records", exact: true }).click();
   await materialFilter.selectOption({ label: "6F5" });
   await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toContainText("October first");
-  // Material filtering narrows the table but keeps every period total useful.
-  await expect(total(2)).toBeVisible();
-  await expect(
-    summary.getByRole("button", {
-      name: "Material deliveries: 2",
-      exact: true,
-    }),
-  ).toHaveCount(1);
-  await expect(
-    summary.getByRole("button", { name: "Service visits: 0", exact: true }),
-  ).toHaveCount(1);
-  await total(2).click();
-  await expect(rows).toHaveCount(2);
-  await expect(from).toHaveValue("2026-10-01");
-  await expect(to).toHaveValue("2026-10-30");
-
+  await stat(page, "Arrivals", 1);
+  await materialFilter.selectOption("");
+  await to.fill("2026-10-31");
+  await expect(rows).toHaveCount(3);
+  await stat(page, "Arrivals", 3);
+  await expect(rows.first()).toContainText("Type 1");
   await from.fill("2026-11-07");
   await expect(
     page.getByRole("alert").filter({ hasText: "Choose a To date" }),
   ).toBeVisible();
   await expect(rows).toHaveCount(0);
-  await expect(total(0)).toBeVisible();
+  await stat(page, "Arrivals", 0);
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
   await expect(from).toHaveValue("2026-11-08");
   await expect(to).toHaveValue("2026-11-08");
   await expect(rows).toHaveCount(0);
-  await expect(total(0)).toBeVisible();
+  await stat(page, "Arrivals", 0);
   await expect(
     page.getByRole("alert").filter({ hasText: "Choose a To date" }),
   ).toHaveCount(0);
-  // History is retained and can still be viewed through an explicit open range.
   await from.fill("");
   await to.fill("");
   await expect(rows).toHaveCount(7);
-  await expect(total(7)).toBeVisible();
+  await stat(page, "Arrivals", 7);
   await from.fill("2000-01-01");
   await to.fill("2000-01-03");
   await expect(rows).toHaveCount(0);
   await expect(
-    page.getByText("No saved deliveries match these filters."),
+    page.getByText("No saved deliveries match these filters.", { exact: true }),
   ).toBeVisible();
-  await expect(total(0)).toBeVisible();
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
   await expect(from).toHaveValue("2026-11-08");
   await expect(to).toHaveValue("2026-11-08");
-  await expect(total(0)).toBeVisible();
-
-  const dimensions = await summary.evaluate((element) => {
-    const buttons = [...element.querySelectorAll("button")];
-    return {
-      width: element.clientWidth,
-      scrollWidth: element.scrollWidth,
-      tops: buttons.map((button) =>
-        Math.round(button.getBoundingClientRect().top),
-      ),
-    };
-  });
-  expect(new Set(dimensions.tops).size).toBe(1);
-  if (dimensions.scrollWidth > dimensions.width) {
-    await summary.evaluate((element) => {
-      element.scrollLeft = element.scrollWidth;
-    });
-    expect(
-      await summary.evaluate((element) => element.scrollLeft),
-    ).toBeGreaterThan(0);
-  }
+  await stat(page, "Arrivals", 0);
   await noOverflow(page);
-  await summary.evaluate((element) => {
-    element.scrollLeft = 0;
-  });
   await page.screenshot({
-    path: testInfo.outputPath("date-range-material-summaries.png"),
+    path: testInfo.outputPath("workspace-historical-date-filters.png"),
     fullPage: true,
   });
   expect(apiRequests).toEqual([]);

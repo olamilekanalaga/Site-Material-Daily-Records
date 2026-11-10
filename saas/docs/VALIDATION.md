@@ -1,3 +1,28 @@
+# Gate supervisor workspace — 10 November 2026
+
+The `feat/supervisor-workspace` branch adds a frontend-only supervisor view on top of the existing demo. It is based on the existing unmerged backend-review branch so the reviewed demo continues to work; this change does not activate Supabase, production authentication or a live database. The marshal form, IndexedDB schema/engine, existing catalogue, migrations, archived dashboard and Vercel configuration are unchanged.
+
+The dark workspace has Arrivals / Marshals / To Classify cards and Records / Workload / Review tabs. All counters and tabs use the same filtered, deduplicated submitted arrivals. To Classify counts distinct pending catalogue IDs with matching arrivals; original names and arrival occurrences remain visible for review. Classification approval uses the existing demo operation and audit history, preserving the complete original delivery objects and evidence.
+
+| Check                                                    | Executed result                                                                                                                             |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript (`npm run typecheck`)                         | Passed                                                                                                                                      |
+| Unit/database suite (`npm test`)                         | **117/117 passed**, including six new supervisor model checks                                                                               |
+| Complete public demo browser suite (`npm run test:demo`) | **24/24 passed** in the final complete run, across phone/tablet/desktop                                                                     |
+| Optimised Next.js build (`npm run build`)                | Passed with Next.js 16.4.5 / Turbopack, TypeScript and all 13 static pages                                                                  |
+| Review and visual inspection                             | Independent read-only code review completed; phone Records and Review screenshots visually inspected; responsive checks include 320px width |
+| Hosted Auth/Storage or production rollout                | Not performed by this UI upgrade                                                                                                            |
+
+Browser scenarios cover both demo entrances, unchanged marshal capture, shared same-browser records, correct recording/legacy timestamps, date rollover and fixed custom ranges, date/marshal/item/category/type/classification filters, matching CSV output, evidence access, workload grouping/activity, keyboard tabs, and classification approval with unchanged delivery snapshots. The runner starts without Supabase credentials and verifies that public demo workflows issue no real company API requests or staff session cookies.
+
+The initial browser run passed 21 of 24 scenarios. The remaining three were one assertion repeated across viewports: it assumed original-name variants would display in creation order. The assertion now compares their exact contents without prescribing order, preserving whitespace/case and the full immutable-delivery checks. Record button labels were also improved to announce material names. The final complete 24-scenario run passed on the resulting source.
+
+The referenced supervisor illustration was not attached. The written dark layout has been implemented, but no exact screenshot comparison is claimed. Browser checks use Chromium device emulation and synthetic images; physical phone-camera behaviour remains a manual check. Records remain local to a browser profile and origin, so a new preview URL has its own demo storage and does not automatically show records from an older URL.
+
+See [workspace behaviour and counting rules](SUPERVISOR-WORKSPACE.md). Earlier validation below belongs to earlier implementation stages and is not a new hosted-backend verification.
+
+---
+
 # Production backend integration — review validation
 
 The `feat/production-delivery-backend` branch upgrades the existing application. It is prepared for pull-request review; production merge/deployment requires approval. The results below this section are **earlier release evidence**, not proof that the supplied hosted Supabase project is connected.

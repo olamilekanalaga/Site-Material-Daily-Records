@@ -10,6 +10,7 @@ import { Brand } from "../shared/brand";
 import { Login } from "../auth/login";
 import { SimpleForm } from "./simple-form";
 import { SimpleRecords } from "./simple-records";
+import { SupervisorWorkspace } from "./supervisor-workspace";
 import { LiveForm } from "./live-form";
 import {
   LiveRecords,
@@ -206,6 +207,18 @@ export function SimpleApp({
     portal !== "supervisor" &&
     (data.actor.role === "gate" || data.actor.role === "company_admin");
   const site = data.sites.find((item) => item.id === siteId);
+  if (supervisorDemo)
+    return (
+      <SupervisorWorkspace
+        data={data}
+        siteId={siteId}
+        onSiteChange={setSiteId}
+        onRefresh={load}
+        onSignOut={logout}
+        busy={busy}
+        error={error}
+      />
+    );
   const marshals = (data.marshals || []).filter(
     (item) =>
       item.active &&
