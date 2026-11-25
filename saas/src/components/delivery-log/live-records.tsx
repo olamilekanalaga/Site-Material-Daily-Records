@@ -305,8 +305,8 @@ export function LiveRecords({
                           src={marshalPhotoSource(marshal, data.mode)}
                           onError={onMarshalPhotoError}
                           alt=""
-                          width={36}
-                          height={36}
+                          width={28}
+                          height={28}
                         />
                       )}
                       <span>{record.marshal_name || record.creator_name}</span>
@@ -345,7 +345,7 @@ export function LiveRecords({
                   <td>
                     {record.evidence.length ? (
                       <button
-                        className="simple-photo-button"
+                        className={`simple-photo-button ${styles.photoButton}`}
                         onClick={() => setViewing(record)}
                       >
                         <Photo evidence={record.evidence[0]} thumbnail />
