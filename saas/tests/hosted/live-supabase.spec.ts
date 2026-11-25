@@ -177,6 +177,10 @@ for (const direction of ["IN", "OUT"] as const) {
         await viewer
           .getByRole("combobox", { name: "Current site", exact: true })
           .selectOption(siteId);
+      await viewer
+        .locator("summary")
+        .getByText("Filters", { exact: true })
+        .click();
       await viewer.getByLabel("From date", { exact: true }).fill("");
       await viewer.getByLabel("To date", { exact: true }).fill("");
       const table = viewer.getByRole("table", {

@@ -285,6 +285,28 @@ test("a failed upload resumes one server record and a separate supervisor can re
   await navigation.getByRole("link", { name: "Records", exact: true }).click();
   await expect(page).toHaveURL(/\/records$/);
   await expect(
+    page.getByRole("heading", { name: "Movement analytics" }),
+  ).toBeVisible();
+  const marshalFilters = page
+    .locator("summary")
+    .getByText("Filters", { exact: true });
+  await expect(page.getByLabel("From date", { exact: true })).toBeHidden();
+  await marshalFilters.click();
+  await page
+    .getByRole("combobox", { name: "Direction", exact: true })
+    .selectOption("IN");
+  await marshalFilters.click();
+  await expect(
+    records(page).getByRole("row").filter({ hasText: supplier }),
+  ).toHaveCount(0);
+  await marshalFilters.click();
+  await expect(
+    page.getByRole("combobox", { name: "Direction", exact: true }),
+  ).toHaveValue("IN");
+  await page
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
+  await expect(
     records(page).getByRole("row").filter({ hasText: supplier }),
   ).toHaveCount(1);
 
@@ -462,6 +484,10 @@ test("new material and supplier names survive refresh, remain reusable while pen
   const supervisorPage = await supervisorContext.newPage();
   try {
     await login(supervisorPage, "supervisor");
+    await supervisorPage
+      .locator("summary")
+      .getByText("Filters", { exact: true })
+      .click();
     const toDateInput = supervisorPage.getByLabel("To date", { exact: true });
     await expect(toDateInput).toBeVisible();
     const toDate = await toDateInput.boundingBox();
