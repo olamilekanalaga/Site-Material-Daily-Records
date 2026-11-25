@@ -267,7 +267,22 @@ test("a failed upload resumes one server record and a separate supervisor can re
   expect(matches[0].created_by).toBe(boot.actor.id);
   expect(matches[0].evidence).toHaveLength(1);
   expect(matches[0].submitted_at).toBeTruthy();
-  await page.getByRole("button", { name: "View Records", exact: true }).click();
+  const navigation = page.getByRole("navigation", {
+    name: "Traffic marshal navigation",
+  });
+  await expect(
+    page.getByRole("button", { name: "View Records", exact: true }),
+  ).toHaveCount(0);
+  await navigation
+    .getByRole("button", { name: "Profile", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Profile", exact: true }),
+  ).toBeVisible();
+  await expect(
+    navigation.getByRole("link", { name: "Home", exact: true }),
+  ).toHaveAttribute("href", "/gate");
+  await navigation.getByRole("link", { name: "Records", exact: true }).click();
   await expect(page).toHaveURL(/\/records$/);
   await expect(
     records(page).getByRole("row").filter({ hasText: supplier }),

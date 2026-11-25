@@ -47,13 +47,11 @@ export function LiveForm({
   site,
   marshal,
   onSaved,
-  onViewRecords,
 }: {
   data: Bootstrap;
   site: Site;
   marshal: Marshal;
   onSaved: () => Promise<void>;
-  onViewRecords: () => void;
 }) {
   const [direction, setDirection] = useState<"" | "IN" | "OUT">("");
   const [material, setMaterial] = useState("");
@@ -431,14 +429,6 @@ export function LiveForm({
           disabled={busy || restoring}
         >
           {busy ? "Saving delivery…" : "Save Delivery"}
-        </button>
-        <button
-          type="button"
-          className="secondary simple-view-records"
-          disabled={busy}
-          onClick={onViewRecords}
-        >
-          View Records
         </button>
         <p className="simple-help">
           A photograph supports the record; it does not independently confirm
