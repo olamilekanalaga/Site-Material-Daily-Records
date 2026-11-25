@@ -97,25 +97,33 @@ type CaptureContext =
 async function authenticate(request: Request): Promise<CaptureContext> {
   requestSafety(request);
   const jar = await cookies();
-  const token = jar.get("delivery_session")?.value || "";
-  assert(token, "Sign in required", 401);
-  if (appMode() === "local") return { client: null, actor: local.actor(token) };
-
-  let client: SupabaseClient;
-  try {
-    client = await remote.user(token);
-  } catch (error) {
-    if (!(error instanceof AppError) || error.status !== 401) throw error;
-    const refresh = jar.get("delivery_refresh")?.value;
-    assert(refresh, "Session expired. Sign in again.", 401);
-    const renewed = await remote.refresh(refresh);
-    await setTokens(
-      renewed.access,
-      renewed.refresh,
-      jar.get("delivery_remember")?.value === "1",
-    );
-    client = await remote.user(renewed.access);
+  const token = jar.get("delivery_session")?.value;
+  if (appMode() === "local") {
+    assert(token, "Sign in required", 401);
+    return { client: null, actor: local.actor(token) };
   }
+
+  if (token) {
+    try {
+      return { client: await remote.user(token) };
+    } catch (error) {
+      if (!(error instanceof AppError) || error.status !== 401) throw error;
+    }
+  }
+
+  const refresh = jar.get("delivery_refresh")?.value;
+  assert(
+    refresh,
+    token ? "Session expired. Sign in again." : "Sign in required",
+    401,
+  );
+  const renewed = await remote.refresh(refresh);
+  const client = await remote.user(renewed.access);
+  await setTokens(
+    renewed.access,
+    renewed.refresh,
+    jar.get("delivery_remember")?.value === "1",
+  );
   return { client };
 }
 

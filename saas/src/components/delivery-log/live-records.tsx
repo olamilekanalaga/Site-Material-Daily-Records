@@ -74,15 +74,6 @@ export function LiveRecords({
     };
   }, [timezone]);
   const range = customRange || { from: today, to: today };
-  const monthStart = new Date(`${today.slice(0, 7)}-01T00:00:00Z`);
-  monthStart.setUTCDate(0);
-  const previousMonthEnd = monthStart.toISOString().slice(0, 10);
-  const previousMonth = {
-    from: `${previousMonthEnd.slice(0, 7)}-01`,
-    to: previousMonthEnd,
-  };
-  const isPreviousMonth =
-    range.from === previousMonth.from && range.to === previousMonth.to;
   const invalid = Boolean(range.from && range.to && range.from > range.to);
   const selectedSupplier = data.suppliers.find((item) => item.id === supplier);
   const siteRecords = data.deliveries.filter(
@@ -116,16 +107,6 @@ export function LiveRecords({
         b.id.localeCompare(a.id),
     );
 
-  const materialCount = records.filter((record) =>
-    matchesMovementView(record.entry_type, "Materials"),
-  ).length;
-  const services = records.filter((record) =>
-    matchesMovementView(record.entry_type, "Services"),
-  );
-  const outCount = records.filter(
-    (record) => record.direction === "OUT",
-  ).length;
-  const unclassifiedCount = records.length - materialCount - services.length;
   function itemName(record: Delivery) {
     return (
       record.item_name ||
@@ -134,42 +115,33 @@ export function LiveRecords({
     );
   }
 
-  const materialTotals = new Map<
-    string,
-    { name: string; incoming: number; outgoing: number }
-  >();
-  if (view === "Materials") {
+  const totals = new Map<string, { label: string; count: number }>();
+  let unclassifiedCount = 0;
+  if (view === "Overview") {
+    const materialCount = records.filter((record) =>
+      matchesMovementView(record.entry_type, "Materials"),
+    ).length;
+    const serviceCount = records.filter((record) =>
+      matchesMovementView(record.entry_type, "Services"),
+    ).length;
+    totals.set("materials", {
+      label: "Material movements",
+      count: materialCount,
+    });
+    totals.set("services", { label: "Service records", count: serviceCount });
+    totals.set("records", { label: "Total records", count: records.length });
+    unclassifiedCount = records.length - materialCount - serviceCount;
+  } else {
     for (const record of records) {
-      const total = materialTotals.get(record.material_id) ?? {
-        name: itemName(record),
-        incoming: 0,
-        outgoing: 0,
-      };
-      if (record.direction === "OUT") total.outgoing++;
-      else total.incoming++;
-      materialTotals.set(record.material_id, total);
+      const existing = totals.get(record.material_id);
+      if (existing) existing.count++;
+      else
+        totals.set(record.material_id, { label: itemName(record), count: 1 });
     }
   }
-  const metrics =
-    view === "Materials"
-      ? [
-          ["Materials IN", records.length - outCount],
-          ["Materials OUT", outCount],
-          ["Total material movements", records.length],
-        ]
-      : view === "Services"
-        ? [
-            ["Service records", services.length],
-            [
-              "Service types",
-              new Set(services.map((record) => record.material_id)).size,
-            ],
-          ]
-        : [
-            ["Material movements", materialCount],
-            ["Service records", services.length],
-            ["Total records", records.length],
-          ];
+  const metrics = [...totals];
+  if (view !== "Overview")
+    metrics.sort(([, a], [, b]) => a.label.localeCompare(b.label));
 
   async function exportRows() {
     if (exporting || invalid) return;
@@ -211,72 +183,46 @@ export function LiveRecords({
           className={styles.analytics}
           aria-labelledby="movement-analytics"
         >
-          <h2 id="movement-analytics">Movement analytics</h2>
-          <dl>
-            {metrics.map(([label, count]) => (
-              <div key={label}>
-                <dt>{label}</dt>
-                <dd>{count}</dd>
-              </div>
-            ))}
-          </dl>
+          <h2 id="movement-analytics">
+            {view === "Overview"
+              ? "Movement analytics"
+              : view === "Materials"
+                ? "Materials recorded"
+                : "Services recorded"}
+          </h2>
+          {metrics.length > 0 ? (
+            <div
+              className={view === "Overview" ? undefined : styles.cardScroll}
+              role={view === "Overview" ? undefined : "region"}
+              aria-label={
+                view === "Overview"
+                  ? undefined
+                  : view === "Materials"
+                    ? "Material counts"
+                    : "Service counts"
+              }
+              tabIndex={view === "Overview" ? undefined : 0}
+            >
+              <dl>
+                {metrics.map(([id, { label, count }]) => (
+                  <div key={id}>
+                    <dt>{label}</dt>
+                    <dd>{count}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ) : (
+            <p className={styles.classificationNote}>
+              No {view.toLowerCase()} match these filters.
+            </p>
+          )}
           {view === "Overview" && unclassifiedCount > 0 && (
             <p className={styles.classificationNote}>
               {unclassifiedCount} awaiting classification
             </p>
           )}
         </section>
-      )}
-      <div
-        className={styles.periodChoices}
-        role="group"
-        aria-label="Reporting period"
-      >
-        <button
-          type="button"
-          className="secondary"
-          aria-pressed={!customRange}
-          onClick={() => setCustomRange(null)}
-        >
-          Today
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          aria-pressed={isPreviousMonth}
-          onClick={() => setCustomRange(previousMonth)}
-        >
-          Last month
-        </button>
-      </div>
-      {materialTotals.size > 0 && (
-        <div className="simple-table-scroll">
-          <table
-            className={`simple-table ${styles.recordsTable}`}
-            aria-label="Counts by material"
-          >
-            <thead>
-              <tr>
-                <th scope="col">Material</th>
-                <th scope="col">IN</th>
-                <th scope="col">OUT</th>
-                <th scope="col">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...materialTotals]
-                .sort(([, a], [, b]) => a.name.localeCompare(b.name))
-                .map(([id, total]) => (
-                  <tr key={id}>
-                    <td>{total.name}</td>
-                    <td>{total.incoming}</td>
-                    <td>{total.outgoing}</td>
-                    <td>{total.incoming + total.outgoing}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
       )}
       <details className={styles.filterDisclosure}>
         <summary>

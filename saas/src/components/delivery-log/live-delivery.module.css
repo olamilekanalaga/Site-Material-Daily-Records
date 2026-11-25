@@ -173,8 +173,16 @@
   background: var(--daily-soft);
 }
 
-.analytics dl:has(> div:nth-child(2):last-child) {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.cardScroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.cardScroll dl {
+  grid-auto-flow: column;
+  grid-auto-columns: clamp(116px, 25vw, 164px);
+  grid-template-columns: none;
+  padding-bottom: 6px;
 }
 
 .classificationNote {
@@ -219,17 +227,6 @@
 
 .filterDisclosure {
   border-bottom: 1px solid var(--daily-border);
-}
-
-.periodChoices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 20px;
-}
-
-.periodChoices button[aria-pressed="true"] {
-  background: var(--daily-action);
 }
 
 .filterDisclosure summary {

@@ -93,7 +93,6 @@ for (const direction of ["IN", "OUT"] as const) {
         await page
           .getByRole("combobox", { name: "Current site", exact: true })
           .selectOption(siteId);
-      await page.getByRole("button", { name: own!.name, exact: true }).click();
       const prefix = `QA smoke ${randomUUID().slice(0, 8)}`;
       const materialName = `${prefix} panels`,
         supplierName = `${prefix} supplier`;

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
-  Check,
   ClipboardList,
   House,
   LogOut,
@@ -11,17 +10,13 @@ import {
   UserRound,
   WifiOff,
 } from "lucide-react";
-import type { Bootstrap, Delivery, Marshal } from "@/lib/types";
+import type { Bootstrap, Delivery } from "@/lib/types";
 import { movementViews, type MovementView } from "@/lib/delivery-records";
 import { request } from "@/lib/client/offline";
 import { Brand } from "../shared/brand";
 import { Login } from "../auth/login";
 import { LiveForm } from "./live-form";
-import {
-  LiveRecords,
-  marshalPhotoSource,
-  onMarshalPhotoError,
-} from "./live-records";
+import { LiveRecords, onMarshalPhotoError } from "./live-records";
 import liveStyles from "./live-delivery.module.css";
 import {
   canReadReports,
@@ -30,8 +25,6 @@ import {
 } from "@/lib/access";
 
 type DeliveryActivity = { delivery: Delivery; added: boolean };
-
-const previewMarshalName = /^Preview GATE(?: \([0-9a-f-]{36}\))?$/i;
 
 export function SimpleApp({
   localDemo = false,
@@ -50,10 +43,9 @@ export function SimpleApp({
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [siteId, setSiteId] = useState("");
-  const [page, setPage] = useState<"home" | "entry" | "records" | "profile">(
+  const [page, setPage] = useState<"home" | "records" | "profile">(
     initialPage || "home",
   );
-  const [marshalId, setMarshalId] = useState("");
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(true);
   const lastWorkspace = useRef<Bootstrap | null>(null);
@@ -122,7 +114,6 @@ export function SimpleApp({
       setError("");
       if (!["gate", "company_admin"].includes(next.actor.role)) {
         setPage("records");
-        setMarshalId("");
       }
       return next;
     } catch (problem) {
@@ -180,13 +171,6 @@ export function SimpleApp({
     };
   }, [load, recordsPage, role]);
 
-  function selectMarshal(marshal: Marshal) {
-    if (marshal.can_record !== true) return;
-    setError("");
-    setMarshalId(marshal.id);
-    setPage("entry");
-  }
-
   async function logout() {
     signingOut.current = true;
     setBusy(true);
@@ -195,7 +179,6 @@ export function SimpleApp({
       lastWorkspace.current = null;
       setActivity([]);
       setData(null);
-      setMarshalId("");
       setSiteId("");
       setPage("home");
       setError("");
@@ -229,18 +212,14 @@ export function SimpleApp({
   }
 
   const site = data.sites.find((item) => item.id === siteId);
-  const marshals = (data.marshals || []).filter(
-    (item) =>
-      item.active &&
-      Boolean(item.user_id) &&
-      !previewMarshalName.test(item.name.trim()) &&
-      item.site_id === siteId &&
-      item.company_id === data.actor.company_id,
+  const ownMarshal = data.marshals?.find(
+    (marshal) =>
+      marshal.active &&
+      marshal.user_id === data.actor.id &&
+      marshal.site_id === siteId &&
+      marshal.company_id === data.actor.company_id &&
+      marshal.can_record === true,
   );
-  const selected = marshals.find(
-    (item) => item.id === marshalId && item.can_record === true,
-  );
-  const choosingProfile = page === "home" || (page === "entry" && !selected);
   const siteActivity = activity.filter(
     ({ delivery }) => delivery.site_id === siteId,
   );
@@ -294,21 +273,16 @@ export function SimpleApp({
         </div>
       </header>
       <div className="simple-main">
-        {marshalNavigation && (
+        {marshalNavigation && !recordsPage && (
           <nav
             className={liveStyles.marshalNav}
             aria-label="Traffic marshal navigation"
           >
-            <a
-              href="/gate"
-              aria-current={
-                page === "home" || page === "entry" ? "page" : undefined
-              }
-            >
+            <a href="/gate" aria-current={page === "home" ? "page" : undefined}>
               <House size={18} aria-hidden="true" />
               Home
             </a>
-            <a href="/records" aria-current={recordsPage ? "page" : undefined}>
+            <a href="/records">
               <ClipboardList size={18} aria-hidden="true" />
               Records
             </a>
@@ -366,18 +340,12 @@ export function SimpleApp({
               <div className="simple-page-title">
                 <div>
                   <h1>
-                    {recordsPage
-                      ? "Delivery Records"
-                      : choosingProfile
-                        ? "Gate Delivery"
-                        : "Record Delivery"}
+                    {recordsPage ? "Delivery Records" : "Record Delivery"}
                   </h1>
                   <p>
                     {recordsPage
                       ? "Saved deliveries for your site."
-                      : !choosingProfile
-                        ? "Enter the delivery details below."
-                        : "Choose your name to record a delivery."}
+                      : "Enter the delivery details below."}
                   </p>
                 </div>
                 <div className="simple-page-actions">
@@ -397,7 +365,7 @@ export function SimpleApp({
                           disabled={busy}
                           onClick={showRecords}
                         >
-                          {page === "home" ? "View Records" : "Back to Records"}
+                          View Records
                         </button>
                       )
                     ))}
@@ -425,7 +393,6 @@ export function SimpleApp({
                       value={siteId}
                       onChange={(event) => {
                         setSiteId(event.target.value);
-                        setMarshalId("");
                         setPage(recordsPage ? "records" : "home");
                       }}
                     >
@@ -447,7 +414,7 @@ export function SimpleApp({
                   </button>
                 </div>
               )}
-              {!online && page === "entry" && (
+              {!online && page === "home" && canRecord && (
                 <p className="simple-offline-note" role="status">
                   <WifiOff size={16} aria-hidden="true" /> Offline
                 </p>
@@ -476,69 +443,21 @@ export function SimpleApp({
                   siteId={site.id}
                   view={movementView}
                 />
+              ) : ownMarshal ? (
+                <LiveForm
+                  key={`${data.actor.id}:${ownMarshal.id}`}
+                  data={data}
+                  site={site}
+                  marshal={ownMarshal}
+                  onSaved={async () => {
+                    await load();
+                  }}
+                />
               ) : (
-                <>
-                  {choosingProfile && (
-                    <div
-                      className="simple-marshal-grid"
-                      aria-label="Select traffic marshal"
-                    >
-                      {marshals.map((marshal) => (
-                        <button
-                          key={marshal.id}
-                          type="button"
-                          className={`simple-marshal-card ${liveStyles.staffCard}`}
-                          aria-label={marshal.name}
-                          aria-pressed={selected?.id === marshal.id}
-                          disabled={busy || marshal.can_record !== true}
-                          onClick={() => selectMarshal(marshal)}
-                        >
-                          <img
-                            src={marshalPhotoSource(marshal, data.mode)}
-                            onError={onMarshalPhotoError}
-                            alt=""
-                          />
-                          <span>
-                            <span>
-                              {marshal.name}
-                              <small className={liveStyles.staffRole}>
-                                Traffic Marshal
-                              </small>
-                            </span>
-                            {selected?.id === marshal.id && (
-                              <Check size={20} aria-hidden="true" />
-                            )}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {choosingProfile && !marshals.length && (
-                    <section className="simple-panel simple-empty">
-                      No traffic marshals are configured for this site. Ask your
-                      company administrator to add them.
-                    </section>
-                  )}
-                  {choosingProfile &&
-                    marshals.length > 0 &&
-                    !marshals.some((item) => item.can_record) && (
-                      <p className="simple-help">
-                        No marshal profile is assigned to your account. Ask your
-                        company administrator to link your staff account.
-                      </p>
-                    )}
-                  {page === "entry" && selected && (
-                    <LiveForm
-                      key={`${data.actor.id}:${selected.id}`}
-                      data={data}
-                      site={site}
-                      marshal={selected}
-                      onSaved={async () => {
-                        await load();
-                      }}
-                    />
-                  )}
-                </>
+                <section className="simple-panel simple-empty">
+                  No marshal profile is assigned to your account at this site.
+                  Ask your company administrator to link your staff account.
+                </section>
               )}
             </>
           )}
