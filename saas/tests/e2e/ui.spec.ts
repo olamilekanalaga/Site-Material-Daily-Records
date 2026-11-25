@@ -290,6 +290,35 @@ test("a failed upload resumes one server record and a separate supervisor can re
   const marshalFilters = page
     .locator("summary")
     .getByText("Filters", { exact: true });
+  const marshalViews = page.getByRole("navigation", { name: "Movement views" });
+  await expect(page.getByText("Total records", { exact: true })).toBeVisible();
+  await marshalViews.getByRole("button", { name: "Services" }).click();
+  await expect(page.getByText("Service types", { exact: true })).toBeVisible();
+  await expect(
+    records(page).getByRole("columnheader", { name: "Provider" }),
+  ).toBeVisible();
+  await marshalViews.getByRole("button", { name: "Materials" }).click();
+  const materialSummary = page.getByRole("table", {
+    name: "Counts by material",
+  });
+  await expect(
+    materialSummary.getByRole("row").filter({ hasText: "6F5" }),
+  ).toBeVisible();
+  const period = page.getByRole("group", { name: "Reporting period" });
+  await period.getByRole("button", { name: "Last month" }).click();
+  await expect(
+    period.getByRole("button", { name: "Last month" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    records(page).getByRole("row").filter({ hasText: supplier }),
+  ).toHaveCount(0);
+  await period.getByRole("button", { name: "Today" }).click();
+  await expect(
+    records(page).getByRole("row").filter({ hasText: supplier }),
+  ).toHaveCount(1);
+  await expect(
+    page.getByText("Total material movements", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByLabel("From date", { exact: true })).toBeHidden();
   await marshalFilters.click();
   await page

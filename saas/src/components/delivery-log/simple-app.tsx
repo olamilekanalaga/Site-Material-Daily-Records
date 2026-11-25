@@ -322,20 +322,23 @@ export function SimpleApp({
             </button>
           </nav>
         )}
-        {recordsPage && (role === "supervisor" || role === "site_manager") && (
-          <nav className={liveStyles.marshalNav} aria-label="Movement views">
-            {movementViews.map((view) => (
-              <button
-                key={view}
-                type="button"
-                aria-pressed={movementView === view}
-                onClick={() => setMovementView(view)}
-              >
-                {view}
-              </button>
-            ))}
-          </nav>
-        )}
+        {recordsPage &&
+          (role === "gate" ||
+            role === "supervisor" ||
+            role === "site_manager") && (
+            <nav className={liveStyles.marshalNav} aria-label="Movement views">
+              {movementViews.map((view) => (
+                <button
+                  key={view}
+                  type="button"
+                  aria-pressed={movementView === view}
+                  onClick={() => setMovementView(view)}
+                >
+                  {view}
+                </button>
+              ))}
+            </nav>
+          )}
         <main>
           {profilePage ? (
             <section

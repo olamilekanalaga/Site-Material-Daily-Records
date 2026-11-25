@@ -74,6 +74,15 @@ export function LiveRecords({
     };
   }, [timezone]);
   const range = customRange || { from: today, to: today };
+  const monthStart = new Date(`${today.slice(0, 7)}-01T00:00:00Z`);
+  monthStart.setUTCDate(0);
+  const previousMonthEnd = monthStart.toISOString().slice(0, 10);
+  const previousMonth = {
+    from: `${previousMonthEnd.slice(0, 7)}-01`,
+    to: previousMonthEnd,
+  };
+  const isPreviousMonth =
+    range.from === previousMonth.from && range.to === previousMonth.to;
   const invalid = Boolean(range.from && range.to && range.from > range.to);
   const selectedSupplier = data.suppliers.find((item) => item.id === supplier);
   const siteRecords = data.deliveries.filter(
@@ -107,9 +116,60 @@ export function LiveRecords({
         b.id.localeCompare(a.id),
     );
 
+  const materialCount = records.filter((record) =>
+    matchesMovementView(record.entry_type, "Materials"),
+  ).length;
+  const services = records.filter((record) =>
+    matchesMovementView(record.entry_type, "Services"),
+  );
   const outCount = records.filter(
     (record) => record.direction === "OUT",
   ).length;
+  const unclassifiedCount = records.length - materialCount - services.length;
+  function itemName(record: Delivery) {
+    return (
+      record.item_name ||
+      data.materials.find((item) => item.id === record.material_id)?.name ||
+      "Historical material"
+    );
+  }
+
+  const materialTotals = new Map<
+    string,
+    { name: string; incoming: number; outgoing: number }
+  >();
+  if (view === "Materials") {
+    for (const record of records) {
+      const total = materialTotals.get(record.material_id) ?? {
+        name: itemName(record),
+        incoming: 0,
+        outgoing: 0,
+      };
+      if (record.direction === "OUT") total.outgoing++;
+      else total.incoming++;
+      materialTotals.set(record.material_id, total);
+    }
+  }
+  const metrics =
+    view === "Materials"
+      ? [
+          ["Materials IN", records.length - outCount],
+          ["Materials OUT", outCount],
+          ["Total material movements", records.length],
+        ]
+      : view === "Services"
+        ? [
+            ["Service records", services.length],
+            [
+              "Service types",
+              new Set(services.map((record) => record.material_id)).size,
+            ],
+          ]
+        : [
+            ["Material movements", materialCount],
+            ["Service records", services.length],
+            ["Total records", records.length],
+          ];
 
   async function exportRows() {
     if (exporting || invalid) return;
@@ -153,20 +213,70 @@ export function LiveRecords({
         >
           <h2 id="movement-analytics">Movement analytics</h2>
           <dl>
-            <div>
-              <dt>IN</dt>
-              <dd>{records.length - outCount}</dd>
-            </div>
-            <div>
-              <dt>OUT</dt>
-              <dd>{outCount}</dd>
-            </div>
-            <div>
-              <dt>Total movements</dt>
-              <dd>{records.length}</dd>
-            </div>
+            {metrics.map(([label, count]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{count}</dd>
+              </div>
+            ))}
           </dl>
+          {view === "Overview" && unclassifiedCount > 0 && (
+            <p className={styles.classificationNote}>
+              {unclassifiedCount} awaiting classification
+            </p>
+          )}
         </section>
+      )}
+      <div
+        className={styles.periodChoices}
+        role="group"
+        aria-label="Reporting period"
+      >
+        <button
+          type="button"
+          className="secondary"
+          aria-pressed={!customRange}
+          onClick={() => setCustomRange(null)}
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          aria-pressed={isPreviousMonth}
+          onClick={() => setCustomRange(previousMonth)}
+        >
+          Last month
+        </button>
+      </div>
+      {materialTotals.size > 0 && (
+        <div className="simple-table-scroll">
+          <table
+            className={`simple-table ${styles.recordsTable}`}
+            aria-label="Counts by material"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Material</th>
+                <th scope="col">IN</th>
+                <th scope="col">OUT</th>
+                <th scope="col">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...materialTotals]
+                .sort(([, a], [, b]) => a.name.localeCompare(b.name))
+                .map(([id, total]) => (
+                  <tr key={id}>
+                    <td>{total.name}</td>
+                    <td>{total.incoming}</td>
+                    <td>{total.outgoing}</td>
+                    <td>{total.incoming + total.outgoing}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
       )}
       <details className={styles.filterDisclosure}>
         <summary>
@@ -220,10 +330,14 @@ export function LiveRecords({
           <ItemSelector
             items={data.suppliers}
             value={supplier}
-            label="Supplier"
-            searchLabel="Search suppliers"
-            placeholder="All suppliers"
-            clearLabel="All suppliers"
+            label={view === "Services" ? "Provider" : "Supplier"}
+            searchLabel={
+              view === "Services" ? "Search providers" : "Search suppliers"
+            }
+            placeholder={
+              view === "Services" ? "All providers" : "All suppliers"
+            }
+            clearLabel={view === "Services" ? "All providers" : "All suppliers"}
             plainNames
             onSelect={setSupplier}
           />
@@ -242,9 +356,11 @@ export function LiveRecords({
       </details>
       <div className={styles.actions}>
         <span>
-          {customRange ? "Custom date range" : "Today · updates automatically"}{" "}
+          {customRange
+            ? `${range.from || "Any date"} to ${range.to || "Any date"}`
+            : "Today · updates automatically"}{" "}
           · {timezone} · {records.length}{" "}
-          {records.length === 1 ? "delivery" : "deliveries"}
+          {records.length === 1 ? "record" : "records"}
         </span>
         <div>
           <button
@@ -302,8 +418,8 @@ export function LiveRecords({
               {[
                 "Marshal",
                 "Direction",
-                "Material",
-                "Supplier",
+                view === "Services" ? "Service" : "Material",
+                view === "Services" ? "Provider" : "Supplier",
                 "Time",
                 "Photo",
               ].map((label) => (
@@ -344,13 +460,7 @@ export function LiveRecords({
                       {movementDirection}
                     </span>
                   </td>
-                  <td>
-                    {record.item_name ||
-                      data.materials.find(
-                        (item) => item.id === record.material_id,
-                      )?.name ||
-                      "Historical material"}
-                  </td>
+                  <td>{itemName(record)}</td>
                   <td>
                     {record.supplier_name ||
                       data.suppliers.find(

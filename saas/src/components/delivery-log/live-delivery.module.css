@@ -173,6 +173,16 @@
   background: var(--daily-soft);
 }
 
+.analytics dl:has(> div:nth-child(2):last-child) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.classificationNote {
+  margin-top: 10px;
+  color: var(--daily-muted);
+  font-size: 12px;
+}
+
 .analytics dt {
   color: var(--daily-muted);
   font-size: 12px;
@@ -209,6 +219,17 @@
 
 .filterDisclosure {
   border-bottom: 1px solid var(--daily-border);
+}
+
+.periodChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 20px;
+}
+
+.periodChoices button[aria-pressed="true"] {
+  background: var(--daily-action);
 }
 
 .filterDisclosure summary {
