@@ -207,13 +207,36 @@
   color: #89401f;
 }
 
+.filterDisclosure {
+  border-bottom: 1px solid var(--daily-border);
+}
+
+.filterDisclosure summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 24px;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.filterDisclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.filterDisclosure[open] summary svg {
+  transform: rotate(180deg);
+}
+
 .filters {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: end;
   gap: 16px;
   padding: 22px 24px;
-  border-bottom: 1px solid var(--daily-border);
 }
 
 .filters label {

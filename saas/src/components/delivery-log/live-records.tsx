@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type SyntheticEvent } from "react";
-import { ArrowLeftRight, ImageIcon } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, ImageIcon } from "lucide-react";
 import { canReadReports } from "@/lib/access";
 import type { Bootstrap, Delivery, Marshal } from "@/lib/types";
 import { normaliseItemName } from "@/lib/catalogue";
@@ -146,73 +146,100 @@ export function LiveRecords({
     <section
       className={`simple-panel simple-records-panel ${styles.filterPanel}`}
     >
-      <div className={styles.filters}>
-        <label>
-          From date
-          <input
-            type="date"
-            value={range.from}
-            max={range.to || undefined}
-            aria-invalid={invalid}
-            onChange={(event) =>
-              setCustomRange((previous) => ({
-                ...(previous || { from: today, to: today }),
-                from: event.target.value,
-              }))
+      {!invalid && (
+        <section
+          className={styles.analytics}
+          aria-labelledby="movement-analytics"
+        >
+          <h2 id="movement-analytics">Movement analytics</h2>
+          <dl>
+            <div>
+              <dt>IN</dt>
+              <dd>{records.length - outCount}</dd>
+            </div>
+            <div>
+              <dt>OUT</dt>
+              <dd>{outCount}</dd>
+            </div>
+            <div>
+              <dt>Total movements</dt>
+              <dd>{records.length}</dd>
+            </div>
+          </dl>
+        </section>
+      )}
+      <details className={styles.filterDisclosure}>
+        <summary>
+          Filters <ChevronDown size={18} aria-hidden="true" />
+        </summary>
+        <div className={styles.filters}>
+          <label>
+            From date
+            <input
+              type="date"
+              value={range.from}
+              max={range.to || undefined}
+              aria-invalid={invalid}
+              onChange={(event) =>
+                setCustomRange((previous) => ({
+                  ...(previous || { from: today, to: today }),
+                  from: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <label>
+            To date
+            <input
+              type="date"
+              value={range.to}
+              min={range.from || undefined}
+              aria-invalid={invalid}
+              onChange={(event) =>
+                setCustomRange((previous) => ({
+                  ...(previous || { from: today, to: today }),
+                  to: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <ItemSelector
+            items={viewItems}
+            value={material}
+            label={view === "Services" ? "Service" : "Material"}
+            searchLabel={
+              view === "Services" ? "Search services" : "Search materials"
+            }
+            placeholder={view === "Services" ? "All services" : "All materials"}
+            clearLabel={view === "Services" ? "All services" : "All materials"}
+            plainNames
+            onSelect={(id) =>
+              setItemFilters((filters) => ({ ...filters, [view]: id }))
             }
           />
-        </label>
-        <label>
-          To date
-          <input
-            type="date"
-            value={range.to}
-            min={range.from || undefined}
-            aria-invalid={invalid}
-            onChange={(event) =>
-              setCustomRange((previous) => ({
-                ...(previous || { from: today, to: today }),
-                to: event.target.value,
-              }))
-            }
+          <ItemSelector
+            items={data.suppliers}
+            value={supplier}
+            label="Supplier"
+            searchLabel="Search suppliers"
+            placeholder="All suppliers"
+            clearLabel="All suppliers"
+            plainNames
+            onSelect={setSupplier}
           />
-        </label>
-        <ItemSelector
-          items={viewItems}
-          value={material}
-          label={view === "Services" ? "Service" : "Material"}
-          searchLabel={
-            view === "Services" ? "Search services" : "Search materials"
-          }
-          placeholder={view === "Services" ? "All services" : "All materials"}
-          clearLabel={view === "Services" ? "All services" : "All materials"}
-          plainNames
-          onSelect={(id) =>
-            setItemFilters((filters) => ({ ...filters, [view]: id }))
-          }
-        />
-        <ItemSelector
-          items={data.suppliers}
-          value={supplier}
-          label="Supplier"
-          searchLabel="Search suppliers"
-          placeholder="All suppliers"
-          clearLabel="All suppliers"
-          plainNames
-          onSelect={setSupplier}
-        />
-        <label>
-          Direction
-          <select
-            value={direction}
-            onChange={(event) => setDirection(event.target.value)}
-          >
-            <option value="">All directions</option>
-            <option value="IN">IN</option>
-            <option value="OUT">OUT</option>
-          </select>
-        </label>
-      </div>
+          <label>
+            Direction
+            <select
+              value={direction}
+              onChange={(event) => setDirection(event.target.value)}
+            >
+              <option value="">All directions</option>
+              <option value="IN">IN</option>
+              <option value="OUT">OUT</option>
+            </select>
+          </label>
+        </div>
+      </details>
       <div className={styles.actions}>
         <span>
           {customRange ? "Custom date range" : "Today · updates automatically"}{" "}
@@ -255,28 +282,6 @@ export function LiveRecords({
         <p role="alert" className="simple-error">
           {error}
         </p>
-      )}
-      {canExport && !invalid && (
-        <section
-          className={styles.analytics}
-          aria-labelledby="movement-analytics"
-        >
-          <h2 id="movement-analytics">Movement analytics</h2>
-          <dl>
-            <div>
-              <dt>IN</dt>
-              <dd>{records.length - outCount}</dd>
-            </div>
-            <div>
-              <dt>OUT</dt>
-              <dd>{outCount}</dd>
-            </div>
-            <div>
-              <dt>Total movements</dt>
-              <dd>{records.length}</dd>
-            </div>
-          </dl>
-        </section>
       )}
       <p className="simple-table-hint">
         <ArrowLeftRight size={16} aria-hidden="true" />
