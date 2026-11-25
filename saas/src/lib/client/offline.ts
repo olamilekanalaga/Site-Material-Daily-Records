@@ -32,10 +32,6 @@ export async function clearDemoDrafts() {
 }
 
 export async function transport(url: string, options: RequestInit = {}) {
-  if (isDemoPath()) {
-    const { demoFetch } = await import("../demo/browser");
-    return demoFetch(url, options);
-  }
   return fetch(url, {
     ...options,
     credentials: "same-origin",
@@ -88,7 +84,7 @@ export async function downloadReport(url: string) {
   const href = URL.createObjectURL(await response.blob());
   const anchor = document.createElement("a");
   anchor.href = href;
-  anchor.download = "dj-civils-demo-delivery-report.csv";
+  anchor.download = "dj-civils-delivery-report.csv";
   document.body.append(anchor);
   anchor.click();
   anchor.remove();

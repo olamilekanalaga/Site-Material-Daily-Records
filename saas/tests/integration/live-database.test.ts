@@ -95,8 +95,8 @@ async function finish(input: Record<string, unknown>) {
 const refused = (work: Promise<unknown>) => assert.rejects(work);
 
 before(async () => {
-  await db.exec(`create role anon; create role authenticated; create role service_role bypassrls; create schema auth; create schema storage;
-    create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}');
+  await db.exec(`create role anon; create role authenticated; create role service_role bypassrls; create role supabase_auth_admin; create schema auth; create schema storage;
+    create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}', raw_app_meta_data jsonb default '{}', email_confirmed_at timestamptz, is_anonymous boolean not null default false);
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     grant usage on schema auth,public,storage to authenticated,anon,service_role;
     grant execute on function auth.uid() to authenticated,anon;
@@ -142,6 +142,8 @@ before(async () => {
   await db.exec(`alter table materials add column capture_hidden boolean;
     insert into materials(id,company_id,name,capture_hidden) values('${id(24)}','${company}','Cement',false);`);
   await migration("202611070001_live_delivery_backend.sql");
+  await migration("202611250001_delivery_movements.sql");
+  await migration("202611250002_streamlined_staff_auth.sql");
   await as(gate);
   const boot = await rpc("app_bootstrap");
   ownMarshal = boot.marshals.find(
@@ -706,4 +708,138 @@ test("live supervisor sees another device's persisted record/photo while other u
   await refused(rpc("log_delivery", fields()));
   await refused(db.query("select * from delivery_records"));
   await refused(db.query("select * from delivery_evidence"));
+});
+
+test("OUT survives submission and a retry cannot change it to IN", async () => {
+  await as(gate);
+  await refused(rpc("log_delivery", fields({ direction: "invalid" })));
+  const input = fields({ direction: "OUT" });
+  const draft = (await rpc("log_delivery", input)).delivery;
+  assert.equal(draft.direction, "OUT");
+  await refused(rpc("log_delivery", { ...input, direction: "IN" }));
+  await image(draft.id);
+  const { delivery } = await rpc("log_delivery", {
+    ...input,
+    intent: "submit",
+    version: draft.version,
+  });
+  assert.equal(delivery.direction, "OUT");
+  assert.ok(delivery.submitted_at);
+  await as(supervisor);
+  const boot = await rpc("app_bootstrap");
+  assert.equal(
+    boot.deliveries.find((row: { id: string }) => row.id === draft.id)
+      .direction,
+    "OUT",
+  );
+  assert.equal(
+    boot.deliveries.find((row: { id: string }) => row.id === legacy).direction,
+    "IN",
+  );
+});
+
+test("public registration immediately assigns a freely chosen staff role to an unused email, with role and photo isolation", async () => {
+  const users = [
+    { user: id(81), role: "gate" },
+    { user: id(82), role: "supervisor" },
+    { user: id(83), role: "site_manager" },
+  ];
+  await db.exec("reset role");
+  await db.query(
+    "insert into staff_private.registration_site(company_id,site_id) values($1,$2)",
+    [company, site],
+  );
+  const profile = (role: string) => ({
+    requested_role: role,
+    first_name: "New",
+    last_name: "Member",
+    phone: "07000000000",
+  });
+  const event = (role: string) => ({
+    user: {
+      email: "unlisted@example.invalid",
+      is_anonymous: false,
+      app_metadata: { provider: "email" },
+      user_metadata: profile(role),
+    },
+  });
+  await as(null, "anon");
+  await refused(rpc("staff_private.before_staff_signup", event("gate")));
+  await as(null, "supabase_auth_admin");
+  assert.deepEqual(
+    await rpc("staff_private.before_staff_signup", event("site_manager")),
+    {},
+  );
+  assert.equal(
+    (await rpc("staff_private.before_staff_signup", event("company_admin")))
+      .error.http_code,
+    403,
+  );
+
+  for (const { user, role } of users) {
+    await db.exec("reset role");
+    await db.query(
+      "insert into auth.users(id,email,raw_app_meta_data,raw_user_meta_data,email_confirmed_at) values($1,$2,$3::jsonb,$4::jsonb,now())",
+      [
+        user,
+        role + "@example.invalid",
+        JSON.stringify({ provider: "email" }),
+        JSON.stringify(profile(role)),
+      ],
+    );
+    await as(user);
+    const boot = await rpc("app_bootstrap");
+    assert.equal(boot.actor.role, role);
+    assert.equal(boot.actor.name, "New Member");
+    assert.deepEqual(
+      boot.sites.map((item: { id: string }) => item.id),
+      [site],
+    );
+    assert.equal(
+      boot.marshals.filter((m: { can_record: boolean }) => m.can_record).length,
+      role === "gate" ? 1 : 0,
+    );
+    if (role !== "gate") {
+      await refused(rpc("log_delivery", fields()));
+      await refused(
+        db.query("select review_delivery($1,'{}'::jsonb)", [storedDelivery.id]),
+      );
+    }
+    await db.query(
+      "insert into storage.objects(bucket_id,name) values('staff-portraits',$1)",
+      [`profiles/${user}`],
+    );
+    await refused(
+      db.query(
+        "insert into storage.objects(bucket_id,name) values('staff-portraits',$1)",
+        [`profiles/${outsider}`],
+      ),
+    );
+  }
+
+  await as(users[1].user);
+  assert.equal(
+    (
+      await db.query("select name from storage.objects where name=$1", [
+        `profiles/${users[0].user}`,
+      ])
+    ).rows.length,
+    1,
+  );
+  await as(outsider);
+  assert.equal(
+    (
+      await db.query("select name from storage.objects where name=$1", [
+        `profiles/${users[0].user}`,
+      ])
+    ).rows.length,
+    0,
+  );
+  await db.exec("reset role");
+  await db.query(
+    "update auth.users set raw_user_meta_data=$2::jsonb where id=$1",
+    [users[1].user, JSON.stringify(profile("company_admin"))],
+  );
+  await as(users[1].user);
+  assert.equal((await rpc("app_bootstrap")).actor.role, "supervisor");
 });

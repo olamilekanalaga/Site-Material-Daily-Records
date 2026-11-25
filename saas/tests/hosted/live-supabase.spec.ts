@@ -121,6 +121,9 @@ test("hosted Supabase persists a gate arrival and private image for a separate s
       buffer: png,
     });
     await page
+      .getByRole("combobox", { name: "Direction", exact: true })
+      .selectOption("OUT");
+    await page
       .getByRole("button", { name: "Save Delivery", exact: true })
       .click();
     await expect(page.getByRole("status")).toContainText("Delivery saved");

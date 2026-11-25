@@ -1,20 +1,13 @@
-import { json, route } from "@/lib/server/http";
-import { parseReview, uuid } from "@/lib/server/core";
-import { local } from "@/lib/server/local";
-import { remote } from "@/lib/server/supabase";
+import { AppError } from "@/lib/server/core";
+import { route } from "@/lib/server/http";
+
 export const runtime = "nodejs";
-export async function POST(
-  request: Request,
-  params: { params: Promise<{ id: string }> },
-) {
+
+export async function POST(request: Request) {
   return route(
     request,
-    async (c) => {
-      const id = uuid((await params.params).id);
-      const input = parseReview(await json(request));
-      return c.client
-        ? remote.review(c.client, id, input)
-        : local.review(c.actor, id, input);
+    async () => {
+      throw new AppError(403, "Delivery reviews are read-only.");
     },
     true,
   );

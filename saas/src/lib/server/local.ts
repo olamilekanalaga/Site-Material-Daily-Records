@@ -1,3 +1,4 @@
+import { rememberSeconds } from "../access";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -510,6 +511,7 @@ function logArrival(
     );
     assert(
       previous.capture_mode === "simple" &&
+        (previous.direction ?? "IN") === (input.direction ?? "IN") &&
         previous.capture_input &&
         JSON.stringify(previous.capture_input) === JSON.stringify(signature),
       "Saved draft details differ. Retry the original delivery or start a new one.",
@@ -647,6 +649,7 @@ function logArrival(
     recorded_at: stamp,
     arrival_at: input.corrected_arrival_at || stamp,
     correction_reason: input.correction_reason || "",
+    direction: input.direction ?? "IN",
     capture_input: signature,
     vehicle: "",
     ticket_number: "",
@@ -672,7 +675,7 @@ function logArrival(
 }
 
 export const local = {
-  login(email: string, pass: string, ip: string) {
+  login(email: string, pass: string, ip: string, remember = false) {
     const key = hash(email.toLowerCase() + ip);
     const attempt = db()
       .prepare("SELECT count,expires FROM attempts WHERE key=?")
@@ -701,7 +704,11 @@ export const local = {
     const token = randomBytes(32).toString("base64url");
     db()
       .prepare("INSERT INTO sessions VALUES(?,?,?)")
-      .run(hash(token), a.id, Date.now() + 8 * 3600000);
+      .run(
+        hash(token),
+        a.id,
+        Date.now() + (remember ? rememberSeconds : 8 * 3600) * 1000,
+      );
     audit(a, "auth.login", a.id, null, null, { session: "created" });
     return token;
   },

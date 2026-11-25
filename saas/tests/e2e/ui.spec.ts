@@ -80,6 +80,11 @@ async function attach(page: Page) {
   });
 }
 async function save(page: Page) {
+  const direction = page.getByRole("combobox", {
+    name: "Direction",
+    exact: true,
+  });
+  if (!(await direction.inputValue())) await direction.selectOption("IN");
   await page
     .getByRole("button", { name: "Save Delivery", exact: true })
     .click();
@@ -128,6 +133,13 @@ test("authorised gate accounts see both square profiles but can record only as t
       /vehicle registration|invoice number|tonnage|quantity|price/i,
     ),
   ).toHaveCount(0);
+  const direction = page.getByRole("combobox", {
+    name: "Direction",
+    exact: true,
+  });
+  await expect(direction).toHaveValue("");
+  await expect(direction).toHaveJSProperty("required", true);
+  await direction.selectOption("OUT");
   await chooseMaterial(page, "6F5");
   await expect(
     page.getByRole("combobox", { name: "Category", exact: true }),
@@ -176,6 +188,9 @@ test("a failed upload resumes one server record and a separate supervisor can re
   const boot = await login(page);
   const own = await selectOwnMarshal(page, boot);
   const supplier = `Upload recovery ${randomUUID().slice(0, 8)}`;
+  await page
+    .getByRole("combobox", { name: "Direction", exact: true })
+    .selectOption("OUT");
   await chooseMaterial(page, "6F5");
   await newSupplier(page, supplier);
   await attach(page);
@@ -259,6 +274,7 @@ test("a failed upload resumes one server record and a separate supervisor can re
     await expect(records(supervisorPage).getByRole("columnheader")).toHaveText([
       "Date",
       "Time",
+      "Direction",
       "Material",
       "Supplier",
       "Marshal",
@@ -269,6 +285,12 @@ test("a failed upload resumes one server record and a separate supervisor can re
       .filter({ hasText: supplier });
     await expect(row).toHaveCount(1);
     await expect(row).toContainText(own.name);
+    await expect(
+      row.getByRole("cell", { name: "OUT", exact: true }),
+    ).toBeVisible();
+    await expect(
+      supervisorPage.getByRole("heading", { name: "Movement analytics" }),
+    ).toBeVisible();
     await row.getByRole("button", { name: "View photo", exact: true }).click();
     const photo = supervisorPage.getByRole("dialog").getByRole("img");
     await expect(photo).toBeVisible();
@@ -454,15 +476,17 @@ test("staff sign-in entrances enforce assigned roles and sign-out removes privat
   context,
 }, info) => {
   await page.goto("/");
-  await expect(
-    page.getByRole("link", { name: "Traffic Marshal sign-in", exact: true }),
-  ).toHaveAttribute("href", "/sign-in/marshal");
-  await expect(
-    page.getByRole("link", {
-      name: "Supervisor / Site Manager sign-in",
-      exact: true,
-    }),
-  ).toHaveAttribute("href", "/sign-in/supervisor");
+  await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
+  const password = page.getByLabel("Password", { exact: true });
+  await page
+    .getByRole("button", { name: "Show password", exact: true })
+    .click();
+  await expect(password).toHaveAttribute("type", "text");
+  await page
+    .getByRole("button", { name: "Hide password", exact: true })
+    .click();
+  await expect(password).toHaveAttribute("type", "password");
+  await expect(password).toHaveAttribute("autocomplete", "current-password");
   await page.goto("/sign-in/supervisor");
   await page
     .getByLabel("Email address", { exact: true })
@@ -480,8 +504,25 @@ test("staff sign-in entrances enforce assigned roles and sign-out removes privat
   await page
     .getByLabel("Email address", { exact: true })
     .fill("supervisor@demo.invalid");
+  await page.getByRole("checkbox", { name: "Remember me" }).check();
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/records$/);
+  const saved = await context.storageState();
+  const session = saved.cookies.find(
+    (cookie) => cookie.name === "delivery_session",
+  );
+  expect(session?.httpOnly).toBe(true);
+  expect(session?.expires).toBeGreaterThan(Date.now() / 1000 + 24 * 3600);
+  const reopened = await context
+    .browser()!
+    .newContext({ baseURL: new URL(page.url()).origin, storageState: saved });
+  try {
+    const returnPage = await reopened.newPage();
+    await returnPage.goto("/");
+    await expect(returnPage).toHaveURL(/\/records$/);
+  } finally {
+    await reopened.close();
+  }
   await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Record New Delivery", exact: true }),
@@ -495,17 +536,22 @@ test("staff sign-in entrances enforce assigned roles and sign-out removes privat
   expect((await logoutComplete).status()).toBe(200);
   await expect(page).toHaveURL(/\/$/);
   expect((await page.request.get("/api/bootstrap")).status()).toBe(401);
+  const loggedOutSession = await context
+    .browser()!
+    .newContext({ baseURL: new URL(page.url()).origin, storageState: saved });
+  try {
+    expect(
+      (
+        await loggedOutSession.request.get(
+          new URL("/api/bootstrap", page.url()).href,
+        )
+      ).status(),
+    ).toBe(401);
+  } finally {
+    await loggedOutSession.close();
+  }
   await page.goto("/records");
   await expect(records(page)).toHaveCount(0);
-  await expect(
-    page.getByRole("group", { name: "Sign-in options", exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("link", {
-      name: "Supervisor / Site Manager sign-in",
-      exact: true,
-    })
-    .click();
   await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
   await noOverflow(page);
   await page.screenshot({
