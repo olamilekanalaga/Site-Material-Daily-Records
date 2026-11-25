@@ -209,17 +209,21 @@ export const remote = {
     mime: string,
     bytes: Uint8Array,
   ) {
-    const boot = await this.bootstrap(client);
-    const delivery = boot.deliveries.find((d) => d.id === deliveryId);
+    const [deliveryResult, evidenceResult] = await Promise.all([
+      client
+        .from("delivery_records")
+        .select("company_id,site_id")
+        .eq("id", deliveryId)
+        .maybeSingle(),
+      client.from("delivery_evidence").select("*").eq("id", id).maybeSingle(),
+    ]);
+    dbError(deliveryResult.error);
+    const delivery = deliveryResult.data;
     assert(delivery, "Delivery not found", 404);
-    const path = `${boot.actor.company_id}/${delivery.site_id}/${deliveryId}/${id}`;
+    dbError(evidenceResult.error);
+    const existing = evidenceResult.data;
+    const path = `${delivery.company_id}/${delivery.site_id}/${deliveryId}/${id}`;
     const sha256 = createHash("sha256").update(bytes).digest("hex");
-    const { data: existing, error: lookupError } = await client
-      .from("delivery_evidence")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-    dbError(lookupError);
     if (existing) {
       assert(
         existing.delivery_id === deliveryId &&

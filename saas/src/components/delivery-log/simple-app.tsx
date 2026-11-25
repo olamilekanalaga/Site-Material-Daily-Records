@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, LogOut, RefreshCw, WifiOff } from "lucide-react";
-import type { Bootstrap, Marshal } from "@/lib/types";
+import { Bell, Check, LogOut, RefreshCw, WifiOff } from "lucide-react";
+import type { Bootstrap, Delivery, Marshal } from "@/lib/types";
 import { request } from "@/lib/client/offline";
 import { Brand } from "../shared/brand";
 import { Login } from "../auth/login";
@@ -13,7 +13,15 @@ import {
   onMarshalPhotoError,
 } from "./live-records";
 import liveStyles from "./live-delivery.module.css";
-import { staffDashboard, type SignInPortal } from "@/lib/access";
+import {
+  canReadReports,
+  staffDashboard,
+  type SignInPortal,
+} from "@/lib/access";
+
+type DeliveryActivity = { delivery: Delivery; added: boolean };
+
+const previewMarshalName = /^Preview GATE(?: \([0-9a-f-]{36}\))?$/i;
 
 export function SimpleApp({
   localDemo = false,
@@ -38,17 +46,27 @@ export function SimpleApp({
   const [marshalId, setMarshalId] = useState("");
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(true);
-  const hasWorkspace = useRef(false);
+  const lastWorkspace = useRef<Bootstrap | null>(null);
+  const refreshing = useRef(false);
+  const signingOut = useRef(false);
+  const [activity, setActivity] = useState<DeliveryActivity[]>([]);
+  const role = data?.actor.role;
+  const canRecord =
+    portal !== "supervisor" && (role === "gate" || role === "company_admin");
+  const recordsPage = page === "records" || !canRecord;
 
   const load = useCallback(async (): Promise<Bootstrap | null> => {
     if (!workspaceEnabled) {
       setLoaded(true);
       return null;
     }
+    if (refreshing.current || signingOut.current) return null;
+    refreshing.current = true;
     try {
       const next = await request<Bootstrap>(
         portal ? `/api/bootstrap?portal=${portal}` : "/api/bootstrap",
       );
+      if (signingOut.current) return null;
       if (
         window.location.pathname === "/" ||
         window.location.pathname.startsWith("/sign-in/")
@@ -56,7 +74,29 @@ export function SimpleApp({
         window.location.replace(staffDashboard(next.actor.role));
         return next;
       }
-      hasWorkspace.current = true;
+      const previous = lastWorkspace.current;
+      if (
+        previous?.actor.id === next.actor.id &&
+        previous.actor.company_id === next.actor.company_id &&
+        canReadReports(next.actor.role)
+      ) {
+        const submitted = new Map(
+          previous.deliveries
+            .filter((delivery) => delivery.submitted_at)
+            .map((delivery) => [delivery.id, delivery.version]),
+        );
+        const changes: DeliveryActivity[] = [];
+        for (const delivery of next.deliveries) {
+          if (!delivery.submitted_at) continue;
+          const version = submitted.get(delivery.id);
+          if (version !== delivery.version)
+            changes.push({ delivery, added: version === undefined });
+        }
+        if (changes.length) setActivity(changes);
+      } else {
+        setActivity([]);
+      }
+      lastWorkspace.current = next;
       setData(next);
       setSiteId((previous) =>
         next.sites.some((site) => site.id === previous)
@@ -70,8 +110,20 @@ export function SimpleApp({
       }
       return next;
     } catch (problem) {
+      if (signingOut.current) return null;
+      if (
+        lastWorkspace.current &&
+        problem instanceof Error &&
+        ["Sign in required", "Session expired. Sign in again."].includes(
+          problem.message,
+        )
+      ) {
+        lastWorkspace.current = null;
+        setData(null);
+        setActivity([]);
+      }
       setError(
-        !hasWorkspace.current &&
+        !lastWorkspace.current &&
           problem instanceof Error &&
           problem.message === "Sign in required"
           ? ""
@@ -79,6 +131,7 @@ export function SimpleApp({
       );
       return null;
     } finally {
+      refreshing.current = false;
       setLoaded(true);
     }
   }, [workspaceEnabled, portal]);
@@ -95,6 +148,22 @@ export function SimpleApp({
     };
   }, [load]);
 
+  useEffect(() => {
+    if (!recordsPage || !role) return;
+    const refreshVisibleRecords = () => {
+      if (document.visibilityState === "visible" && navigator.onLine)
+        void load();
+    };
+    const timer = window.setInterval(refreshVisibleRecords, 5000);
+    document.addEventListener("visibilitychange", refreshVisibleRecords);
+    window.addEventListener("online", refreshVisibleRecords);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshVisibleRecords);
+      window.removeEventListener("online", refreshVisibleRecords);
+    };
+  }, [load, recordsPage, role]);
+
   function selectMarshal(marshal: Marshal) {
     if (marshal.can_record !== true) return;
     setError("");
@@ -103,10 +172,12 @@ export function SimpleApp({
   }
 
   async function logout() {
+    signingOut.current = true;
     setBusy(true);
     try {
       await request("/api/auth/logout", { method: "POST" });
-      hasWorkspace.current = false;
+      lastWorkspace.current = null;
+      setActivity([]);
       setData(null);
       setMarshalId("");
       setSiteId("");
@@ -114,6 +185,7 @@ export function SimpleApp({
       setError("");
       window.location.assign("/");
     } catch {
+      signingOut.current = false;
       setError("Sign out could not be completed. Reconnect and try again.");
     } finally {
       setBusy(false);
@@ -140,13 +212,12 @@ export function SimpleApp({
     );
   }
 
-  const canRecord =
-    portal !== "supervisor" &&
-    (data.actor.role === "gate" || data.actor.role === "company_admin");
   const site = data.sites.find((item) => item.id === siteId);
   const marshals = (data.marshals || []).filter(
     (item) =>
       item.active &&
+      Boolean(item.user_id) &&
+      !previewMarshalName.test(item.name.trim()) &&
       item.site_id === siteId &&
       item.company_id === data.actor.company_id,
   );
@@ -154,7 +225,21 @@ export function SimpleApp({
     (item) => item.id === marshalId && item.can_record === true,
   );
   const choosingProfile = page === "home" || (page === "entry" && !selected);
-  const recordsPage = page === "records" || !canRecord;
+  const siteActivity = activity.filter(
+    ({ delivery }) => delivery.site_id === siteId,
+  );
+  const [latestActivity] = siteActivity;
+  let notice = "";
+  if (latestActivity && canReadReports(data.actor.role)) {
+    const { delivery, added } = latestActivity;
+    if (siteActivity.length > 1) {
+      notice = `${siteActivity.length} deliveries changed.`;
+    } else if (added) {
+      notice = `${delivery.marshal_name || delivery.creator_name} just added a delivery.`;
+    } else {
+      notice = "A delivery was just updated.";
+    }
+  }
   function showRecords() {
     window.location.assign("/records");
   }
@@ -176,6 +261,11 @@ export function SimpleApp({
           )}
           <span>
             Signed in as <strong>{data.actor.name}</strong>
+            <small className={liveStyles.staffRole}>
+              {data.actor.role === "gate"
+                ? "Traffic Marshal"
+                : data.actor.role.replaceAll("_", " ")}
+            </small>
           </span>
           <button
             className="simple-signout"
@@ -262,6 +352,15 @@ export function SimpleApp({
               </label>
             )}
           </div>
+          {recordsPage && notice && (
+            <div className={liveStyles.activityNotice}>
+              <Bell size={18} aria-hidden="true" />
+              <p role="status">{notice}</p>
+              <button type="button" onClick={() => setActivity([])}>
+                Dismiss
+              </button>
+            </div>
+          )}
           {!online && page === "entry" && (
             <p className="simple-offline-note" role="status">
               <WifiOff size={16} aria-hidden="true" /> Offline
@@ -309,7 +408,12 @@ export function SimpleApp({
                         alt=""
                       />
                       <span>
-                        {marshal.name}
+                        <span>
+                          {marshal.name}
+                          <small className={liveStyles.staffRole}>
+                            Traffic Marshal
+                          </small>
+                        </span>
                         {selected?.id === marshal.id && (
                           <Check size={20} aria-hidden="true" />
                         )}

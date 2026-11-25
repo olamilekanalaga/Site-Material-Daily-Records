@@ -9,10 +9,10 @@ import styles from "./smart-entry.module.css";
 export function ItemSelector({
   items,
   value,
-  custom,
-  customName,
-  usage,
-  disabled,
+  custom = false,
+  customName = "",
+  usage = {},
+  disabled = false,
   placeholder = "Choose an item",
   selectedLabel,
   label = "Item / material / activity",
@@ -23,16 +23,17 @@ export function ItemSelector({
   maxLength = 160,
   includePending = false,
   plainNames = false,
+  clearLabel,
   onSelect,
   onCustom,
   onCustomName,
 }: {
   items: CatalogueItem[];
   value: string;
-  custom: boolean;
-  customName: string;
-  usage: Record<string, number>;
-  disabled: boolean;
+  custom?: boolean;
+  customName?: string;
+  usage?: Record<string, number>;
+  disabled?: boolean;
   placeholder?: string;
   selectedLabel?: string;
   label?: string;
@@ -43,9 +44,10 @@ export function ItemSelector({
   maxLength?: number;
   includePending?: boolean;
   plainNames?: boolean;
+  clearLabel?: string;
   onSelect: (id: string) => void;
-  onCustom: (selected: boolean) => void;
-  onCustomName: (name: string) => void;
+  onCustom?: (selected: boolean) => void;
+  onCustomName?: (name: string) => void;
 }) {
   const id = useId();
   const [query, setQuery] = useState("");
@@ -58,17 +60,22 @@ export function ItemSelector({
   const searchKey = normaliseItemName(query);
   const matches = plainNames
     ? items
-        .filter((item) => item.active)
+        .filter((item) => item.active || clearLabel !== undefined)
         .filter(
           (item) =>
-            !searchKey || normaliseItemName(item.name).includes(searchKey),
+            !searchKey || normaliseItemName(item.name).startsWith(searchKey),
         )
         .sort(
           (a, b) =>
             (usage[b.id] || 0) - (usage[a.id] || 0) ||
             a.name.localeCompare(b.name, "en-GB"),
         )
-    : searchCatalogue(items, query, usage, { includePending });
+    : searchCatalogue(items, query, usage, {
+        includePending,
+        prefixOnly: true,
+      });
+  const extraOption = clearLabel || (onCustom ? otherLabel : "");
+  const optionCount = matches.length + Number(Boolean(extraOption));
   const expanded = open && !disabled;
 
   useEffect(() => {
@@ -89,11 +96,11 @@ export function ItemSelector({
   function select(item?: CatalogueItem) {
     if (item) {
       onSelect(item.id);
-      onCustom(false);
-    } else {
+      onCustom?.(false);
+    } else if (extraOption) {
       onSelect("");
-      onCustom(true);
-      if (query) onCustomName(query);
+      onCustom?.(true);
+      if (query) onCustomName?.(query);
     }
     setOpen(false);
     trigger.current?.focus();
@@ -111,7 +118,7 @@ export function ItemSelector({
       else {
         const next =
           event.key === "ArrowDown"
-            ? Math.min(active + 1, matches.length)
+            ? Math.min(active + 1, Math.max(0, optionCount - 1))
             : Math.max(active - 1, 0);
         setActive(next);
         document
@@ -147,7 +154,7 @@ export function ItemSelector({
           aria-expanded={expanded}
           aria-controls={expanded ? `${id}-options` : undefined}
           aria-activedescendant={
-            expanded ? `${id}-option-${active}` : undefined
+            expanded && optionCount ? `${id}-option-${active}` : undefined
           }
           disabled={disabled}
           className={styles.dropdownTrigger}
@@ -163,6 +170,7 @@ export function ItemSelector({
               {searchLabel}
               <input
                 type="search"
+                autoFocus
                 autoComplete="off"
                 placeholder={
                   searchLabel === "Search items"
@@ -186,7 +194,9 @@ export function ItemSelector({
             >
               {!matches.length && (
                 <p className={styles.noMatches}>
-                  No matching item. You can record a new one below.
+                  {onCustom
+                    ? "No matching item. You can record a new one below."
+                    : "No matching names."}
                 </p>
               )}
               {matches.map((item, index) => (
@@ -206,18 +216,20 @@ export function ItemSelector({
                   )}
                 </button>
               ))}
-              <button
-                id={`${id}-option-${matches.length}`}
-                type="button"
-                role="option"
-                tabIndex={-1}
-                aria-selected={active === matches.length}
-                className={styles.other}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => select()}
-              >
-                {otherLabel}
-              </button>
+              {extraOption && (
+                <button
+                  id={`${id}-option-${matches.length}`}
+                  type="button"
+                  role="option"
+                  tabIndex={-1}
+                  aria-selected={active === matches.length}
+                  className={styles.other}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => select()}
+                >
+                  {extraOption}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -231,7 +243,7 @@ export function ItemSelector({
             value={customName}
             disabled={disabled}
             placeholder={customPlaceholder}
-            onChange={(event) => onCustomName(event.target.value)}
+            onChange={(event) => onCustomName?.(event.target.value)}
           />
         </label>
       )}

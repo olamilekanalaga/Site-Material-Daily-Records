@@ -184,12 +184,11 @@ for (const direction of ["IN", "OUT"] as const) {
         exact: true,
       });
       await expect(table.getByRole("columnheader")).toHaveText([
-        "Date",
-        "Time",
+        "Marshal",
         "Direction",
         "Material",
         "Supplier",
-        "Marshal",
+        "Time",
         "Photo",
       ]);
       const row = table.getByRole("row").filter({ hasText: supplierName });

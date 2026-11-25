@@ -414,7 +414,7 @@ export function searchCatalogue(
   items: CatalogueItem[],
   query: string,
   usage: Record<string, number> = {},
-  options: { includePending?: boolean } = {},
+  options: { includePending?: boolean; prefixOnly?: boolean } = {},
 ): CatalogueItem[] {
   const normalised = normaliseItemName(query);
   const seen = new Set<string>();
@@ -424,6 +424,11 @@ export function searchCatalogue(
       (item) =>
         item.active &&
         (item.approval_status === "Approved" || options.includePending),
+    )
+    .filter(
+      (item) =>
+        !options.prefixOnly ||
+        normaliseItemName(item.name).startsWith(normalised),
     )
     .map((item) => ({ item, score: matchScore(item, normalised) }))
     .filter(({ score }) => score > 0)
