@@ -1,6 +1,6 @@
 # Deployment and Supabase setup
 
-This guide connects the existing `saas/` application to an approved Supabase workspace. The public browser demo remains separate at `/demo`. Production integration work is prepared on `feat/production-delivery-backend`; do not merge the pull request, change production environment variables or deploy production before approval.
+This guide connects the existing `saas/` application to an approved Supabase workspace. Former demo URLs lead to staff sign-in. Keep production changes pending until the staging checks pass and release is approved.
 
 The existing application hostname is `https://site-material-daily-records-saas.vercel.app`. The supplied Supabase project URL is `https://qbiinhoxjdqegvzxmecr.supabase.co`. A healthy project and a public URL do not establish that the app's tables, staff accounts, Auth settings or Storage policies are installed.
 
@@ -21,6 +21,8 @@ For a **new, empty application database**, apply these files in filename order u
 1. `supabase/migrations/202611050001_delivery_pilot.sql`
 2. `supabase/migrations/202611060001_simple_delivery_log.sql`
 3. `supabase/migrations/202611070001_live_delivery_backend.sql`
+4. `supabase/migrations/202611250001_delivery_movements.sql`
+5. `supabase/migrations/202611250002_streamlined_staff_auth.sql`
 
 The first two files create the existing tenant schema, RLS, private delivery evidence and simple-capture workflow. The third file is the additive live upgrade: material/supplier catalogue metadata, account-bound marshal cards, private portraits, server recording timestamps, explicit time correction and checked catalogue/capture RPCs.
 
@@ -30,17 +32,24 @@ The migrations create private `delivery-evidence` and `staff-portraits` buckets.
 
 The live migration retains existing records and workflow functions. Ambiguous or unbound legacy marshal cards require an operator to map the correct Auth user; a name match must not silently grant another employee's profile.
 
-## 3. Create approved individual accounts
+## 3. Enable public registration
 
-In **Supabase → Authentication**, keep email/password sign-in enabled and public registration disabled. Set the application site URL to the intended preview or live origin and allow only the redirect URLs that are actually needed.
+Create the company and site, then select the one site new accounts should join.
 
-Create an individual, confirmed Auth account for each approved employee. Record its Auth UUID, deliver the initial password through a secure channel and never share a single marshal account. This MVP does not implement an invitation callback, self-service password setup or a password-recovery page; account creation and recovery are operator-managed in Supabase. There is no Google sign-in or identity-document upload requirement.
+```sql
+insert into staff_private.registration_site (company_id, site_id)
+values ('<company UUID>', '<site UUID>');
+```
 
-Auth account creation alone grants no company access. Each account also needs the intended company membership, stored role and site assignment. A gate account must be bound to its own `traffic_marshals.user_id`. Other configured site cards may be shown disabled; clicking a card never changes the signed-in identity or grants supervisor access.
+In Supabase Authentication, configure the **Before User Created** Postgres hook as `staff_private.before_staff_signup` and enable email/password sign-ups. Turn **Confirm email** off and keep anonymous sign-ins disabled. Set `STAFF_REGISTRATION_ENABLED=true` in the app environment. An email is an account identifier. The app requires no mailbox or external email service, and offers no email password recovery.
+
+Any visitor can register and choose a role. Only assign a site whose records and pictures are meant to be visible to anyone who signs up. The hook accepts the three staff roles, and PostgreSQL saves the company, site and role on account creation. Traffic marshals automatically receive their own marshal card. Supervisors and site managers can view records, pictures and analytics.
+
+In staging, create an account with a unique email address you do not receive mail at. Confirm immediate sign-in, the expected dashboard and a private profile upload. Sign out, sign back in with Remember me, restart the browser and confirm the session resumes. Explicitly sign out and confirm that access ends. To run this browser journey against a disposable staging site, set `RUN_OPEN_SIGNUP_SMOKE=1` and `HOSTED_SMOKE_BASE_URL`, then run `npx playwright test --config=playwright.hosted.config.ts open-registration`. The test creates one synthetic site-manager account and profile picture.
 
 ## 4. Provision the company, site and staff roster
 
-Use the new **operator-only** script after all three migrations. The older `setup-supabase-demo.mjs --demo-only` creates fictional fixture accounts and is retained for reference; it is not live company onboarding.
+Use the new **operator-only** script after applying the ordered migrations. The older `setup-supabase-demo.mjs --demo-only` creates fictional fixture accounts and is retained for reference; it is not live company onboarding.
 
 Copy `scripts/provision-site.example.json` to `site-config.local.json` or a protected location outside Git. Replace every placeholder with reviewed company/site/card UUIDs, approved names and the already-created Auth UUIDs. The example intentionally contains invalid placeholder IDs so it cannot be applied accidentally. Generate new company/site/card UUIDs once and retain the reviewed config for safe retries. Reuse actual IDs for an existing workspace.
 
@@ -113,12 +122,12 @@ Use the focused API/hosted smoke commands recorded in [validation](VALIDATION.md
 
 Using approved test accounts and clearly marked test records in the intended hosted workspace:
 
-1. Sign in as a marshal at `/gate`; select only their authorised card.
+1. Sign in as a marshal at `/gate` and select their authorised card. Verify that the entry form requires IN or OUT, then save one of each.
 2. Choose or manually add a material and supplier, then take/upload a JPEG, PNG or WebP image up to 3 MiB.
 3. Save. Confirm success appears only after the private image and submitted database record are persisted.
 4. Refresh. Confirm the same record, selected catalogues and private photo remain available.
-5. Sign in as an assigned supervisor on another device at `/records`; verify the same record/photo and date/material/supplier filters.
-6. Confirm the Date, Time, Material, Supplier, Marshal and Photo table is ordered by delivery time, newest first, and CSV matches the filtered rows. The server recording timestamp remains separate from a corrected delivery time.
+5. Sign in as an assigned supervisor on another device at `/records`. Verify the records, private photos, filters and read-only IN/OUT totals.
+6. Confirm the Date, Time, Direction, Material, Supplier, Marshal and Photo table is ordered by delivery time, newest first, and CSV matches the filtered rows. The server recording timestamp remains separate from a corrected delivery time.
 7. Test a labelled time correction; ensure the original server recording time is retained and the correction reason is recorded.
 8. Simulate a failed upload or interrupted final response, retry, and confirm only one submitted arrival exists.
 9. Confirm signed-out visitors, unassigned sites, another company and a forged marshal ID cannot read/modify protected records or files.
@@ -131,4 +140,4 @@ Keep the feature branch and pull request open for review. After approval, copy t
 
 Before using real company evidence, agree the site's access/retention policy and operator-managed recovery, and configure appropriate database and photo backups. Supabase database backups do not by themselves replace a separate photo-file recovery plan. The current offline scope is an attempted-save buffer and retry support, not an offline cold start or background upload guarantee.
 
-The MVP excludes OCR, external construction APIs, quantity/stock calculations, invoice reconciliation, billing, labour modules and analytics dashboards. Their earlier foundations remain in the repository without being exposed in the live workflow.
+The MVP excludes OCR, external construction APIs, quantity/stock calculations, invoice reconciliation, billing, labour modules and stock analytics. Their earlier foundations remain in the repository without being exposed in the live workflow.

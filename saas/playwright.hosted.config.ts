@@ -10,8 +10,10 @@ const required = [
   "HOSTED_SMOKE_SUPERVISOR_EMAIL",
   "HOSTED_SMOKE_SUPERVISOR_PASSWORD",
 ] as const;
-if (enabled) {
-  const missing = required.filter((key) => !process.env[key]);
+if (enabled || process.env.RUN_OPEN_SIGNUP_SMOKE === "1") {
+  const missing = (
+    enabled ? required : (["HOSTED_SMOKE_BASE_URL"] as const)
+  ).filter((key) => !process.env[key]);
   if (missing.length)
     throw new Error(
       `Hosted smoke configuration missing: ${missing.join(", ")}`,
@@ -32,7 +34,7 @@ if (enabled) {
 
 export default defineConfig({
   testDir: "./tests/hosted",
-  testMatch: /live-supabase\.spec\.ts/,
+  testMatch: /(live-supabase|open-registration)\.spec\.ts/,
   workers: 1,
   retries: 0,
   timeout: 120_000,

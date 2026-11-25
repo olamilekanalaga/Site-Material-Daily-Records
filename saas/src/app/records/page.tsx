@@ -1,5 +1,9 @@
 import { SimpleApp } from "@/components/delivery-log/simple-app";
-import { localWorkspaceEnabled, workspaceEnabled } from "@/lib/server/config";
+import {
+  localWorkspaceEnabled,
+  staffRegistrationEnabled,
+  workspaceEnabled,
+} from "@/lib/server/config";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "DJ Civils | Delivery Records" };
@@ -10,6 +14,7 @@ export default function RecordsPage() {
       initialPage="records"
       localDemo={localWorkspaceEnabled()}
       workspaceEnabled={workspaceEnabled()}
+      registrationEnabled={staffRegistrationEnabled()}
     />
   );
 }

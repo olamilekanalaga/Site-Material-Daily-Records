@@ -104,6 +104,11 @@ export function parseSimpleDelivery(raw: unknown): SimpleDeliveryInput {
     "Invalid capture method",
   );
   const smart = x.capture_kind === "arrival";
+  assert(
+    x.direction === undefined ||
+      (smart && (x.direction === "IN" || x.direction === "OUT")),
+    "Choose IN or OUT",
+  );
   if (!smart) {
     assert(
       typeof x.arrival_at === "string" &&
@@ -172,6 +177,7 @@ export function parseSimpleDelivery(raw: unknown): SimpleDeliveryInput {
     intent: x.intent,
     version: x.version as number | undefined,
     ...(smart ? { capture_kind: "arrival" as const } : {}),
+    ...(x.direction !== undefined ? { direction: x.direction } : {}),
     ...(customItem !== undefined
       ? { custom_item_name: customItem as string }
       : {}),

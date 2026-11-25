@@ -73,3 +73,13 @@ export function workspaceEnabled(env: Environment = process.env): boolean {
     return false;
   }
 }
+
+export function staffRegistrationEnabled(
+  env: Environment = process.env,
+): boolean {
+  return (
+    env.APP_MODE === "supabase" &&
+    env.STAFF_REGISTRATION_ENABLED === "true" &&
+    workspaceEnabled(env)
+  );
+}

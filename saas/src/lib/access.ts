@@ -19,6 +19,10 @@ const companyRoles: Role[] = [
   "company_admin",
 ];
 
+export function canReadReports(role: Role): boolean {
+  return companyRoles.includes(role) && role !== "gate";
+}
+
 export function canUsePortal(role: Role, portal: SignInPortal | null): boolean {
   if (!companyRoles.includes(role)) return false;
   if (portal !== null && portal !== "marshal" && portal !== "supervisor")
@@ -27,4 +31,10 @@ export function canUsePortal(role: Role, portal: SignInPortal | null): boolean {
   return portal === "marshal"
     ? role === "gate"
     : role === "supervisor" || role === "site_manager";
+}
+
+export const rememberSeconds = 30 * 24 * 3600;
+
+export function staffDashboard(role: Role) {
+  return role === "gate" || role === "company_admin" ? "/gate" : "/records";
 }

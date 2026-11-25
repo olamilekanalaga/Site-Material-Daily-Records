@@ -79,7 +79,9 @@ export type Review = {
   accepted_unit: Unit | null;
   created_at: string;
 };
+export type MovementDirection = "IN" | "OUT";
 export type Delivery = {
+  direction?: MovementDirection;
   id: string;
   company_id: string;
   site_id: string;
@@ -117,6 +119,7 @@ export type Delivery = {
   reviews: Review[];
 };
 export type SimpleDeliveryInput = {
+  direction?: MovementDirection;
   id: string;
   site_id: string;
   material_id: string;
