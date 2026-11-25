@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ChevronDown, UserRound } from "lucide-react";
 import { request } from "@/lib/client/offline";
 import { PasswordField } from "./password-field";
 import styles from "./credentials.module.css";
@@ -8,6 +9,12 @@ import styles from "./credentials.module.css";
 export function StaffRegistration() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState("");
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
   const [pending, setPending] = useState<{
     file: File;
     destination: string;
@@ -31,8 +38,11 @@ export function StaffRegistration() {
 
   return (
     <main className={styles.screen}>
-      <section className={`login-form ${styles.panel}`}>
-        <h1>Create account</h1>
+      <section className={styles.panel} aria-labelledby="registration-title">
+        <header className={styles.header}>
+          <h1 id="registration-title">Create your account</h1>
+          <p>Site Material Daily Records</p>
+        </header>
         {pending ? (
           <>
             <p role="status">
@@ -45,7 +55,7 @@ export function StaffRegistration() {
             )}
             <button
               type="button"
-              className="primary"
+              className={styles.submit}
               onClick={() => void retryPhoto()}
               disabled={busy}
             >
@@ -81,28 +91,56 @@ export function StaffRegistration() {
               }
             }}
           >
-            <label>
-              First name
+            <label className={styles.upload}>
+              <span className={styles.avatar}>
+                {preview ? (
+                  <img src={preview} alt="" />
+                ) : (
+                  <UserRound size={36} aria-hidden="true" />
+                )}
+              </span>
+              <span>
+                {preview ? "Change profile picture" : "Upload profile picture"}
+              </span>
               <input
-                name="firstName"
-                autoComplete="given-name"
-                maxLength={59}
+                aria-label="Profile picture"
+                name="file"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  setPreview(file ? URL.createObjectURL(file) : "");
+                }}
                 required
               />
             </label>
-            <label>
-              Last name
-              <input
-                name="lastName"
-                autoComplete="family-name"
-                maxLength={60}
-                required
-              />
-            </label>
+            <div className={styles.names}>
+              <label>
+                First name
+                <input
+                  name="firstName"
+                  placeholder="First name"
+                  autoComplete="given-name"
+                  maxLength={59}
+                  required
+                />
+              </label>
+              <label>
+                Last name
+                <input
+                  name="lastName"
+                  placeholder="Last name"
+                  autoComplete="family-name"
+                  maxLength={60}
+                  required
+                />
+              </label>
+            </div>
             <label>
               Email address
               <input
                 name="email"
+                placeholder="Enter email address"
                 type="email"
                 autoComplete="username"
                 maxLength={200}
@@ -113,6 +151,7 @@ export function StaffRegistration() {
               Phone number
               <input
                 name="phone"
+                placeholder="+44"
                 type="tel"
                 autoComplete="tel"
                 maxLength={40}
@@ -120,22 +159,18 @@ export function StaffRegistration() {
               />
             </label>
             <label>
-              Profile picture
-              <input
-                name="file"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                required
-              />
-            </label>
-            <label>
-              Role
-              <select name="role" defaultValue="" required>
-                <option value="">Select your role</option>
-                <option value="gate">Traffic marshal</option>
-                <option value="supervisor">Supervisor</option>
-                <option value="site_manager">Site manager</option>
-              </select>
+              What is your role?
+              <span className={styles.select}>
+                <select name="role" defaultValue="" required>
+                  <option value="" disabled>
+                    Select your role
+                  </option>
+                  <option value="gate">Traffic Marshal</option>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="site_manager">Site Manager</option>
+                </select>
+                <ChevronDown size={18} aria-hidden="true" />
+              </span>
             </label>
             <PasswordField />
             <PasswordField label="Confirm password" name="confirmPassword" />
@@ -144,14 +179,14 @@ export function StaffRegistration() {
                 {error}
               </p>
             )}
-            <button className="primary" disabled={busy}>
+            <button className={styles.submit} disabled={busy}>
               {busy ? "Creating account…" : "Create account"}
             </button>
           </form>
         )}
         {!pending && (
           <div className={styles.links}>
-            <a href="/">Sign in</a>
+            Already have an account? <a href="/">Sign in</a>
           </div>
         )}
       </section>

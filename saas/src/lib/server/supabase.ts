@@ -95,6 +95,7 @@ export const remote = {
       password,
       options: { data: profile },
     });
+    if (error?.code === "weak_password") throw new AppError(400, error.message);
     if (error?.status === 429)
       throw new AppError(429, "Too many attempts. Try again shortly.");
     if (error && unavailableAuth(error))

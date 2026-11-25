@@ -339,29 +339,11 @@ test("new material and supplier names survive refresh, remain reusable while pen
     page.locator('[aria-label="Automatic classification"]'),
   ).toContainText("Pending classification");
   await newSupplier(page, supplier);
-  await page.getByLabel("Correct delivery time", { exact: true }).check();
-  const correctedAt = new Date(Date.now() - 60 * 60 * 1000);
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/London",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    })
-      .formatToParts(correctedAt)
-      .map((part) => [part.type, part.value]),
-  );
-  const date = `${parts.year}-${parts.month}-${parts.day}`;
-  const time = `${parts.hour}:${parts.minute}`;
-  await page.getByLabel("Delivery date", { exact: true }).fill(date);
-  await page.getByLabel("Delivery time", { exact: true }).fill(time);
-  await page
-    .getByLabel("Reason for time correction", { exact: true })
-    .fill("Entered after the queue cleared");
+  await expect(
+    page.locator('input[type="date"], input[type="time"]'),
+  ).toHaveCount(0);
   await attach(page);
+  const beforeSave = Date.now();
   await save(page);
   const firstState = await bootstrap(page);
   const first = firstState.deliveries.find(
@@ -373,10 +355,15 @@ test("new material and supplier names survive refresh, remain reusable while pen
     firstState.materials.find((item) => item.id === first.material_id)
       ?.approval_status,
   ).toBe("Pending");
-  expect(Date.parse(first.recorded_at!)).toBeGreaterThan(
-    Date.parse(first.arrival_at) + 30 * 60 * 1000,
-  );
+  expect(first.arrival_at).toBe(first.recorded_at);
   expect(first.created_at).toBe(first.recorded_at);
+  expect(Date.parse(first.arrival_at)).toBeGreaterThanOrEqual(
+    beforeSave - 1000,
+  );
+  expect(Date.parse(first.arrival_at)).toBeLessThanOrEqual(Date.now() + 1000);
+  const date = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/London",
+  }).format(new Date(first.arrival_at));
   await page.reload();
   await selectOwnMarshal(page);
   await materialSelect(page).click();
@@ -444,7 +431,7 @@ test("new material and supplier names survive refresh, remain reusable while pen
     );
     await expect(
       records(supervisorPage).getByText("Corrected time", { exact: true }),
-    ).toHaveCount(1);
+    ).toHaveCount(0);
     const downloadReady = supervisorPage.waitForEvent("download");
     await supervisorPage
       .getByRole("button", { name: "Export CSV", exact: true })
@@ -493,9 +480,11 @@ test("staff sign-in entrances enforce assigned roles and sign-out removes privat
     .fill("gate@demo.invalid");
   await page.getByLabel("Password", { exact: true }).fill("DemoPass123!");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page.locator(".login-form").getByRole("alert")).toContainText(
-    /not approved|not permitted|not authorised/i,
-  );
+  await expect(
+    page
+      .getByRole("region", { name: "Sign in to your account" })
+      .getByRole("alert"),
+  ).toContainText(/not approved|not permitted|not authorised/i);
   expect(
     (await context.cookies()).some(
       (cookie) => cookie.name === "delivery_session",

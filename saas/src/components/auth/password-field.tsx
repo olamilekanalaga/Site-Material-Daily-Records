@@ -22,12 +22,17 @@ export function PasswordField({
         <input
           id={id}
           name={name}
+          placeholder={
+            existing
+              ? "Enter password"
+              : name === "password"
+                ? "Create password"
+                : "Confirm password"
+          }
           type={visible ? "text" : "password"}
           autoComplete={existing ? "current-password" : "new-password"}
           autoCapitalize="none"
           spellCheck={false}
-          minLength={existing ? undefined : 12}
-          maxLength={existing ? 200 : 72}
           required
         />
         <button

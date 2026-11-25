@@ -10,7 +10,6 @@ import {
   PENDING_CATEGORY,
   PENDING_ENTRY_TYPE,
 } from "@/lib/catalogue";
-import { siteArrival, siteClock } from "@/lib/site-time";
 import {
   readCapture,
   removeCapture,
@@ -64,11 +63,6 @@ export function LiveForm({
   const [supplier, setSupplier] = useState("");
   const [customSupplier, setCustomSupplier] = useState(false);
   const [supplierName, setSupplierName] = useState("");
-  const [correctTime, setCorrectTime] = useState(false);
-  const [clock, setClock] = useState(() =>
-    siteClock(new Date(), site.timezone),
-  );
-  const [correctionReason, setCorrectionReason] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [pending, setPending] = useState<CaptureDraft | null>(null);
@@ -102,16 +96,6 @@ export function LiveForm({
           saved.input.custom_supplier_name || saved.input.supplier_name || "",
         );
         setPhoto(saved.photo);
-        if (saved.input.corrected_arrival_at) {
-          setCorrectTime(true);
-          setClock(
-            siteClock(
-              new Date(saved.input.corrected_arrival_at),
-              site.timezone,
-            ),
-          );
-          setCorrectionReason(saved.input.correction_reason || "");
-        }
         setNotice(
           "An unfinished delivery is ready to retry. Its original details and image have been kept.",
         );
@@ -205,20 +189,7 @@ export function LiveForm({
             "Enter a supplier name containing letters or numbers.",
           );
         await validateImage(photo);
-        if (correctTime && !correctionReason.trim())
-          throw new Error("Explain why the delivery time needs correcting.");
       }
-      const correctedAt = correctTime
-        ? siteArrival(clock.date, clock.time, site.timezone)
-        : undefined;
-      if (
-        !pending &&
-        correctedAt &&
-        Date.parse(correctedAt) > Date.now() + 300000
-      )
-        throw new Error(
-          "Delivery time cannot be in the future. Check the site time.",
-        );
       const draft: CaptureDraft = pending || {
         key,
         photo,
@@ -241,12 +212,6 @@ export function LiveForm({
               ? { supplier_id: supplier }
               : {}),
           ...(chosenCategory ? { selected_category: chosenCategory } : {}),
-          ...(correctedAt
-            ? {
-                corrected_arrival_at: correctedAt,
-                correction_reason: correctionReason.trim(),
-              }
-            : {}),
           intent: "draft",
         },
       };
@@ -269,9 +234,6 @@ export function LiveForm({
       setCustomSupplier(false);
       setSupplierName("");
       setPhoto(null);
-      setCorrectTime(false);
-      setCorrectionReason("");
-      setClock(siteClock(new Date(), site.timezone));
       if (upload.current) upload.current.value = "";
       if (camera.current) camera.current.value = "";
       setNotice("Delivery saved to the database. Ready for the next delivery.");
@@ -392,62 +354,8 @@ export function LiveForm({
           />
           <div className={styles.clock}>
             <strong>Delivery time</strong>
-            The current date and time are captured when you save ·{" "}
-            {site.timezone}
+            The date and time are saved automatically · {site.timezone}
           </div>
-          <label className={styles.correctionToggle}>
-            <input
-              type="checkbox"
-              checked={correctTime}
-              onChange={(event) => {
-                setCorrectTime(event.target.checked);
-                setClock(siteClock(new Date(), site.timezone));
-              }}
-            />
-            Correct delivery time
-          </label>
-          {correctTime && (
-            <div className={styles.correction}>
-              <label>
-                Delivery date
-                <input
-                  required
-                  type="date"
-                  value={clock.date}
-                  onChange={(event) =>
-                    setClock((previous) => ({
-                      ...previous,
-                      date: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                Delivery time
-                <input
-                  required
-                  type="time"
-                  value={clock.time}
-                  onChange={(event) =>
-                    setClock((previous) => ({
-                      ...previous,
-                      time: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                Reason for time correction
-                <input
-                  required
-                  maxLength={500}
-                  value={correctionReason}
-                  onChange={(event) => setCorrectionReason(event.target.value)}
-                  placeholder="For example, recorded after the vehicle passed the gate"
-                />
-              </label>
-            </div>
-          )}
           <div className="simple-upload">
             <label htmlFor="delivery-image">Delivery image</label>
             <div className="simple-image-controls">
