@@ -85,6 +85,62 @@ function authFailure(error: unknown, message: string): never {
 }
 
 export const remote = {
+  async register(
+    email: string,
+    password: string,
+    profile: Record<string, string>,
+  ) {
+    const { data, error } = await supabase().auth.signUp({
+      email,
+      password,
+      options: { data: profile },
+    });
+    if (error?.status === 429)
+      throw new AppError(429, "Too many attempts. Try again shortly.");
+    if (error && unavailableAuth(error))
+      throw new AppError(503, "Staff registration is temporarily unavailable.");
+    assert(
+      !error,
+      "These details could not be registered. Check them or sign in if you already have an account.",
+      403,
+    );
+    assert(
+      data.session,
+      "Immediate sign-up is unavailable. Contact your administrator.",
+      503,
+    );
+    return {
+      access: data.session.access_token,
+      refresh: data.session.refresh_token,
+    };
+  },
+  async saveProfilePhoto(
+    client: SupabaseClient,
+    userId: string,
+    bytes: Uint8Array,
+    mime: string,
+  ) {
+    const { error } = await client.storage
+      .from("staff-portraits")
+      .upload(`profiles/${uuid(userId)}`, bytes, {
+        contentType: mime,
+        upsert: true,
+      });
+    dbError(error);
+  },
+  async profilePhoto(client: SupabaseClient, path: string) {
+    const { data, error } = await client.storage
+      .from("staff-portraits")
+      .download(path);
+    assert(
+      !error &&
+        data &&
+        ["image/jpeg", "image/png", "image/webp"].includes(data.type),
+      "Staff photo not found",
+      404,
+    );
+    return { data: new Uint8Array(await data.arrayBuffer()), mime: data.type };
+  },
   async login(email: string, password: string) {
     const client = supabase();
     const result = await client.auth
@@ -240,21 +296,25 @@ export const remote = {
   async marshalPhoto(client: SupabaseClient, id: string) {
     const { data: marshal, error } = await client
       .from("traffic_marshals")
-      .select("id,photo_path")
+      .select("id,photo_path,user_id")
       .eq("id", uuid(id))
       .maybeSingle();
     dbError(error);
-    assert(marshal?.photo_path, "Staff photo not found", 404);
-    const { data, error: downloadError } = await client.storage
-      .from("staff-portraits")
-      .download(marshal.photo_path);
-    assert(!downloadError && data, "Staff photo not found", 404);
-    assert(
-      ["image/jpeg", "image/png", "image/webp"].includes(data.type),
-      "Staff photo not found",
-      404,
-    );
-    return { data: new Uint8Array(await data.arrayBuffer()), mime: data.type };
+    assert(marshal, "Staff photo not found", 404);
+    if (marshal.user_id) {
+      try {
+        return await this.profilePhoto(client, `profiles/${marshal.user_id}`);
+      } catch (problem) {
+        if (
+          !marshal.photo_path ||
+          !(problem instanceof AppError) ||
+          problem.status !== 404
+        )
+          throw problem;
+      }
+    }
+    assert(marshal.photo_path, "Staff photo not found", 404);
+    return this.profilePhoto(client, marshal.photo_path);
   },
   reportExport(client: SupabaseClient, input: Record<string, unknown>) {
     return rpc(client, "audit_report_export", { p_input: input });

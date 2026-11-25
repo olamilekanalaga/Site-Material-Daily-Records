@@ -1,6 +1,6 @@
 # DJ Civils delivery log
 
-The active application lives in [`saas/`](saas/README.md). The production integration keeps two authenticated pages: **Gate Delivery** (`/gate`) and **Delivery Records** (`/records`). Supabase provides staff login, shared PostgreSQL records and private photos. The existing browser-local demo remains explicit at `/demo`; its sample arrivals are never live company data. The integration is prepared on a feature branch for review, with no production merge/deployment authorised by this change.
+The active application lives in [`saas/`](saas/README.md). Staff use Supabase to register with a unique email address, sign in and record IN or OUT at [`/gate`](saas/src/app/gate/page.tsx). [`/records`](saas/src/app/records/page.tsx) provides site-scoped records, private photos and read-only movement totals for reporting roles. Old `/demo` links lead to staff sign-in.
 
 ## Run the SaaS
 
@@ -12,7 +12,7 @@ npm ci
 npm run dev
 ```
 
-An unconfigured homepage offers the two accessible demos and two disabled staff choices. Once staff settings are configured, it offers the approved staff entrances. `/demo` and `/demo/supervisor` still need no credentials and store their records/photos in that browser only. For live setup, start with the [production audit](saas/docs/PRODUCTION-AUDIT.md) and [deployment guide](saas/docs/DEPLOYMENT.md). See the [smart arrivals guide](saas/docs/SMART-ARRIVALS.md) for the preserved demo and the [SaaS guide](saas/README.md) for both modes.
+Follow the [deployment guide](saas/docs/DEPLOYMENT.md) to configure Supabase and enable staff registration. An unconfigured homepage shows disabled staff sign-in options.
 
 ## Repository map
 

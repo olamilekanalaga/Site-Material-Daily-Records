@@ -2,21 +2,23 @@
 
 import { useEffect, useState, type SyntheticEvent } from "react";
 import { ArrowLeftRight, ImageIcon } from "lucide-react";
+import { canReadReports } from "@/lib/access";
 import type { Bootstrap, Delivery, Marshal } from "@/lib/types";
 import { normaliseItemName } from "@/lib/catalogue";
 import { periodDeliveries, type DateRange } from "@/lib/delivery-records";
 import { siteClock } from "@/lib/site-time";
 import { downloadReport } from "@/lib/client/offline";
-import { Photo, PhotoDialog } from "./simple-records";
+import { Photo, PhotoDialog } from "./delivery-photo";
 import styles from "./live-delivery.module.css";
 
 export function marshalPhotoSource(marshal: Marshal, mode: Bootstrap["mode"]) {
-  if (!marshal.photo_path) return "/marshal-placeholder.svg";
+  if (!marshal.photo_path && !(mode === "supabase" && marshal.user_id))
+    return "/marshal-placeholder.svg";
   if (
     mode === "local" &&
-    /^\/marshals\/[\w.-]+\.(?:jpe?g|png|webp)$/i.test(marshal.photo_path)
+    /^\/marshals\/[\w.-]+\.(?:jpe?g|png|webp)$/i.test(marshal.photo_path || "")
   )
-    return marshal.photo_path;
+    return marshal.photo_path!;
   return `/api/marshals/${encodeURIComponent(marshal.id)}/photo`;
 }
 
@@ -39,18 +41,12 @@ export function LiveRecords({
   );
   const [customRange, setCustomRange] = useState<DateRange | null>(null);
   const [material, setMaterial] = useState("");
+  const [direction, setDirection] = useState("");
   const [supplier, setSupplier] = useState("");
   const [viewing, setViewing] = useState<Delivery | null>(null);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
-  const canExport = [
-    "supervisor",
-    "site_manager",
-    "company_admin",
-    "project_manager",
-    "commercial",
-    "director",
-  ].includes(data.actor.role);
+  const canExport = canReadReports(data.actor.role);
   useEffect(() => {
     const refresh = () => setToday(siteClock(new Date(), timezone).date);
     const resume = () => {
@@ -69,7 +65,12 @@ export function LiveRecords({
   const range = customRange || { from: today, to: today };
   const invalid = Boolean(range.from && range.to && range.from > range.to);
   const selectedSupplier = data.suppliers.find((item) => item.id === supplier);
-  const records = periodDeliveries(data.deliveries, siteId, timezone, range)
+  const matchingRecords = periodDeliveries(
+    data.deliveries,
+    siteId,
+    timezone,
+    range,
+  )
     .filter((record) => !material || record.material_id === material)
     .filter(
       (record) =>
@@ -88,12 +89,20 @@ export function LiveRecords({
         b.id.localeCompare(a.id),
     );
 
+  const records = matchingRecords.filter(
+    (record) => !direction || (record.direction ?? "IN") === direction,
+  );
+  const outCount = matchingRecords.filter(
+    (record) => record.direction === "OUT",
+  ).length;
+
   async function exportRows() {
     if (exporting || invalid) return;
     setExporting(true);
     setError("");
     const parameters = new URLSearchParams({
       view: "arrivals",
+      direction,
       format: "csv",
       site_id: siteId,
     });
@@ -119,7 +128,40 @@ export function LiveRecords({
 
   return (
     <section className="simple-panel simple-records-panel">
+      {canExport && !invalid && (
+        <section
+          className={styles.analytics}
+          aria-labelledby="movement-analytics"
+        >
+          <h2 id="movement-analytics">Movement analytics</h2>
+          <dl>
+            <div>
+              <dt>IN</dt>
+              <dd>{matchingRecords.length - outCount}</dd>
+            </div>
+            <div>
+              <dt>OUT</dt>
+              <dd>{outCount}</dd>
+            </div>
+            <div>
+              <dt>Total movements</dt>
+              <dd>{matchingRecords.length}</dd>
+            </div>
+          </dl>
+        </section>
+      )}
       <div className={styles.filters}>
+        <label>
+          Direction
+          <select
+            value={direction}
+            onChange={(event) => setDirection(event.target.value)}
+          >
+            <option value="">All directions</option>
+            <option value="IN">IN</option>
+            <option value="OUT">OUT</option>
+          </select>
+        </label>
         <label>
           From date
           <input
@@ -194,6 +236,7 @@ export function LiveRecords({
               setCustomRange(null);
               setMaterial("");
               setSupplier("");
+              setDirection("");
               setError("");
             }}
           >
@@ -237,13 +280,19 @@ export function LiveRecords({
         >
           <thead>
             <tr>
-              {["Date", "Time", "Material", "Supplier", "Marshal", "Photo"].map(
-                (label) => (
-                  <th scope="col" key={label}>
-                    {label}
-                  </th>
-                ),
-              )}
+              {[
+                "Date",
+                "Time",
+                "Direction",
+                "Material",
+                "Supplier",
+                "Marshal",
+                "Photo",
+              ].map((label) => (
+                <th scope="col" key={label}>
+                  {label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -263,6 +312,7 @@ export function LiveRecords({
                       </small>
                     )}
                   </td>
+                  <td>{record.direction ?? "IN"}</td>
                   <td>
                     {record.item_name ||
                       data.materials.find(
@@ -297,11 +347,7 @@ export function LiveRecords({
                         className="simple-photo-button"
                         onClick={() => setViewing(record)}
                       >
-                        <Photo
-                          evidence={record.evidence[0]}
-                          demo={false}
-                          thumbnail
-                        />
+                        <Photo evidence={record.evidence[0]} thumbnail />
                         <span>
                           <ImageIcon size={16} />
                           View photo
@@ -321,11 +367,7 @@ export function LiveRecords({
         <p className="simple-empty">No saved deliveries match these filters.</p>
       )}
       {viewing && (
-        <PhotoDialog
-          delivery={viewing}
-          demo={false}
-          onClose={() => setViewing(null)}
-        />
+        <PhotoDialog delivery={viewing} onClose={() => setViewing(null)} />
       )}
     </section>
   );

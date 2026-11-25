@@ -1,3 +1,4 @@
+import { canReadReports } from "@/lib/access";
 import { assert, csvCell, dateAt } from "@/lib/server/core";
 import { local } from "@/lib/server/local";
 import { remote } from "@/lib/server/supabase";
@@ -17,18 +18,7 @@ function validDate(value: string | null) {
 export const runtime = "nodejs";
 export async function GET(request: Request) {
   return route(request, async (c) => {
-    assert(
-      [
-        "site_manager",
-        "company_admin",
-        "project_manager",
-        "director",
-        "commercial",
-        "supervisor",
-      ].includes(c.actor.role),
-      "Reporting permission required",
-      403,
-    );
+    assert(canReadReports(c.actor.role), "Reporting permission required", 403);
     const boot = await c.bootstrap();
     const p = new URL(request.url).searchParams;
     const date = p.get("date");
@@ -52,9 +42,15 @@ export async function GET(request: Request) {
     const selectedSupplier = boot.suppliers.find(
       (supplier) => supplier.id === p.get("supplier_id"),
     );
+    const direction = p.get("direction");
+    assert(
+      !direction || direction === "IN" || direction === "OUT",
+      "Choose IN or OUT",
+    );
     const rows = boot.deliveries.filter(
       (d) =>
         d.submitted_at !== null &&
+        (!direction || (d.direction ?? "IN") === direction) &&
         (!siteId || d.site_id === siteId) &&
         (!p.get("supplier_id") ||
           d.supplier_id === p.get("supplier_id") ||
@@ -88,6 +84,7 @@ export async function GET(request: Request) {
       material_id: p.get("material_id"),
       supplier_id: p.get("supplier_id"),
       view: p.get("view"),
+      direction: direction || null,
     };
     if (c.client) await remote.reportExport(c.client, exportInfo);
     else local.reportExport(c.actor, exportInfo);
@@ -115,6 +112,7 @@ export async function GET(request: Request) {
         "Correction reason",
         "Created by ID",
         "Marshal ID",
+        "Direction",
       ];
       const body = rows.map((delivery) => {
         const site = boot.sites.find((site) => site.id === delivery.site_id);
@@ -145,6 +143,7 @@ export async function GET(request: Request) {
           delivery.correction_reason || "",
           delivery.created_by,
           delivery.marshal_id || "",
+          delivery.direction ?? "IN",
         ];
       });
       return new Response(

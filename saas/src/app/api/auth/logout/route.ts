@@ -11,12 +11,22 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     requestSafety(request, true);
-    const token = (await cookies()).get("delivery_session")?.value;
+    const jar = await cookies();
+    const token = jar.get("delivery_session")?.value;
+    const refresh = jar.get("delivery_refresh")?.value;
     let remoteRevoked = true;
     try {
-      if (token) {
-        if (appMode() === "local") local.logout(token);
-        else await remote.logout(token);
+      if (appMode() === "local") {
+        if (token) local.logout(token);
+      } else if (token || refresh) {
+        try {
+          if (!token) throw new Error("Access token missing");
+          await remote.logout(token);
+        } catch (problem) {
+          if (!refresh) throw problem;
+          const renewed = await remote.refresh(refresh);
+          await remote.logout(renewed.access);
+        }
       }
     } catch {
       remoteRevoked = false;

@@ -1,3 +1,4 @@
+import { rememberSeconds } from "../access";
 import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Actor, Bootstrap } from "../types";
@@ -111,7 +112,11 @@ export async function session(request: Request): Promise<Context> {
     const refresh = jar.get("delivery_refresh")?.value;
     assert(refresh, "Session expired. Sign in again.", 401);
     const renewed = await remote.refresh(refresh);
-    await setTokens(renewed.access, renewed.refresh);
+    await setTokens(
+      renewed.access,
+      renewed.refresh,
+      jar.get("delivery_remember")?.value === "1",
+    );
     client = await remote.user(renewed.access);
   }
   const boot = await remote.bootstrap(client);
@@ -121,34 +126,43 @@ export async function session(request: Request): Promise<Context> {
     bootstrap: async () => remote.bootstrap(client),
   };
 }
-export async function setTokens(access: string, refresh?: string) {
-  const jar = await cookies();
-  const opts = {
+function cookieOptions() {
+  return {
     httpOnly: true,
     secure: appMode() === "supabase",
     sameSite: "strict" as const,
     path: "/api",
-    maxAge: 8 * 3600,
+  };
+}
+export async function setTokens(
+  access: string,
+  refresh?: string,
+  remember = false,
+) {
+  const jar = await cookies();
+  const opts = {
+    ...cookieOptions(),
+    ...(remember ? { maxAge: rememberSeconds } : {}),
   };
   jar.set("delivery_session", access, opts);
-  if (refresh) jar.set("delivery_refresh", refresh, opts);
+  jar.set(
+    "delivery_refresh",
+    refresh ?? "",
+    refresh ? opts : { ...opts, maxAge: 0 },
+  );
+  jar.set("delivery_remember", remember ? "1" : "", {
+    ...cookieOptions(),
+    maxAge: remember ? rememberSeconds : 0,
+  });
 }
 export async function clearTokens() {
   const jar = await cookies();
-  jar.set("delivery_session", "", {
-    httpOnly: true,
-    path: "/api",
-    maxAge: 0,
-    sameSite: "strict",
-    secure: appMode() === "supabase",
-  });
-  jar.set("delivery_refresh", "", {
-    httpOnly: true,
-    path: "/api",
-    maxAge: 0,
-    sameSite: "strict",
-    secure: appMode() === "supabase",
-  });
+  for (const name of [
+    "delivery_session",
+    "delivery_refresh",
+    "delivery_remember",
+  ])
+    jar.set(name, "", { ...cookieOptions(), maxAge: 0 });
 }
 export async function route(
   request: Request,
