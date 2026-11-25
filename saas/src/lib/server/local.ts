@@ -2,6 +2,15 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  CAPTURE_MENU_VERSION,
+  compactAggregateCaptureMenu,
+  findExactCatalogueItem,
+  normaliseItemName,
+  PENDING_CATEGORY,
+  PENDING_ENTRY_TYPE,
+  upgradeCatalogue,
+} from "../catalogue";
+import {
   createHash,
   randomBytes,
   scryptSync,
@@ -69,6 +78,7 @@ function db() {
   database = new DatabaseSync(
     resolve(/* turbopackIgnore: true */ dir, "pilot.sqlite"),
   );
+  database.exec("PRAGMA busy_timeout=5000");
   database.exec(
     `PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; CREATE TABLE IF NOT EXISTS objects (kind TEXT NOT NULL,id TEXT NOT NULL,company_id TEXT NOT NULL,body TEXT NOT NULL,PRIMARY KEY(kind,id)); CREATE INDEX IF NOT EXISTS objects_company ON objects(kind,company_id); CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS attempts (key TEXT PRIMARY KEY,count INTEGER NOT NULL,expires INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY,data BLOB NOT NULL);`,
   );
@@ -87,36 +97,78 @@ function correctDemoMaterialName() {
     put("material", { ...aggregate, name: "6F5" });
 }
 function seedMarshals() {
-  // Add catalogue entries to existing local demo databases without resetting data.
-  for (const s of all<Site>("site")) {
-    const profiles =
-      s.company_id === C
-        ? [
-            { seedName: "B Traffic Marshal", name: "Bemigho Estano" },
-            { seedName: "Olamilekan Alaga", name: "Olamilekan Alaga" },
-          ]
-        : [{ seedName: "Other Demo Marshal", name: "Other Demo Marshal" }];
-    for (const { seedName, name } of profiles) {
-      // Display-name changes must preserve IDs referenced by saved deliveries.
-      const key = hash(`marshal:${s.id}:${seedName}`);
-      const id = `${key.slice(0, 8)}-${key.slice(8, 12)}-4${key.slice(13, 16)}-8${key.slice(17, 20)}-${key.slice(20, 32)}`;
-      const existing = get<Marshal>("marshal", id);
-      if (!existing)
-        put("marshal", {
-          id,
-          company_id: s.company_id,
-          site_id: s.id,
-          name,
-          active: true,
-        });
-      else if (
-        (existing.name === seedName ||
-          (seedName === "B Traffic Marshal" && existing.name === "B")) &&
-        existing.name !== name
+  transaction(() => {
+    // Local-only fixtures support the same individual-account checks as Supabase.
+    if (
+      !all<Account>("actor", C).some(
+        (actor) => actor.email === "olamilekan@demo.invalid",
       )
-        put("marshal", { ...existing, name });
+    )
+      account("olamilekan@demo.invalid", "Olamilekan Alaga", "gate", C, [S]);
+    const actors = all<Account>("actor");
+    // Add catalogue entries to existing local demo databases without resetting data.
+    for (const s of all<Site>("site")) {
+      const profiles =
+        s.company_id === C
+          ? [
+              { seedName: "B Traffic Marshal", name: "Bemigho Estano" },
+              { seedName: "Olamilekan Alaga", name: "Olamilekan Alaga" },
+            ]
+          : [{ seedName: "Other Demo Marshal", name: "Other Demo Marshal" }];
+      for (const { seedName, name } of profiles) {
+        // Display-name changes must preserve IDs referenced by saved deliveries.
+        const key = hash(`marshal:${s.id}:${seedName}`);
+        const id = `${key.slice(0, 8)}-${key.slice(8, 12)}-4${key.slice(13, 16)}-8${key.slice(17, 20)}-${key.slice(20, 32)}`;
+        const existing = get<Marshal>("marshal", id);
+        const ownerEmail =
+          s.company_id === C
+            ? name === "Olamilekan Alaga"
+              ? "olamilekan@demo.invalid"
+              : s.id === S3
+                ? "restricted@demo.invalid"
+                : "gate@demo.invalid"
+            : "other@demo.invalid";
+        const owner = actors.find(
+          (actor) =>
+            actor.company_id === s.company_id && actor.email === ownerEmail,
+        );
+        const profile = {
+          user_id: owner?.id || null,
+          photo_path:
+            s.company_id === C
+              ? name === "Olamilekan Alaga"
+                ? "/marshals/olamilekan-alaga.jpg"
+                : "/marshals/bemigho-estano.jpg"
+              : null,
+        };
+        if (!existing)
+          put("marshal", {
+            id,
+            company_id: s.company_id,
+            site_id: s.id,
+            name,
+            active: true,
+            ...profile,
+          });
+        else if (
+          (existing.name === seedName ||
+            (seedName === "B Traffic Marshal" && existing.name === "B")) &&
+          existing.name !== name
+        )
+          put("marshal", { ...existing, name });
+        if (existing && existing.user_id === undefined)
+          put("marshal", {
+            ...existing,
+            name:
+              existing.name === seedName ||
+              (seedName === "B Traffic Marshal" && existing.name === "B")
+                ? name
+                : existing.name,
+            ...profile,
+          });
+      }
     }
-  }
+  });
 }
 function all<T>(kind: string, company?: string): T[] {
   const rows = (
@@ -421,6 +473,204 @@ function record(actor: Actor, id: string) {
   );
   return hydrate(d);
 }
+
+function liveCaptureInput(input: SimpleDeliveryInput) {
+  const customSupplier =
+    input.custom_supplier_name ||
+    (!input.supplier_id ? input.supplier_name.trim() : "") ||
+    null;
+  return {
+    site_id: input.site_id,
+    marshal_id: input.marshal_id,
+    material_id:
+      input.custom_item_name !== undefined ? null : input.material_id,
+    custom_item_name: input.custom_item_name ?? null,
+    supplier_id: customSupplier ? null : input.supplier_id || null,
+    custom_supplier_name: customSupplier,
+    selected_category: input.selected_category ?? null,
+    corrected_arrival_at: input.corrected_arrival_at ?? null,
+    correction_reason: input.correction_reason ?? "",
+  };
+}
+
+function logArrival(
+  actor: Actor,
+  input: SimpleDeliveryInput,
+  marshal: Marshal,
+) {
+  const signature = liveCaptureInput(input);
+  const previous = get<Delivery>("delivery", input.id);
+  if (previous) {
+    assert(
+      previous.company_id === actor.company_id &&
+        previous.created_by === actor.id &&
+        previous.site_id === input.site_id,
+      "Delivery does not belong to you",
+      403,
+    );
+    assert(
+      previous.capture_mode === "simple" &&
+        previous.capture_input &&
+        JSON.stringify(previous.capture_input) === JSON.stringify(signature),
+      "Saved draft details differ. Retry the original delivery or start a new one.",
+      409,
+    );
+    if (previous.submitted_at || input.intent === "draft")
+      return { delivery: hydrate(previous) };
+    assert(
+      previous.status === "Draft",
+      "Delivery cannot be submitted in this status",
+      409,
+    );
+    assert(
+      previous.version === input.version,
+      "Record changed. Reload before saving.",
+      409,
+    );
+    assert(
+      hydrate(previous).evidence.length > 0,
+      "Upload a delivery image before saving",
+    );
+    const saved: Delivery = {
+      ...previous,
+      status: "Submitted",
+      submitted_at: now(),
+      updated_at: now(),
+      version: previous.version + 1,
+    };
+    put("delivery", saved);
+    audit(actor, "delivery.logged", saved.id, saved.site_id, previous, saved);
+    return { delivery: hydrate(saved) };
+  }
+  assert(
+    input.intent === "draft",
+    "Save the draft and upload a delivery image first",
+  );
+  let material =
+    input.custom_item_name !== undefined
+      ? findExactCatalogueItem(
+          all<CatalogueItem>("material", actor.company_id),
+          input.custom_item_name,
+        )
+      : get<CatalogueItem>("material", input.material_id);
+  if (!material && input.custom_item_name !== undefined) {
+    material = {
+      id: uid(),
+      company_id: actor.company_id,
+      name: input.custom_item_name,
+      normalised_name: normaliseItemName(input.custom_item_name),
+      category: PENDING_CATEGORY,
+      entry_type: PENDING_ENTRY_TYPE,
+      approval_status: "Pending",
+      synonyms: [],
+      active: true,
+      capture_hidden: false,
+    };
+    put("material", material);
+    audit(
+      actor,
+      "catalogue.material.created",
+      material.id,
+      input.site_id,
+      null,
+      material,
+    );
+  }
+  assert(
+    material?.company_id === actor.company_id && material.active,
+    "Material not available",
+  );
+  if (material.capture_hidden && input.custom_item_name !== undefined) {
+    const before = { ...material };
+    material = { ...material, capture_hidden: false };
+    put("material", material);
+    audit(
+      actor,
+      "catalogue.material.available",
+      material.id,
+      input.site_id,
+      before,
+      material,
+    );
+  }
+  let supplier = signature.supplier_id
+    ? get<CatalogueItem>("supplier", signature.supplier_id)
+    : undefined;
+  if (signature.custom_supplier_name) {
+    supplier = all<CatalogueItem>("supplier", actor.company_id).find(
+      (item) =>
+        normaliseItemName(item.name) ===
+        normaliseItemName(signature.custom_supplier_name!),
+    );
+    if (!supplier) {
+      supplier = {
+        id: uid(),
+        company_id: actor.company_id,
+        name: signature.custom_supplier_name,
+        normalised_name: normaliseItemName(signature.custom_supplier_name),
+        active: true,
+      };
+      put("supplier", supplier);
+      audit(
+        actor,
+        "catalogue.supplier.created",
+        supplier.id,
+        input.site_id,
+        null,
+        supplier,
+      );
+    }
+  }
+  assert(
+    (!signature.supplier_id && !signature.custom_supplier_name) ||
+      (supplier?.company_id === actor.company_id && supplier.active),
+    "Supplier not available",
+  );
+  const stamp = now();
+  const draft: Delivery = {
+    id: input.id,
+    company_id: actor.company_id,
+    site_id: input.site_id,
+    material_id: material.id,
+    supplier_id: supplier?.id || null,
+    supplier_name: signature.custom_supplier_name || supplier?.name || "",
+    marshal_id: marshal.id,
+    marshal_name: marshal.name,
+    capture_mode: "simple",
+    item_name: input.custom_item_name ?? material.name,
+    category: material.category || PENDING_CATEGORY,
+    entry_type: material.entry_type || PENDING_ENTRY_TYPE,
+    catalogue_status: material.approval_status || "Pending",
+    ...(input.selected_category
+      ? { selected_category: input.selected_category }
+      : {}),
+    recorded_at: stamp,
+    arrival_at: input.corrected_arrival_at || stamp,
+    correction_reason: input.correction_reason || "",
+    capture_input: signature,
+    vehicle: "",
+    ticket_number: "",
+    ticket_quantity: null,
+    ticket_unit: "loads",
+    notes: "",
+    created_by: actor.id,
+    creator_name: actor.name,
+    created_at: stamp,
+    updated_at: stamp,
+    submitted_at: null,
+    status: "Draft",
+    commercial_status: "Not Linked",
+    accepted_quantity: null,
+    accepted_unit: null,
+    version: 1,
+    evidence: [],
+    reviews: [],
+  };
+  put("delivery", draft);
+  audit(actor, "delivery.draft.created", draft.id, draft.site_id, null, draft);
+  return { delivery: hydrate(draft) };
+}
+
 export const local = {
   login(email: string, pass: string, ip: string) {
     const key = hash(email.toLowerCase() + ip);
@@ -482,6 +732,29 @@ export const local = {
     );
     seedMarshals();
     correctDemoMaterialName();
+    transaction(() => {
+      const existing = all<CatalogueItem>("material", actor.company_id);
+      const byId = new Map(
+        existing.map((item) => [item.id, JSON.stringify(item)]),
+      );
+      const marker = get<{ version: number }>(
+        "catalogue_capture_menu",
+        actor.company_id,
+      );
+      const upgraded = upgradeCatalogue(existing, actor.company_id);
+      const materials =
+        (marker?.version || 0) < CAPTURE_MENU_VERSION
+          ? compactAggregateCaptureMenu(upgraded, actor.company_id)
+          : upgraded;
+      for (const item of materials)
+        if (byId.get(item.id) !== JSON.stringify(item)) put("material", item);
+      if ((marker?.version || 0) < CAPTURE_MENU_VERSION)
+        put("catalogue_capture_menu", {
+          id: actor.company_id,
+          company_id: actor.company_id,
+          version: CAPTURE_MENU_VERSION,
+        });
+    });
     const deliveries = all<Delivery>("delivery", actor.company_id)
       .filter(
         (x) =>
@@ -506,9 +779,14 @@ export const local = {
       sites,
       materials: all<CatalogueItem>("material", actor.company_id),
       suppliers: all<CatalogueItem>("supplier", actor.company_id),
-      marshals: all<Marshal>("marshal", actor.company_id).filter(
-        (m) => m.active && canSite(actor, m.site_id),
-      ),
+      marshals: all<Marshal>("marshal", actor.company_id)
+        .filter((m) => m.active && canSite(actor, m.site_id))
+        .map((m) => ({
+          ...m,
+          can_record:
+            actor.role === "company_admin" ||
+            (actor.role === "gate" && m.user_id === actor.id),
+        })),
       deliveries,
       audit: events,
       historical: all<HistoricalSummary>("historical", actor.company_id).filter(
@@ -525,11 +803,6 @@ export const local = {
     return transaction(() => {
       capturePermission(actor);
       site(actor, input.site_id);
-      const material = get<CatalogueItem>("material", input.material_id);
-      assert(
-        material?.company_id === actor.company_id && material.active,
-        "Material not available",
-      );
       const marshal = get<Marshal>("marshal", input.marshal_id);
       assert(
         marshal?.company_id === actor.company_id &&
@@ -537,6 +810,18 @@ export const local = {
           marshal.active,
         "Traffic marshal not available",
         403,
+      );
+      assert(
+        actor.role === "company_admin" || marshal.user_id === actor.id,
+        "Choose the traffic marshal linked to your staff account",
+        403,
+      );
+      if (input.capture_kind === "arrival")
+        return logArrival(actor, input, marshal);
+      const material = get<CatalogueItem>("material", input.material_id);
+      assert(
+        material?.company_id === actor.company_id && material.active,
+        "Material not available",
       );
       const existing = get<Delivery>("delivery", input.id);
       if (existing) {
@@ -651,6 +936,11 @@ export const local = {
     return transaction(() => {
       capturePermission(actor);
       site(actor, input.site_id);
+      assert(
+        get<Delivery>("delivery", input.id),
+        "Use Gate Delivery to record a new arrival",
+        403,
+      );
       const mat = get<CatalogueItem>("material", input.material_id);
       assert(
         mat && mat.company_id === actor.company_id && mat.active,

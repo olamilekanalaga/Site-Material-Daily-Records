@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import type { CatalogueItem } from "../../src/lib/types";
 import {
   CATEGORIES,
+  AGGREGATE_CAPTURE_ITEMS,
+  compactAggregateCaptureMenu,
   PENDING_CATEGORY,
   PENDING_ENTRY_TYPE,
   QUICK_ITEMS,
@@ -79,11 +81,69 @@ test("the complete initial arrival catalogue classifies deliveries and service v
       .sort(),
     ["Cables", "Pipes"],
   );
+  assert.deepEqual(
+    catalogue
+      .filter(
+        (item) =>
+          item.category === "Aggregates / Sands" && !item.capture_hidden,
+      )
+      .map((item) => item.name)
+      .sort(),
+    [...AGGREGATE_CAPTURE_ITEMS].sort(),
+  );
+});
+
+test("compact capture migration hides only retired approved aggregate definitions in its company", () => {
+  const catalogue = upgradeCatalogue([], company);
+  const cement = catalogue.find((item) => item.name === "Cement")!;
+  const custom: CatalogueItem = {
+    ...legacy("custom-aggregate", "Site blended aggregate"),
+    category: "Aggregates / Sands",
+    entry_type: "Delivery",
+    approval_status: "Approved",
+    capture_hidden: false,
+  };
+  const pending = {
+    ...cement,
+    id: "pending",
+    approval_status: "Pending" as const,
+    capture_hidden: false,
+  };
+  const foreign = {
+    ...cement,
+    id: "foreign",
+    company_id: "another-company",
+    capture_hidden: false,
+  };
+  const result = compactAggregateCaptureMenu(
+    [
+      ...catalogue.map((item) => ({ ...item, capture_hidden: false })),
+      custom,
+      pending,
+      foreign,
+    ],
+    company,
+  );
+  assert.equal(result.length, catalogue.length + 3);
   assert.equal(
-    catalogue.filter(
-      (item) => item.category === "Aggregates / Sands" && !item.capture_hidden,
-    ).length,
-    19,
+    result.find((item) => item.id === cement.id)!.capture_hidden,
+    true,
+  );
+  assert.deepEqual(
+    result.find((item) => item.id === custom.id),
+    custom,
+  );
+  assert.deepEqual(
+    result.find((item) => item.id === pending.id),
+    pending,
+  );
+  assert.deepEqual(
+    result.find((item) => item.id === foreign.id),
+    foreign,
+  );
+  assert.equal(
+    result.find((item) => item.name === "Road sweeper")!.capture_hidden,
+    false,
   );
 });
 

@@ -1,3 +1,45 @@
+# Production backend integration — review validation
+
+The `feat/production-delivery-backend` branch upgrades the existing application. It is prepared for pull-request review; production merge/deployment requires approval. The results below this section are **earlier release evidence**, not proof that the supplied hosted Supabase project is connected.
+
+Current verification targets are authenticated Gate Delivery and Delivery Records, persisted material/supplier additions, server recording time and explicit correction, account-bound marshal selection, private delivery/portrait files, tenant/site isolation, immutable upload retries and cross-device supervisor viewing. Follow [deployment setup](DEPLOYMENT.md) for the hosted two-device check and [production audit](PRODUCTION-AUDIT.md) for reuse and scope.
+
+At the start of this branch the environment contained no Supabase credentials and the connected Vercel project reported no variables. No hosted migration, real Auth login, private Storage upload or cross-device hosted inspection is claimed here until an actual protected test has completed. PGlite uses mocked Auth/Storage metadata, SQLite exercises the local adapter, and the public demo is IndexedDB-only.
+
+The operator setup can be checked without network using `node --check scripts/provision-site.mjs` and `node scripts/provision-site.mjs --config YOUR_REVIEWED_CONFIG --validate-only`. These checks validate syntax/configuration/local files; they do not create accounts, execute SQL or verify hosted permissions.
+
+## Catalogue and summary simplification — 7 November 2026
+
+The browser records view now has exactly three horizontal summary cards: **Total arrivals**, **Material deliveries** and **Service visits**. Pending-classification and individual-material cards, together with the “More items” hint, were removed. Date filtering and supervisor classification review remain available.
+
+The initial **Aggregates / Sands** menu contains **6F5**, **Type 1**, **Sand**, **10mm shingles** and **20mm shingles**, plus manual entry. Other categories are unchanged. One-time demo/local visibility upgrades retain historical catalogue IDs, delivery rows, evidence and audit history. Explicitly entering a retired option such as Cement makes the same item selectable again after refresh. The unexecuted live migration uses the same defaults; no hosted SQL was applied.
+
+Current simplification checks: **111/111 unit/database checks passed**, TypeScript passed and the complete public browser suite passed **21/21** across phone, tablet and desktop. It includes exactly three summary cards, the five-option dropdown, manual restoration after refresh, date-linked totals, evidence and classification review. Phone screenshots were visually inspected. The final optimised build result is recorded below. The private API/UI counts below belong to the preceding backend-integration run, which was not repeated for this presentation change.
+
+## Current branch results — 7 November 2026
+
+| Check                                                                                  | Executed result                                                                                                                           |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript (`npm run typecheck`)                                                       | Passed                                                                                                                                    |
+| Unit, SQL/RLS, local persistence, demo, configuration and operator guards (`npm test`) | **111/111 passed** in the latest combined run                                                                                             |
+| Current private HTTP API and responsive UI                                             | **34 unique scenarios covered**: 22 API and 12 UI across phone, tablet and desktop                                                        |
+| Final delivery-time ordering and filtered CSV checks                                   | **4/4 passed**: one API export and three viewport UI rechecks                                                                             |
+| Existing public demo regression                                                        | **21/21 passed** in the complete run                                                                                                      |
+| Optimised Next.js build (`npm run build`)                                              | Passed with the default Next.js 16.4.5 Turbopack builder, TypeScript and all 13 static pages                                              |
+| Operator script                                                                        | Syntax, validation-only/no-network and mocked read-only/conflict checks passed; three operator guards are included in the 111-check suite |
+| Hosted smoke command without protected opt-in credentials                              | **1 skipped**, as intended; not a hosted pass                                                                                             |
+| Production merge, hosted SQL application and production deployment                     | Not performed                                                                                                                             |
+
+The private checks initially passed 31 of 34 scenarios. The remaining three tests were corrected to wait for the logout response and select the appropriate sign-in entrance after returning to the unauthenticated chooser; all three then passed on a fresh generated dev cache, with the authentication assertions retained. No application workaround or longer timeout was introduced. After aligning table and CSV ordering with the displayed delivery time, the four focused chronology checks passed on the final source. The default private runner now selects these current suites and excludes the retained superseded vehicle/quantity API success expectations.
+
+Local development restarts that switched environment modes briefly reused a stale Turbopack dev graph. Moving only generated `.next/dev` after stopping the server resolved it; source, records and databases were not reset. The final production build passed without a cache workaround.
+
+The workspace's direct request to the supplied Supabase hostname was denied by its outbound network policy (`403` during proxy CONNECT). At the last read, the user had added `SUPABASE_URL` and `SUPABASE_ANON_KEY` to Vercel's Production environment only; no Preview variables or live-mode setting were present. This work did not change those settings. The actual project's migrations, Auth accounts, Storage behaviour and two-device hosted journey remain unverified. The opt-in command is `npx playwright test --config=playwright.hosted.config.ts`; use the protected test-account variables listed in [deployment setup](DEPLOYMENT.md). That test deliberately creates labelled synthetic records and retains their audit history.
+
+Phone/tablet checks use Chromium viewport emulation and synthetic image files. Physical camera behaviour, HEIC conversion, hosted backup/restore and account recovery require the documented manual checks. No test data or staff credentials were sent to the hosted project by this work.
+
+---
+
 # Two-page delivery logger validation — 6 November 2026
 
 All checks use fictional records. These results were recorded before release; no hosted database migration was applied as part of this validation.

@@ -6,7 +6,15 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { local } from "../../src/lib/server/local";
-import { parseSimpleDelivery, parseDelivery } from "../../src/lib/server/core";
+import {
+  AGGREGATE_CAPTURE_ITEMS,
+  CAPTURE_MENU_VERSION,
+} from "../../src/lib/catalogue";
+import {
+  AppError,
+  parseSimpleDelivery,
+  parseDelivery,
+} from "../../src/lib/server/core";
 import type {
   Actor,
   Bootstrap,
@@ -44,7 +52,7 @@ const input = (patch: Partial<SimpleDeliveryInput> = {}) =>
     id: randomUUID(),
     site_id: boot.sites[0].id,
     material_id: boot.materials[0].id,
-    marshal_id: boot.marshals![0].id,
+    marshal_id: boot.marshals!.find((person) => person.can_record)!.id,
     supplier_name: "  Sample Supplier  ",
     arrival_at: new Date().toISOString(),
     intent: "draft",
@@ -86,7 +94,10 @@ test("authenticated logging persists marshal, supplier, photo and separate serve
   const { delivery: draft } = local.log(gate, fields);
   assert.equal(draft.status, "Draft");
   assert.equal(draft.submitted_at, null);
-  assert.equal(draft.marshal_name, boot.marshals![0].name);
+  assert.equal(
+    draft.marshal_name,
+    boot.marshals!.find((person) => person.can_record)!.name,
+  );
   assert.equal(draft.created_by, gate.id);
   assert.notEqual(draft.marshal_id, gate.id);
   assert(draft.created_at && Date.parse(draft.created_at) >= started);
@@ -162,6 +173,16 @@ test("marshal catalogues stay company/site scoped and capture roles remain enfor
     "Olamilekan Alaga",
   ]);
   assert.equal(local.bootstrap(gate).marshals!.length, 2);
+  assert.equal(boot.marshals!.filter((person) => person.can_record).length, 1);
+  assert.equal(
+    boot.marshals!.find((person) => person.can_record)!.user_id,
+    gate.id,
+  );
+  const colleague = boot.marshals!.find((person) => !person.can_record)!;
+  assert.throws(
+    () => local.log(gate, input({ marshal_id: colleague.id })),
+    /linked to your staff account/,
+  );
   const foreign = local.bootstrap(outsider).marshals![0];
   assert.throws(
     () => local.log(gate, input({ marshal_id: foreign.id })),
@@ -243,8 +264,9 @@ test("correcting the local 6F5 catalogue keeps material IDs and saved photos int
   assert.deepEqual(savedPhoto.data, png);
 });
 
-test("gate access is limited to own records/photos while selected marshal remains distinct from authentication", () => {
-  const fields = input({ marshal_id: boot.marshals![1].id });
+test("gate record/photo access and selected profile remain bound to the authenticated staff account", () => {
+  const own = boot.marshals!.find((person) => person.can_record)!;
+  const fields = input({ marshal_id: own.id });
   const draft = local.log(gate, fields).delivery;
   const photoId = attach(fields.id);
   local.log(gate, { ...fields, intent: "submit", version: draft.version });
@@ -267,11 +289,15 @@ test("gate access is limited to own records/photos while selected marshal remain
   assert(!local.bootstrap(second).deliveries.some((d) => d.id === fields.id));
   assert(!local.bootstrap(second).audit.some((a) => a.entity_id === fields.id));
   assert.throws(() => local.file(second, photoId), /not found/);
-  assert.throws(() => local.log(second, fields), /does not belong/);
+  assert.throws(
+    () => local.log(second, fields),
+    (error) => error instanceof AppError && error.status === 403,
+    "a colleague cannot retry a capture attributed to another staff account",
+  );
   assert.equal(
     local.bootstrap(supervisor).deliveries.find((d) => d.id === fields.id)
       ?.marshal_name,
-    "Olamilekan Alaga",
+    own.name,
   );
 });
 
@@ -346,4 +372,63 @@ test("a supervisor reassigned as gate cannot retrieve former review snapshots", 
   assert(
     !local.bootstrap(reassigned).deliveries.some((d) => d.id === fields.id),
   );
+});
+
+test("local capture menu upgrades once without replacing records or re-hiding a manually restored aggregate", () => {
+  const reader = new DatabaseSync(join(folder, "pilot.sqlite"));
+  const cement = local
+    .bootstrap(gate)
+    .materials.find((item) => item.name === "Cement")!;
+  const recordsBefore = reader
+    .prepare("SELECT id,body FROM objects WHERE kind='delivery' ORDER BY id")
+    .all();
+  reader
+    .prepare("DELETE FROM objects WHERE kind='catalogue_capture_menu' AND id=?")
+    .run(gate.company_id);
+  reader
+    .prepare("UPDATE objects SET body=? WHERE kind='material' AND id=?")
+    .run(JSON.stringify({ ...cement, capture_hidden: false }), cement.id);
+  const upgraded = local.bootstrap(gate);
+  assert.deepEqual(
+    upgraded.materials
+      .filter(
+        (item) =>
+          item.category === "Aggregates / Sands" && !item.capture_hidden,
+      )
+      .map((item) => item.name)
+      .sort(),
+    [...AGGREGATE_CAPTURE_ITEMS].sort(),
+  );
+  assert.deepEqual(
+    reader
+      .prepare("SELECT id,body FROM objects WHERE kind='delivery' ORDER BY id")
+      .all(),
+    recordsBefore,
+  );
+  const marker = reader
+    .prepare(
+      "SELECT body FROM objects WHERE kind='catalogue_capture_menu' AND id=?",
+    )
+    .get(gate.company_id) as { body: string };
+  assert.equal(JSON.parse(marker.body).version, CAPTURE_MENU_VERSION);
+  const saved = local.log(
+    gate,
+    input({
+      capture_kind: "arrival",
+      material_id: "",
+      custom_item_name: "cement",
+      selected_category: "Aggregates / Sands",
+    }),
+  ).delivery;
+  assert.equal(saved.material_id, cement.id);
+  const refreshed = local.bootstrap(gate);
+  assert.equal(
+    refreshed.materials.find((item) => item.id === cement.id)!.capture_hidden,
+    false,
+  );
+  assert.equal(
+    refreshed.materials.filter((item) => item.name === "Cement").length,
+    1,
+  );
+  reader.close();
 });

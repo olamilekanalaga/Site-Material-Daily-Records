@@ -55,6 +55,9 @@ export type Marshal = {
   site_id: string;
   name: string;
   active: boolean;
+  user_id?: string | null;
+  photo_path?: string | null;
+  can_record?: boolean;
 };
 export type Evidence = {
   id: string;
@@ -91,6 +94,8 @@ export type Delivery = {
   selected_category?: string;
   entry_type?: EntryType;
   recorded_at?: string;
+  correction_reason?: string;
+  capture_input?: Record<string, unknown>;
   catalogue_status?: ApprovalStatus;
   vehicle: string;
   ticket_number: string;
@@ -117,6 +122,8 @@ export type SimpleDeliveryInput = {
   material_id: string;
   marshal_id: string;
   supplier_name: string;
+  supplier_id?: string | null;
+  custom_supplier_name?: string;
   arrival_at: string;
   intent: "draft" | "submit";
   version?: number;
@@ -124,6 +131,8 @@ export type SimpleDeliveryInput = {
   selected_category?: string;
   recorded_at?: string;
   capture_kind?: "arrival";
+  corrected_arrival_at?: string;
+  correction_reason?: string;
 };
 export type DeliveryInput = {
   id: string;

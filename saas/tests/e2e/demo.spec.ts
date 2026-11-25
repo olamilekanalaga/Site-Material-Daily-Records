@@ -718,11 +718,14 @@ test("daily records roll over at London midnight while custom ranges retain peri
       name: `Total arrivals: ${count}`,
       exact: true,
     });
-  const material = (name: string, count: number) =>
-    summary.getByRole("button", {
-      name: `${name}: ${count} arrivals`,
-      exact: true,
-    });
+  const materialFilter = page.getByRole("combobox", {
+    name: "Item",
+    exact: true,
+  });
+  await expect(summary.getByRole("button")).toHaveCount(3);
+  await expect(
+    summary.getByRole("button", { name: /^Pending classifications:/ }),
+  ).toHaveCount(0);
   await expect(from).toHaveValue("2026-11-06");
   await expect(to).toHaveValue("2026-11-06");
   await expect(rows).toHaveCount(1);
@@ -746,14 +749,20 @@ test("daily records roll over at London midnight while custom ranges retain peri
   await expect(to).toHaveValue("2026-10-30");
   await expect(rows).toHaveCount(2);
   await expect(total(2)).toBeVisible();
-  await expect(material("6F5", 1)).toBeVisible();
-  await material("6F5", 1).click();
-  await expect(material("6F5", 1)).toHaveAttribute("aria-pressed", "true");
+  await materialFilter.selectOption({ label: "6F5" });
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText("October first");
   // Material filtering narrows the table but keeps every period total useful.
   await expect(total(2)).toBeVisible();
-  await expect(material("Sand", 1)).toHaveCount(1);
+  await expect(
+    summary.getByRole("button", {
+      name: "Material deliveries: 2",
+      exact: true,
+    }),
+  ).toHaveCount(1);
+  await expect(
+    summary.getByRole("button", { name: "Service visits: 0", exact: true }),
+  ).toHaveCount(1);
   await total(2).click();
   await expect(rows).toHaveCount(2);
   await expect(from).toHaveValue("2026-10-01");
@@ -805,8 +814,7 @@ test("daily records roll over at London midnight while custom ranges retain peri
     };
   });
   expect(new Set(dimensions.tops).size).toBe(1);
-  if (testInfo.project.name !== "demo-desktop") {
-    expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.width);
+  if (dimensions.scrollWidth > dimensions.width) {
     await summary.evaluate((element) => {
       element.scrollLeft = element.scrollWidth;
     });

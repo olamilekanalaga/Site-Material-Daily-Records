@@ -13,14 +13,15 @@ export const CATEGORIES = [
 export const ENTRY_TYPES = ["Delivery", "Service visit"] as const;
 export const PENDING_CATEGORY = "Pending classification";
 export const PENDING_ENTRY_TYPE = "Pending review";
-export const QUICK_ITEMS = [
+export const CAPTURE_MENU_VERSION = 1;
+export const AGGREGATE_CAPTURE_ITEMS = [
   "6F5",
   "Type 1",
   "Sand",
   "10mm shingles",
   "20mm shingles",
-  "Concrete",
 ] as const;
+export const QUICK_ITEMS = AGGREGATE_CAPTURE_ITEMS;
 
 type Definition = {
   name: string;
@@ -222,10 +223,37 @@ const definitions: Definition[] = groups.flatMap(([category, names]) =>
 function hiddenByDefault(definition: Definition | undefined) {
   return Boolean(
     definition &&
-    definition.category !== "Aggregates / Sands" &&
-    !["Pipes", "Cables", "Fuel", "Toilets", "Welfare"].includes(
-      definition.name,
-    ),
+    ![
+      ...AGGREGATE_CAPTURE_ITEMS,
+      "Pipes",
+      "Cables",
+      "Fuel",
+      "Toilets",
+      "Welfare",
+    ].includes(definition.name),
+  );
+}
+
+/** Apply once per saved workspace. Later manual reactivation must be retained. */
+export function compactAggregateCaptureMenu(
+  items: CatalogueItem[],
+  companyId: string,
+): CatalogueItem[] {
+  const retired = new Set(
+    definitions
+      .filter(
+        (definition) =>
+          definition.category === "Aggregates / Sands" &&
+          hiddenByDefault(definition),
+      )
+      .map((definition) => normaliseItemName(definition.name)),
+  );
+  return items.map((item) =>
+    item.company_id === companyId &&
+    item.approval_status === "Approved" &&
+    retired.has(normaliseItemName(item.name))
+      ? { ...item, capture_hidden: true }
+      : item,
   );
 }
 
@@ -386,12 +414,17 @@ export function searchCatalogue(
   items: CatalogueItem[],
   query: string,
   usage: Record<string, number> = {},
+  options: { includePending?: boolean } = {},
 ): CatalogueItem[] {
   const normalised = normaliseItemName(query);
   const seen = new Set<string>();
   return items
     .map(metadata)
-    .filter((item) => item.active && item.approval_status === "Approved")
+    .filter(
+      (item) =>
+        item.active &&
+        (item.approval_status === "Approved" || options.includePending),
+    )
     .map((item) => ({ item, score: matchScore(item, normalised) }))
     .filter(({ score }) => score > 0)
     .sort(

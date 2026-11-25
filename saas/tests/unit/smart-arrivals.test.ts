@@ -8,6 +8,8 @@ import {
   type DemoState,
 } from "../../src/lib/demo/engine";
 import {
+  AGGREGATE_CAPTURE_ITEMS,
+  CAPTURE_MENU_VERSION,
   itemDetails,
   normaliseItemName,
   searchCatalogue,
@@ -219,6 +221,60 @@ test("manual entries keep the marshal-selected category, reject invalid groups a
     1,
   );
   assert.equal(itemDetails(first, state.materials).category, "Services");
+});
+
+test("existing expanded aggregate menus are compacted once without replacing history or later manual additions", async () => {
+  const state = createDemoState();
+  delete state.capture_menu_version;
+  for (const item of state.materials)
+    if (item.category === "Aggregates / Sands") item.capture_hidden = false;
+  const originalRecords = structuredClone(state.deliveries);
+  const originalAudit = structuredClone(state.audit);
+  const originalFiles = Object.keys(state.files);
+  const originalIds = state.materials.map((item) => item.id);
+  const cement = state.materials.find((item) => item.name === "Cement")!;
+  migrateDemoState(state);
+  assert.equal(state.capture_menu_version, CAPTURE_MENU_VERSION);
+  assert.deepEqual(
+    state.materials.map((item) => item.id),
+    originalIds,
+  );
+  assert.deepEqual(state.deliveries, originalRecords);
+  assert.deepEqual(state.audit, originalAudit);
+  assert.deepEqual(Object.keys(state.files), originalFiles);
+  assert.deepEqual(
+    state.materials
+      .filter(
+        (item) =>
+          item.category === "Aggregates / Sands" && !item.capture_hidden,
+      )
+      .map((item) => item.name)
+      .sort(),
+    [...AGGREGATE_CAPTURE_ITEMS].sort(),
+  );
+  const saved = await capture(state, {
+    ...input(state, "cement", true),
+    selected_category: "Aggregates / Sands",
+  });
+  assert.equal(saved.material_id, cement.id);
+  assert.equal(saved.item_name, "cement");
+  assert.equal(saved.category, "Aggregates / Sands");
+  const refreshed = migrateDemoState(structuredClone(state));
+  assert.equal(
+    refreshed.materials.find((item) => item.id === cement.id)!.capture_hidden,
+    false,
+  );
+  assert.equal(
+    refreshed.materials.filter(
+      (item) => normaliseItemName(item.name) === "cement",
+    ).length,
+    1,
+  );
+  for (const record of originalRecords)
+    assert.deepEqual(
+      refreshed.deliveries.find((item) => item.id === record.id),
+      record,
+    );
 });
 
 test("manually reusing a hidden historical option preserves identity and makes it selectable again", async () => {

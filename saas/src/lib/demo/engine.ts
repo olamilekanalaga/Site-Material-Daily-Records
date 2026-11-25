@@ -19,11 +19,13 @@ import { localDate } from "../reporting";
 import { periodDeliveries } from "../delivery-records";
 import { siteClock } from "../site-time";
 import {
+  CAPTURE_MENU_VERSION,
   CATEGORIES,
   ENTRY_TYPES,
   PENDING_CATEGORY,
   PENDING_ENTRY_TYPE,
   findExactCatalogueItem,
+  compactAggregateCaptureMenu,
   itemDetails,
   normaliseItemName,
   upgradeCatalogue,
@@ -43,6 +45,7 @@ export type DemoState = {
   role: DemoRole;
   gate_profile?: DemoProfileId;
   sample_data_version?: 2 | 3;
+  capture_menu_version?: number;
   company: Bootstrap["company"];
   sites: Site[];
   members: Actor[];
@@ -311,6 +314,13 @@ export function migrateDemoState(state: DemoState): DemoState {
     addMixedMarshalSamples(state, firstGate, secondGate);
   state.sample_data_version = 3;
   state.materials = upgradeCatalogue(state.materials, state.company.id);
+  if ((state.capture_menu_version || 0) < CAPTURE_MENU_VERSION) {
+    state.materials = compactAggregateCaptureMenu(
+      state.materials,
+      state.company.id,
+    );
+    state.capture_menu_version = CAPTURE_MENU_VERSION;
+  }
   return state;
 }
 

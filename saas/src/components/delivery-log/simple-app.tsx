@@ -10,6 +10,13 @@ import { Brand } from "../shared/brand";
 import { Login } from "../auth/login";
 import { SimpleForm } from "./simple-form";
 import { SimpleRecords } from "./simple-records";
+import { LiveForm } from "./live-form";
+import {
+  LiveRecords,
+  marshalPhotoSource,
+  onMarshalPhotoError,
+} from "./live-records";
+import liveStyles from "./live-delivery.module.css";
 import type { DemoView } from "../demo/demo-access";
 import type { SignInPortal } from "@/lib/access";
 
@@ -19,12 +26,14 @@ export function SimpleApp({
   localDemo = false,
   workspaceEnabled = true,
   portal = null,
+  initialPage,
 }: {
   demo?: boolean;
   demoView?: DemoView;
   localDemo?: boolean;
   workspaceEnabled?: boolean;
   portal?: SignInPortal | null;
+  initialPage?: "home" | "records";
 }) {
   const supervisorDemo = demo && demoView === "supervisor";
   const entryDemo = demo && demoView === "entry";
@@ -33,7 +42,12 @@ export function SimpleApp({
   const [error, setError] = useState("");
   const [siteId, setSiteId] = useState("");
   const [page, setPage] = useState<"home" | "entry" | "records">(
-    entryDemo ? "entry" : demo && demoView !== "marshal" ? "records" : "home",
+    initialPage ||
+      (entryDemo
+        ? "entry"
+        : demo && demoView !== "marshal"
+          ? "records"
+          : "home"),
   );
   const [marshalId, setMarshalId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -92,6 +106,12 @@ export function SimpleApp({
 
   async function selectMarshal(marshal: Marshal) {
     if (acting.current) return;
+    if (!demo && marshal.can_record !== true) {
+      setError(
+        "This profile is not assigned to your account. Choose your authorised marshal profile.",
+      );
+      return;
+    }
     acting.current = true;
     setBusy(true);
     setError("");
@@ -129,7 +149,7 @@ export function SimpleApp({
       setSiteId("");
       setPage("home");
       setError("");
-      if (demo) window.location.assign("/");
+      window.location.assign("/");
     } catch {
       setError("Sign out could not be completed. Reconnect and try again.");
     } finally {
@@ -165,7 +185,13 @@ export function SimpleApp({
     return (
       <Login
         onLogin={async () => {
-          await load();
+          const next = await load();
+          if (next && !demo)
+            window.location.assign(
+              ["gate", "company_admin"].includes(next.actor.role)
+                ? "/gate"
+                : "/records",
+            );
         }}
         localDemo={localDemo}
         workspaceEnabled={workspaceEnabled}
@@ -186,7 +212,10 @@ export function SimpleApp({
       item.site_id === siteId &&
       item.company_id === data.actor.company_id,
   );
-  const selected = marshals.find((item) => item.id === marshalId);
+  const selected = marshals.find(
+    (item) => item.id === marshalId && (demo || item.can_record === true),
+  );
+  const choosingProfile = page === "home" || (page === "entry" && !selected);
   const recordsPage = page === "records" || !canRecord;
   const demoProfile = demoProfiles.find(
     (item) => item.name === data.actor.name,
@@ -198,15 +227,19 @@ export function SimpleApp({
       : page === "home"
         ? "/demo"
         : `/demo/delivery/${demoProfile?.id || "b"}`
-    : "/";
+    : canRecord
+      ? "/gate"
+      : "/records";
 
   function showRecords() {
     if (demo) window.location.assign(demoRecordsHref);
-    else setPage("records");
+    else window.location.assign("/records");
   }
 
   function recordNewDelivery() {
-    if (demo && demoProfile) {
+    if (!demo) {
+      window.location.assign("/gate");
+    } else if (demoProfile) {
       window.location.assign(`/demo/delivery/${demoProfile.id}`);
     } else if (selected) {
       setPage("entry");
@@ -223,6 +256,7 @@ export function SimpleApp({
           aria-label="DJ Civils home"
           onClick={(event) => {
             if (
+              demo &&
               canRecord &&
               selected &&
               !event.metaKey &&
@@ -258,20 +292,24 @@ export function SimpleApp({
             <div>
               <h1>
                 {recordsPage
-                  ? "Daily Records"
-                  : page === "entry"
+                  ? demo
+                    ? "Daily Records"
+                    : "Delivery Records"
+                  : !choosingProfile
                     ? "Record Delivery"
-                    : "Sign in as"}
+                    : demo
+                      ? "Sign in as"
+                      : "Gate Delivery"}
               </h1>
               <p>
                 {recordsPage
                   ? "Saved deliveries for your site."
-                  : page === "entry"
+                  : !choosingProfile
                     ? "Enter the delivery details below."
                     : "Choose your name to record a delivery."}
               </p>
             </div>
-            {page !== "home" || !canRecord ? (
+            {page !== "home" || !canRecord || !demo ? (
               <div className="simple-page-actions">
                 {canRecord &&
                   (recordsPage ? (
@@ -288,7 +326,7 @@ export function SimpleApp({
                       disabled={busy}
                       onClick={showRecords}
                     >
-                      Back to Records
+                      {page === "home" ? "View Records" : "Back to Records"}
                     </button>
                   ))}
                 {recordsPage && (
@@ -317,6 +355,7 @@ export function SimpleApp({
                   onChange={(event) => {
                     setSiteId(event.target.value);
                     setMarshalId("");
+                    setPage(recordsPage ? "records" : "home");
                   }}
                 >
                   {data.sites.map((item) => (
@@ -350,6 +389,8 @@ export function SimpleApp({
               No site is assigned to this account. Ask your company
               administrator to assign a site.
             </section>
+          ) : recordsPage && !demo ? (
+            <LiveRecords key={site.id} data={data} siteId={site.id} />
           ) : recordsPage ? (
             <SimpleRecords
               key={site.id}
@@ -359,7 +400,7 @@ export function SimpleApp({
             />
           ) : (
             <>
-              {page === "home" && (
+              {choosingProfile && (
                 <div
                   className="simple-marshal-grid"
                   aria-label="Select traffic marshal"
@@ -368,15 +409,21 @@ export function SimpleApp({
                     <button
                       key={marshal.id}
                       type="button"
-                      className="simple-marshal-card"
+                      className={`simple-marshal-card ${demo ? "" : liveStyles.staffCard}`}
                       aria-label={marshal.name}
                       aria-pressed={selected?.id === marshal.id}
-                      disabled={busy}
+                      disabled={busy || (!demo && marshal.can_record !== true)}
                       onClick={() => void selectMarshal(marshal)}
                     >
-                      {(demo || data.mode === "local") &&
-                      (marshal.name === "Olamilekan Alaga" ||
-                        marshal.name === "Bemigho Estano") ? (
+                      {!demo ? (
+                        <img
+                          src={marshalPhotoSource(marshal, data.mode)}
+                          onError={onMarshalPhotoError}
+                          alt=""
+                        />
+                      ) : demo &&
+                        (marshal.name === "Olamilekan Alaga" ||
+                          marshal.name === "Bemigho Estano") ? (
                         <Image
                           src={
                             marshal.name === "Bemigho Estano"
@@ -409,13 +456,34 @@ export function SimpleApp({
                   ))}
                 </div>
               )}
-              {page === "home" && !marshals.length && (
+              {choosingProfile && !marshals.length && (
                 <section className="simple-panel simple-empty">
                   No traffic marshals are configured for this site. Ask your
                   company administrator to add them.
                 </section>
               )}
-              {page === "entry" && selected && (
+              {choosingProfile &&
+                !demo &&
+                marshals.length > 0 &&
+                !marshals.some((item) => item.can_record) && (
+                  <p className="simple-help">
+                    No marshal profile is assigned to your account. Ask your
+                    company administrator to link your staff account.
+                  </p>
+                )}
+              {page === "entry" && selected && !demo && (
+                <LiveForm
+                  key={`${data.actor.id}:${selected.id}`}
+                  data={data}
+                  site={site}
+                  marshal={selected}
+                  onSaved={async () => {
+                    await load();
+                  }}
+                  onViewRecords={showRecords}
+                />
+              )}
+              {page === "entry" && selected && demo && (
                 <SimpleForm
                   key={`${data.actor.id}:${selected.id}`}
                   data={data}

@@ -13,7 +13,7 @@ export type Context = {
 export function appMode() {
   assert(
     ["local", "supabase"].includes(process.env.APP_MODE || ""),
-    "Set APP_MODE=local for the fictional demo, or APP_MODE=supabase for production",
+    "Staff workspace is unavailable. Contact your administrator.",
     503,
   );
   assert(
@@ -106,7 +106,8 @@ export async function session(request: Request): Promise<Context> {
   let client: SupabaseClient;
   try {
     client = await remote.user(token);
-  } catch {
+  } catch (error) {
+    if (!(error instanceof AppError) || error.status !== 401) throw error;
     const refresh = jar.get("delivery_refresh")?.value;
     assert(refresh, "Session expired. Sign in again.", 401);
     const renewed = await remote.refresh(refresh);

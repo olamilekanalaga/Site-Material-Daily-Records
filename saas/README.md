@@ -1,8 +1,21 @@
-# DJ Civils — construction delivery management
+# DJ Civils — site material daily records
 
-DJ Civils is a site-arrival log: traffic marshals choose their name to open the delivery-entry form and record deliveries or service visits; supervisors inspect records, evidence and operational totals, and classify new items. The interface uses the supplied DJ Civils logo. The proposed pilot remains **unofficial and unauthorised**; all included supplier, ticket and delivery records are fictional. The named demo profiles are for demonstration only.
+DJ Civils is an existing site-arrival application with two separate modes: an authenticated, database-backed staff workspace and an explicit browser-local demonstration. The interface reuses the supplied DJ Civils branding. Included demo deliveries/suppliers are fictional; they are never inserted into the live workspace. Use real company evidence only for an authorised site rollout.
 
 The original reporting app remains outside `saas/` and is not served by DJ Civils.
+
+## Live staff workspace
+
+The production integration is prepared on `feat/production-delivery-backend` for pull-request review. **Do not merge or deploy production without approval.** The existing Vercel project/root and hosted demo are preserved.
+
+- **Gate Delivery** (`/gate`): individual approved staff login, database-configured marshal profile cards, searchable material and supplier dropdowns, manual additions, camera/upload evidence and an explicit save. Only the account's permitted marshal card is enabled. The server generates recording time; a clearly labelled correction retains the original timestamp and requires a reason.
+- **Delivery Records** (`/records`): Date, Time, Material, Supplier, Marshal and Photo, newest delivery time first, with date/material/supplier filters and CSV export. Assigned supervisors see shared site records/photos; gate staff retain their permitted own-record view. Original server recording time remains available separately for audit and export.
+
+Known catalogue mappings provide category and entry type. Unrecognised material classifications remain pending rather than being guessed; a selected group is only a proposal until classification is approved. Material and supplier names persist in PostgreSQL for future selection. The live interface omits sample records, demo banners, analytics dashboards and unused navigation.
+
+Supabase Auth, employee-scoped PostgreSQL/RLS and private Storage are the live sources of truth. IndexedDB is only a pending-save/photo retry buffer for authenticated operation. Existing browser demo records do not automatically migrate to Supabase.
+
+Start with the [production audit](docs/PRODUCTION-AUDIT.md), then follow [Supabase setup and deployment](docs/DEPLOYMENT.md). The public project URL alone is not a completed connection. Hosted migrations, credentials, staff setup and a real two-device Auth/Storage smoke test must be completed and reported separately from local test results.
 
 ## Explore the public demo
 
@@ -14,7 +27,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000` for four aligned options: **Traffic Marshal sign-in**, **Supervisor / Site Manager sign-in**, **Traffic Marshal demo** and **Supervisor demo**. The two staff sign-in options are disabled. Only the two demo options are clickable; the homepage has no promotional panel, instructions or credential fields.
+On an unconfigured deployment, `http://localhost:3000` offers four aligned options: two disabled staff entrances and the two accessible demos. A configured staff workspace instead offers the approved staff entrances, with no demo panel. `/demo` remains available explicitly and never grants a staff session.
 
 Choose **Traffic Marshal demo** to open `/demo`, then click one of the two square profile cards: **Bemigho Estano** or **Olamilekan Alaga**. Both marshal cards use their supplied portraits. The demo includes 30 sample deliveries: 20 for Bemigho Estano and 10 for Olamilekan Alaga. Choose **Supervisor demo** (`/demo/supervisor`) to see the combined records in arrival-time order. Existing browser records and photos are kept when the sample data is updated. The marshal demo page says **Sign in as**. Choosing a square photo opens the selected marshal’s delivery-entry form directly. **View Records** opens the saved table; **Record New Delivery** returns to entry. For a selected marshal, the company-logo Home link also opens the delivery form. Reloading the delivery page keeps the selected profile; select the same marshal again to resume any pending save.
 
@@ -36,7 +49,7 @@ Open `/demo/supervisor` directly, or choose **Supervisor demo** on the landing p
 
 The five-column records table shows Traffic marshal (small circular profile picture), Item, Category, Logistics company and Photo. The supplied portraits identify the two sample marshals without visible name text; other staff use a placeholder with their accessible name. Dates and times remain stored for ordering, custom date filters and exports, but are hidden from the table. Entry type is retained internally for delivery/service totals, filtering and supervisor catalogue approval; it has no delivery-form field, records-table column or arrival-CSV column.
 
-Item names display as plain text. **Aggregates / Sands** initially contains the existing aggregate, sand, concrete and cement options. **Other Materials** starts with **Pipes** and **Cables**; **Services** starts with **Fuel**, **Toilets** and **Welfare**. Every category has a manual-entry option. The central catalogue retains all 69 earlier definitions plus these five new names, preserving existing IDs and ambiguous historical names such as **G1** and **6I**. Other earlier options remain stored for history but are omitted from the initial capture menus; explicitly entering an exact known name makes it available again. Unknown names wait for supervisor approval before becoming normal dropdown options. See [smart arrivals](docs/SMART-ARRIVALS.md) for matching, compatibility and approval.
+Item names display as plain text. **Aggregates / Sands** starts with **6F5**, **Type 1**, **Sand**, **10mm shingles** and **20mm shingles**. **Other Materials** starts with **Pipes** and **Cables**; **Services** starts with **Fuel**, **Toilets** and **Welfare**. Every category has a manual-entry option. The central catalogue retains all 69 earlier definitions plus these five newer names, preserving existing IDs and ambiguous historical names such as **G1** and **6I**. Other earlier options remain stored for history but are omitted from the initial capture menus; explicitly entering an exact known name makes it available again. Unknown names wait for supervisor approval before becoming normal dropdown options. See [smart arrivals](docs/SMART-ARRIVALS.md) for matching, compatibility and approval.
 
 ### Date ranges and arrival totals
 
@@ -44,7 +57,7 @@ Item names display as plain text. **Aggregates / Sands** initially contains the 
 
 The table, summary cards and arrival CSV use the same effective dates. Earlier arrivals remain stored and can be viewed through custom ranges; changing the day does not delete records.
 
-Summary and material cards count recorded arrivals in the selected dates and remain horizontally scrollable. Total arrivals includes deliveries, service visits and unclassified items. Delivery, service-visit and pending totals stay separate. Select an item card to narrow the table; card counts continue to show the full selected period so items remain comparable. Additional filters cover category, entry type, marshal and classification status. Supervisor breakdowns show arrivals by item, category, service and marshal. The **Services** category is independent of entry type: fuel or facility deliveries do not become service visits merely because they share that category.
+Three horizontally arranged summary cards show **Total arrivals**, **Material deliveries** and **Service visits** for the selected dates. Total arrivals includes unclassified items; delivery and service totals remain separate. Use the item dropdown to narrow the table while the cards retain the full period totals. Additional filters cover category, entry type, marshal and classification status. Supervisor breakdowns show arrivals by item, category, service and marshal, and pending items remain available for review. The **Services** category is independent of entry type: fuel or facility deliveries do not become service visits merely because they share that category.
 
 Every saved arrival counts once, including pending items; retries or catalogue approval do not create additional arrivals. The smart demo counts vehicles arriving, not tonnes, litres or stock. Existing historical aggregate summaries and older quantity fields are preserved separately.
 
@@ -58,11 +71,11 @@ Use fictional information only. IndexedDB is not encrypted against someone contr
 
 ## Private sign-in entrances
 
-The public homepage's staff sign-in options are disabled. The existing private routes remain available for configured local development or a later approved team rollout: `/sign-in/marshal` for Traffic Marshals and `/sign-in/supervisor` for Supervisors / Site Managers. Both use the existing email/password authentication; no Google sign-in or identity-document upload is required. The selected entrance never changes an account's stored role. An unconfigured public deployment does not expose a usable private sign-in form.
+When a valid staff backend is configured, the homepage enables the two approved staff entrances. `/gate` opens Gate Delivery and `/records` opens Delivery Records. Existing `/sign-in/marshal` and `/sign-in/supervisor` routes remain compatible for Traffic Marshals and Supervisors / Site Managers. Both use the existing email/password authentication; no Google sign-in or identity-document upload is required. The selected entrance never changes an account's stored role. An unconfigured public deployment does not expose a usable private sign-in form.
 
 Private access is invite-only: an operator provisions the Auth user, and an authorised company administrator assigns the company membership, role and site access. There is no public role-selection or account-registration form. Login rejects an unapproved role or missing site before issuing session cookies; company administrators may sign in before a first site exists for setup. The bootstrap endpoint also enforces the selected entrance for existing sessions.
 
-The public browser demo remains a simulation. Private accounts cannot be activated on an unconfigured deployment. Apply the migrations, connect the Supabase environment settings in `docs/DEPLOYMENT.md`, establish the initial company administrator and provision only approved staff accounts. A dedicated self-service account-creation/approval queue is not included in this prototype; administrator membership tools and operator provisioning remain the onboarding mechanism.
+The public browser demo remains a simulation. Private accounts cannot be activated on an unconfigured deployment. Apply the ordered migrations, connect the Supabase environment settings in `docs/DEPLOYMENT.md` and provision only approved staff accounts. There is no public registration, self-service role selection or password-recovery UI; initial credentials and account recovery are operator-managed in Supabase.
 
 ## Authenticated team workspace
 
@@ -77,13 +90,13 @@ npm run dev
 
 Set `APP_MODE=local` explicitly. Local mode accepts localhost requests only, uses Node's built-in SQLite, and refuses to run on Vercel. Fictional accounts are `gate@demo.invalid`, `supervisor@demo.invalid`, `manager@demo.invalid` and `admin@demo.invalid`, each with password `DemoPass123!`. Local server records and private photos persist in `.local-data/pilot.sqlite`; this is separate from the public browser demo.
 
-Production team operation uses Supabase Authentication, PostgreSQL RLS, private Storage and checked transactional functions. The app uses each employee's identity rather than a runtime service-role key. Selecting a marshal records attribution separately from the authenticated creator. Gate employees can capture deliveries and view only their own records/photos; assigned supervisors can inspect their site's records. Historical deliveries and quantities are preserved. Operator-managed company/site/marshal setup remains outside the two-page interface.
+Production team operation uses Supabase Authentication, PostgreSQL RLS, private Storage and checked transactional functions. The app uses each employee's identity rather than a runtime service-role key. Marshal ownership is bound to the Auth user and checked by the API/RPC; selecting another visible card cannot impersonate that employee. Gate employees can capture deliveries and view only their own records/photos; assigned supervisors can inspect their site's records. Historical deliveries and quantities are preserved. Operator-managed company/site/marshal setup remains outside the two-page interface.
 
-Apply the additive `202611060001_simple_delivery_log.sql` migration after the original schema before using this version with an existing Supabase database. It adds marshal metadata and the simple logging function without resetting delivery or historical-summary records. The original API remains compatible with older clients, so historical or legacy deliveries without images show **No photo**. The new simple form requires an image.
+Apply the missing ordered migrations through `202611070001_live_delivery_backend.sql` before using the live workspace. The additive updates retain delivery IDs, evidence and historical summaries; do not rerun the initial schema against an existing database. The superseded vehicle/ticket API supports controlled corrections to existing owned legacy records but cannot create new arrivals. Historical rows without images still show **No photo**. New captures use the account-bound delivery logger and require an image.
 
 The smart catalogue, pending classification and automatic save-time capture in this upgrade are enabled for the browser demo. The existing authenticated form and APIs retain their compatible behaviour; no new production schema, cloud database, authentication or billing integration is added by this demo upgrade.
 
-See [Supabase setup and deployment](docs/DEPLOYMENT.md) and [security boundaries](docs/SECURITY.md) before configuring an authenticated hosted pilot. Obtain company permission before collecting private records. No hosted Supabase verification or live URL is claimed by this README.
+See [Supabase setup and deployment](docs/DEPLOYMENT.md) and [security boundaries](docs/SECURITY.md) before configuring an authenticated hosted pilot. Obtain company permission before collecting private records. The existing public demo URL is separate from hosted Supabase verification; this README does not claim that the user's project has been migrated or tested.
 
 ## Offline support
 
@@ -98,13 +111,12 @@ npm run typecheck
 npm test
 npm run build
 npm run test:demo
-npx playwright test tests/e2e/ui.spec.ts
-npx playwright test tests/e2e/simple-api.spec.ts tests/e2e/portal-api.spec.ts --project=api
+npm run test:e2e
 ```
 
 The suites cover deterministic catalogue matching, pending-item approval, save-time timestamps, repeated arrivals, legacy-record preservation, reporting, permissions, evidence and duplicate retries. Run the commands above for results from your checkout; this guide does not claim that every environment or hosted backend has been verified. See [validation results](docs/VALIDATION.md) for recorded release checks and [smart arrivals](docs/SMART-ARRIVALS.md#verification) for the upgrade's expected scenarios. If the environment blocks Turbopack's worker port, use `npm run build -- --webpack` for the release-build check.
 
-`npm run test:demo` uses `playwright.demo.config.ts` and deliberately starts without a configured backend. The explicit authenticated UI and API commands above exercise the separate local adapter. The older `api.spec.ts` includes image-free legacy submission expectations superseded by the simple logger and is not the current upgrade's regression target; no full `npm run test:e2e` pass is claimed. Install Chromium with `npx playwright install chromium` if needed; the configuration uses `/usr/bin/chromium` when available. PostgreSQL policy tests use PGlite with mocked Supabase identity/storage metadata. Those tests do not replace a real Supabase Auth/Storage smoke test when credentials are supplied.
+`npm run test:demo` uses `playwright.demo.config.ts` and deliberately starts without a configured backend. The default authenticated runner selects the current `live-api`, `simple-api`, `portal-api` and private UI suites against the local adapter. The older `api.spec.ts` keeps historical vehicle/quantity expectations and is intentionally excluded from that runner. See the validation report for the exact executed runs. Install Chromium with `npx playwright install chromium` if needed; the configuration uses `/usr/bin/chromium` when available. PostgreSQL policy tests use PGlite with mocked Supabase identity/storage metadata. Those tests do not replace a real hosted Supabase Auth/Storage smoke test.
 
 ## Source map and next phase
 
@@ -123,4 +135,4 @@ See the [repository folder guide](../docs/REPOSITORY-STRUCTURE.md) for the compl
 | `supabase/migrations/`            | Production schema, tenant/site RLS and private-storage policies               |
 | `tests/`                          | Demo, domain, SQL and browser tests                                           |
 
-The next step is a short gate-user trial of this demo and agreement on the site's catalogue and supervisor access policy. Shared cross-device records require an approved hosted backend rollout and real Supabase Auth/Storage checks; the existing infrastructure is retained for that work. No paid AI, construction API or subscription is needed for this upgrade. Production releases require explicit approval; see the deployment instructions above.
+The next step is to complete the reviewed Supabase setup and a hosted two-device trial using approved accounts. No paid AI or construction API is required. Supabase/Vercel plans and quotas remain provider choices. Keep the feature pull request unmerged and production unchanged until approval; see the deployment instructions above.

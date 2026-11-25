@@ -1,6 +1,6 @@
 # DJ Civils delivery log
 
-The active application lives in [`saas/`](saas/README.md). Traffic marshals start at **Sign in as**, choose their photo to open the delivery-entry form, then use **View Records** to inspect **Daily Records**. Records default to the current Europe/London site day and move to the next day at midnight; custom date ranges keep earlier arrivals accessible. The browser demo uses category-first selection to filter the searchable item dropdown, classifies items internally and supports supervisor review of unknown items. The proposed DJ Civils pilot is unofficial; included delivery records are fictional.
+The active application lives in [`saas/`](saas/README.md). The production integration keeps two authenticated pages: **Gate Delivery** (`/gate`) and **Delivery Records** (`/records`). Supabase provides staff login, shared PostgreSQL records and private photos. The existing browser-local demo remains explicit at `/demo`; its sample arrivals are never live company data. The integration is prepared on a feature branch for review, with no production merge/deployment authorised by this change.
 
 ## Run the SaaS
 
@@ -12,7 +12,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000` for four aligned sign-in options. **Traffic Marshal sign-in** and **Supervisor / Site Manager sign-in** are disabled; only **Traffic Marshal demo** (`/demo`) and **Supervisor demo** (`/demo/supervisor`) are clickable. No email or password is needed for either demo. Demo records, photos and catalogue approvals persist in that browser only; they are not shared across devices. See the [smart arrivals guide](saas/docs/SMART-ARRIVALS.md) for capture, classification and reporting, and the [SaaS guide](saas/README.md) for authenticated development and existing Supabase infrastructure.
+An unconfigured homepage offers the two accessible demos and two disabled staff choices. Once staff settings are configured, it offers the approved staff entrances. `/demo` and `/demo/supervisor` still need no credentials and store their records/photos in that browser only. For live setup, start with the [production audit](saas/docs/PRODUCTION-AUDIT.md) and [deployment guide](saas/docs/DEPLOYMENT.md). See the [smart arrivals guide](saas/docs/SMART-ARRIVALS.md) for the preserved demo and the [SaaS guide](saas/README.md) for both modes.
 
 ## Repository map
 

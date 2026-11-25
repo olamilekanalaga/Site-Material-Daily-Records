@@ -8,11 +8,10 @@ import type {
 } from "../types";
 import { AppError, assert, uuid } from "./core";
 import { createHash } from "node:crypto";
+import { supabaseConfig } from "./config";
 
 export function supabase(token?: string): SupabaseClient {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
-  assert(url && key, "Configure Supabase before starting production mode", 503);
+  const { url, key } = supabaseConfig();
   return createClient(url, key, {
     auth: {
       persistSession: false,
@@ -24,6 +23,16 @@ export function supabase(token?: string): SupabaseClient {
 }
 function dbError(error: { message: string; code?: string } | null) {
   if (error) {
+    if (/fetch failed|failed to fetch|network|timed? ?out/i.test(error.message))
+      throw new AppError(
+        503,
+        "The database is temporarily unavailable. Please retry.",
+      );
+    if (["PGRST202", "PGRST205"].includes(error.code || ""))
+      throw new AppError(
+        503,
+        "The staff database setup is incomplete. Contact your administrator.",
+      );
     const status =
       error.code === "42501"
         ? 403
@@ -40,30 +49,65 @@ async function rpc<T>(
   name: string,
   input?: object,
 ): Promise<T> {
-  const { data, error } = await client.rpc(name, input);
+  const { data, error } = await client.rpc(name, input).then(
+    (response) => response,
+    () => {
+      throw new AppError(
+        503,
+        "The database is temporarily unavailable. Please retry.",
+      );
+    },
+  );
   dbError(error);
   return data as T;
 }
+
+function unavailableAuth(error: unknown): boolean {
+  if (!error || typeof error !== "object") return true;
+  const value = error as { name?: string; status?: number; message?: string };
+  return (
+    value.name === "AuthRetryableFetchError" ||
+    value.name === "AuthUnknownError" ||
+    value.status === 0 ||
+    (typeof value.status === "number" && value.status >= 500) ||
+    /fetch failed|failed to fetch|network/i.test(value.message || "")
+  );
+}
+
+function authFailure(error: unknown, message: string): never {
+  if (error instanceof AppError) throw error;
+  throw new AppError(
+    unavailableAuth(error) ? 503 : 401,
+    unavailableAuth(error)
+      ? "The sign-in service is temporarily unavailable. Please try again."
+      : message,
+  );
+}
+
 export const remote = {
   async login(email: string, password: string) {
     const client = supabase();
-    const { data, error } = await client.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error || !data.session)
-      throw new AppError(401, "Invalid email or password");
+    const result = await client.auth
+      .signInWithPassword({ email, password })
+      .catch((error: unknown) =>
+        authFailure(error, "Invalid email or password"),
+      );
+    const { data, error } = result;
+    if (error) authFailure(error, "Invalid email or password");
+    assert(data.session, "Invalid email or password", 401);
     return {
       access: data.session.access_token,
       refresh: data.session.refresh_token,
     };
   },
   async refresh(refresh_token: string) {
-    const { data, error } = await supabase().auth.refreshSession({
-      refresh_token,
-    });
-    if (error || !data.session)
-      throw new AppError(401, "Session expired. Sign in again.");
+    const { data, error } = await supabase()
+      .auth.refreshSession({ refresh_token })
+      .catch((problem: unknown) =>
+        authFailure(problem, "Session expired. Sign in again."),
+      );
+    if (error) authFailure(error, "Session expired. Sign in again.");
+    assert(data.session, "Session expired. Sign in again.", 401);
     return {
       access: data.session.access_token,
       refresh: data.session.refresh_token,
@@ -71,13 +115,21 @@ export const remote = {
   },
   async user(token: string) {
     const client = supabase(token);
-    const { data, error } = await client.auth.getUser(token);
-    assert(!error && data.user, "Sign in required", 401);
+    const { data, error } = await client.auth
+      .getUser(token)
+      .catch((problem: unknown) => authFailure(problem, "Sign in required"));
+    if (error) authFailure(error, "Sign in required");
+    assert(data.user, "Sign in required", 401);
     return client;
   },
   async logout(token: string) {
     const client = supabase(token);
-    await client.auth.admin.signOut(token, "local");
+    const { error } = await client.auth.admin.signOut(token, "local");
+    if (error)
+      throw new AppError(
+        503,
+        "The sign-in service could not confirm sign-out.",
+      );
   },
   bootstrap(client: SupabaseClient) {
     return rpc<Bootstrap>(client, "app_bootstrap");
@@ -184,6 +236,25 @@ export const remote = {
     assert(!downloadError && data, "Evidence not found", 404);
     await rpc(client, "audit_evidence_view", { p_id: id });
     return { evidence: e, data: new Uint8Array(await data.arrayBuffer()) };
+  },
+  async marshalPhoto(client: SupabaseClient, id: string) {
+    const { data: marshal, error } = await client
+      .from("traffic_marshals")
+      .select("id,photo_path")
+      .eq("id", uuid(id))
+      .maybeSingle();
+    dbError(error);
+    assert(marshal?.photo_path, "Staff photo not found", 404);
+    const { data, error: downloadError } = await client.storage
+      .from("staff-portraits")
+      .download(marshal.photo_path);
+    assert(!downloadError && data, "Staff photo not found", 404);
+    assert(
+      ["image/jpeg", "image/png", "image/webp"].includes(data.type),
+      "Staff photo not found",
+      404,
+    );
+    return { data: new Uint8Array(await data.arrayBuffer()), mime: data.type };
   },
   reportExport(client: SupabaseClient, input: Record<string, unknown>) {
     return rpc(client, "audit_report_export", { p_input: input });

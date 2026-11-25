@@ -36,21 +36,44 @@ export function Login({
             role="group"
             aria-label="Sign-in options"
           >
-            <button className={styles.option} type="button" disabled>
-              Traffic Marshal sign-in
-            </button>
-            <button className={styles.option} type="button" disabled>
-              Supervisor / Site Manager sign-in
-            </button>
-            <a className={`${styles.option} ${styles.demo}`} href="/demo">
-              Traffic Marshal demo
-            </a>
-            <a
-              className={`${styles.option} ${styles.demo}`}
-              href="/demo/supervisor"
-            >
-              Supervisor demo
-            </a>
+            {workspaceEnabled ? (
+              <>
+                <a
+                  className={`${styles.option} ${styles.active}`}
+                  href="/sign-in/marshal"
+                >
+                  Traffic Marshal sign-in
+                </a>
+                <a
+                  className={`${styles.option} ${styles.active}`}
+                  href="/sign-in/supervisor"
+                >
+                  Supervisor / Site Manager sign-in
+                </a>
+              </>
+            ) : (
+              <>
+                <button className={styles.option} type="button" disabled>
+                  Traffic Marshal sign-in
+                </button>
+                <button className={styles.option} type="button" disabled>
+                  Supervisor / Site Manager sign-in
+                </button>
+              </>
+            )}
+            {(!workspaceEnabled || localDemo) && (
+              <>
+                <a className={`${styles.option} ${styles.active}`} href="/demo">
+                  Traffic Marshal demo
+                </a>
+                <a
+                  className={`${styles.option} ${styles.active}`}
+                  href="/demo/supervisor"
+                >
+                  Supervisor demo
+                </a>
+              </>
+            )}
           </div>
         </div>
       </main>
@@ -80,7 +103,6 @@ export function Login({
         <small>Enabling · Groundworks · Civil Engineering</small>
       </section>
       <section className="login-form">
-        <div className="demo-pill">DJ CIVILS SOFTWARE</div>
         <h2>
           {portal === "marshal"
             ? "Traffic Marshal sign-in"
@@ -111,7 +133,7 @@ export function Login({
               const message = (e as Error).message;
               setError(
                 /APP_MODE|Supabase|Local demo storage|Configure/.test(message)
-                  ? "Staff sign-in is unavailable. Return to sign-in options to use a demo."
+                  ? "Staff sign-in is unavailable. Contact your administrator."
                   : message,
               );
             } finally {
@@ -141,8 +163,7 @@ export function Login({
           </label>
           {(error || startupError) && (
             <p role="alert" className="error-text">
-              {error ||
-                "Your team session is unavailable. Sign in again or explore the demo."}
+              {error || "Your team session is unavailable. Sign in again."}
             </p>
           )}
           <button className="primary" disabled={busy}>
