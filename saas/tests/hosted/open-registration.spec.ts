@@ -15,7 +15,7 @@ test("open signup signs in immediately, keeps a private portrait and remembers a
   try {
     const page = await context.newPage();
     const email = `auth-smoke-${randomUUID()}@example.com`;
-    const password = randomBytes(24).toString("base64url");
+    const password = randomBytes(6).toString("base64url");
     await page.goto("/");
     await page.getByRole("link", { name: "Create account" }).click();
     await page.getByLabel("First name").fill("Staging");
@@ -31,7 +31,7 @@ test("open signup signs in immediately, keeps a private portrait and remembers a
       ),
     });
     await page
-      .getByRole("combobox", { name: "Role" })
+      .getByRole("combobox", { name: "What is your role?" })
       .selectOption("site_manager");
     await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByLabel("Confirm password", { exact: true }).fill(password);
@@ -66,6 +66,11 @@ test("open signup signs in immediately, keeps a private portrait and remembers a
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/$/);
     await page.getByLabel("Email address").fill(email);
+    await page.getByLabel("Password", { exact: true }).fill(password + "x");
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(
+      page.getByText("Invalid email or password", { exact: true }),
+    ).toBeVisible();
     await page.getByLabel("Password", { exact: true }).fill(password);
     await page.getByRole("checkbox", { name: "Remember me" }).check();
     await page.getByRole("button", { name: "Sign in", exact: true }).click();

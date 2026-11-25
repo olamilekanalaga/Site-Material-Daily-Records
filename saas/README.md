@@ -8,7 +8,7 @@ The original reporting app remains outside `saas/` and is not served by DJ Civil
 
 Use the existing Vercel project and application root for any approved release.
 
-- **Gate Delivery** (`/gate`): individual approved staff login, database-configured marshal profile cards, searchable material and supplier dropdowns, manual additions, camera/upload evidence and an explicit save. Only the account's permitted marshal card is enabled. The server generates recording time; a clearly labelled correction retains the original timestamp and requires a reason.
+- **Gate Delivery** (`/gate`): individual approved staff login, database-configured marshal profile cards, searchable material and supplier dropdowns, manual additions, camera/upload evidence and an explicit save. Only the account's permitted marshal card is enabled. The server saves the date and time automatically.
 - **Delivery Records** (`/records`): Date, Time, Direction, Material, Supplier, Marshal and Photo, newest delivery time first, with date, direction, material and supplier filters and CSV export. Assigned supervisors see shared site records/photos; gate staff retain their permitted own-record view. Original server recording time remains available separately for audit and export.
 
 Known catalogue mappings provide category and entry type. Material and supplier names persist in Supabase. The form requires IN or OUT for each new movement. Delivery Records includes read-only movement totals for reporting roles.

@@ -26,10 +26,10 @@ export async function POST(request: Request) {
     assert(
       typeof password === "string" &&
         password.length > 0 &&
-        password.length <= 200,
-      "Valid password required",
+        email.includes("@"),
+      "Invalid email or password",
+      401,
     );
-    assert(email.includes("@"), "Valid email required");
     const remember = input.remember === true;
     let destination;
     if (appMode() === "local") {

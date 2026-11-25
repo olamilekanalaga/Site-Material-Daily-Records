@@ -11,12 +11,7 @@ export function staffEmail(value: unknown) {
 }
 
 export function newPassword(value: unknown, confirmation: unknown) {
-  assert(
-    typeof value === "string" &&
-      value.length >= 12 &&
-      Buffer.byteLength(value, "utf8") <= 72,
-    "Use at least 12 characters and at most 72 bytes.",
-  );
+  assert(typeof value === "string" && value.length > 0, "Enter a password.");
   assert(value === confirmation, "Passwords do not match.");
   return value;
 }

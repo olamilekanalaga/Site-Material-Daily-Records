@@ -24,7 +24,14 @@ export function Login({
   const [busy, setBusy] = useState(false);
   return (
     <main className={styles.screen}>
-      <section className={`login-form ${styles.panel}`} aria-label="Sign in">
+      <section
+        className={`${styles.panel} ${styles.loginPanel}`}
+        aria-labelledby="sign-in-title"
+      >
+        <header className={styles.header}>
+          <h1 id="sign-in-title">Sign in to your account</h1>
+          <p>Site Material Daily Records</p>
+        </header>
         <form
           onSubmit={async (event) => {
             event.preventDefault();
@@ -59,6 +66,7 @@ export function Login({
             <input
               type="email"
               name="email"
+              placeholder="Enter email address"
               autoComplete="username"
               autoCapitalize="none"
               spellCheck={false}
@@ -77,13 +85,16 @@ export function Login({
                   : "Staff sign-in is unavailable.")}
             </p>
           )}
-          <button className="primary" disabled={busy || !workspaceEnabled}>
+          <button
+            className={styles.submit}
+            disabled={busy || !workspaceEnabled}
+          >
             {busy ? "Signing in…" : "Sign in"}
           </button>
         </form>
         {registrationEnabled && (
           <div className={styles.links}>
-            <a href="/register">Create account</a>
+            New here? <a href="/register">Create account</a>
           </div>
         )}
       </section>
