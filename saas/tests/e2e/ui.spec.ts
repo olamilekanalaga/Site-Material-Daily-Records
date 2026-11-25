@@ -318,6 +318,21 @@ test("a failed upload resumes one server record and a separate supervisor can re
       .getByRole("row")
       .filter({ hasText: supplier });
     await expect(row).toHaveCount(1);
+    const movementViews = supervisorPage.getByRole("navigation", {
+      name: "Movement views",
+    });
+    const fromDate = supervisorPage.getByLabel("From date", { exact: true });
+    const initialDate = await fromDate.inputValue();
+    await movementViews.getByRole("button", { name: "Materials" }).click();
+    await expect(row).toHaveCount(1);
+    await movementViews.getByRole("button", { name: "Services" }).click();
+    await expect(row).toHaveCount(0);
+    await expect(fromDate).toHaveValue(initialDate);
+    await expect(records(supervisorPage).getByRole("columnheader")).toHaveCount(
+      6,
+    );
+    await movementViews.getByRole("button", { name: "Overview" }).click();
+    await expect(row).toHaveCount(1);
     await expect(row).toContainText(own.name);
     await expect(row.getByText("OUT", { exact: true })).toHaveCSS(
       "background-color",
@@ -556,7 +571,10 @@ test("staff sign-in entrances enforce assigned roles and sign-out removes privat
     page
       .getByRole("region", { name: "Sign in to your account" })
       .getByRole("alert"),
-  ).toContainText(/not approved|not permitted|not authorised/i);
+  ).toContainText("This sign-in page is for a different staff role.");
+  await expect(
+    page.getByRole("link", { name: "Go to main sign-in" }),
+  ).toHaveAttribute("href", "/");
   expect(
     (await context.cookies()).some(
       (cookie) => cookie.name === "delivery_session",
@@ -580,6 +598,8 @@ test("staff sign-in entrances enforce assigned roles and sign-out removes privat
   try {
     const returnPage = await reopened.newPage();
     await returnPage.goto("/");
+    await expect(returnPage).toHaveURL(/\/records$/);
+    await returnPage.goto("/gate");
     await expect(returnPage).toHaveURL(/\/records$/);
   } finally {
     await reopened.close();

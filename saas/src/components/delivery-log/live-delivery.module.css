@@ -26,7 +26,7 @@
   text-decoration: none;
 }
 
-.marshalNav [aria-current="page"] {
+.marshalNav :is([aria-current="page"], [aria-pressed="true"]) {
   background: var(--daily-action);
 }
 

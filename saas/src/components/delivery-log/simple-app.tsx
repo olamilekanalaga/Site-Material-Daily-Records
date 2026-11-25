@@ -12,6 +12,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import type { Bootstrap, Delivery, Marshal } from "@/lib/types";
+import { movementViews, type MovementView } from "@/lib/delivery-records";
 import { request } from "@/lib/client/offline";
 import { Brand } from "../shared/brand";
 import { Login } from "../auth/login";
@@ -59,6 +60,7 @@ export function SimpleApp({
   const refreshing = useRef(false);
   const signingOut = useRef(false);
   const [activity, setActivity] = useState<DeliveryActivity[]>([]);
+  const [movementView, setMovementView] = useState<MovementView>("Overview");
   const role = data?.actor.role;
   const canRecord =
     portal !== "supervisor" && (role === "gate" || role === "company_admin");
@@ -78,11 +80,14 @@ export function SimpleApp({
         portal ? `/api/bootstrap?portal=${portal}` : "/api/bootstrap",
       );
       if (signingOut.current) return null;
+      const pathname = window.location.pathname;
+      const destination = staffDashboard(next.actor.role);
       if (
-        window.location.pathname === "/" ||
-        window.location.pathname.startsWith("/sign-in/")
+        pathname === "/" ||
+        pathname.startsWith("/sign-in/") ||
+        (pathname === "/gate" && destination === "/records")
       ) {
-        window.location.replace(staffDashboard(next.actor.role));
+        window.location.replace(destination);
         return next;
       }
       const previous = lastWorkspace.current;
@@ -317,6 +322,20 @@ export function SimpleApp({
             </button>
           </nav>
         )}
+        {recordsPage && (role === "supervisor" || role === "site_manager") && (
+          <nav className={liveStyles.marshalNav} aria-label="Movement views">
+            {movementViews.map((view) => (
+              <button
+                key={view}
+                type="button"
+                aria-pressed={movementView === view}
+                onClick={() => setMovementView(view)}
+              >
+                {view}
+              </button>
+            ))}
+          </nav>
+        )}
         <main>
           {profilePage ? (
             <section
@@ -448,7 +467,12 @@ export function SimpleApp({
                   administrator to assign a site.
                 </section>
               ) : recordsPage ? (
-                <LiveRecords key={site.id} data={data} siteId={site.id} />
+                <LiveRecords
+                  key={site.id}
+                  data={data}
+                  siteId={site.id}
+                  view={movementView}
+                />
               ) : (
                 <>
                   {choosingProfile && (

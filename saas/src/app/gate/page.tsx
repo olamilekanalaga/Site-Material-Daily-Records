@@ -11,7 +11,6 @@ export const metadata = { title: "DJ Civils | Gate Delivery" };
 export default function GatePage() {
   return (
     <SimpleApp
-      portal="marshal"
       initialPage="home"
       localDemo={localWorkspaceEnabled()}
       workspaceEnabled={workspaceEnabled()}
