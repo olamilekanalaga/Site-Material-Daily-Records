@@ -112,18 +112,26 @@ async function save(p: Page, duplicate = false) {
 }
 async function summary(p: Page, totals: [number, number, number]) {
   const region = p.getByRole("region", {
-    name: "Delivery summaries",
+    name: "Workspace summary",
     exact: true,
   });
-  const names = ["Total arrivals", "Material deliveries", "Service visits"];
-  await expect(region.getByRole("button")).toHaveCount(3);
-  for (const [i, name] of names.entries())
+  await expect(region.getByRole("group")).toHaveCount(3);
+  for (const [index, name] of ["Arrivals", "Marshals", "To Classify"].entries())
     await expect(
-      region.getByRole("button", {
-        name: `${name}: ${totals[i]}`,
+      region.getByRole("group", {
+        name: `${name}: ${totals[index]}`,
         exact: true,
       }),
-    ).toHaveCount(1);
+    ).toBeVisible();
+}
+async function disclose(p: Page, name: string) {
+  const toggle = p.getByText(name, { exact: true });
+  if (
+    !(await toggle.evaluate(
+      (element) => (element.parentElement as HTMLDetailsElement).open,
+    ))
+  )
+    await toggle.click();
 }
 async function noOverflow(p: Page) {
   expect(
@@ -414,11 +422,15 @@ test("unknown names deduplicate pending items and remain intact after supervisor
   await expect(page.getByRole("button", { name: /^Approve / })).toHaveCount(0);
   await page.goto("/demo/supervisor");
   await expect(rows(page)).toHaveCount(32);
-  await summary(page, [32, 24, 0]);
+  await summary(page, [32, 2, 2]);
+  await page.getByRole("tab", { name: "Review", exact: true }).click();
   const form = page.getByRole("form", {
     name: new RegExp(`^Classify .*${suffix}$`),
   });
   await expect(form).toContainText("2 arrivals");
+  expect((await form.locator("li").allTextContents()).sort()).toEqual(
+    [raw, variant].sort(),
+  );
   await form
     .getByRole("combobox", { name: /^Category for / })
     .selectOption({ label: "Services" });
@@ -427,16 +439,21 @@ test("unknown names deduplicate pending items and remain intact after supervisor
     .selectOption({ label: "Service visit" });
   await form.getByRole("button", { name: /^Approve / }).click();
   await expect(form).toHaveCount(0);
-  await summary(page, [32, 24, 2]);
-  await page.getByText("Arrival breakdown", { exact: true }).click();
-  const approvedServices = page
-    .getByRole("table", {
-      name: "Service visits by type",
-      exact: true,
-    })
-    .locator("tbody tr");
-  await expect(approvedServices).toHaveCount(1);
-  await expect(approvedServices.locator("td:nth-child(2)")).toHaveText("2");
+  await summary(page, [32, 2, 1]);
+  await page.getByRole("tab", { name: "Records", exact: true }).click();
+  await expect(
+    page.getByText("Arrival breakdown", { exact: true }),
+  ).toHaveCount(0);
+  await disclose(page, "More filters");
+  await page
+    .getByRole("combobox", { name: "Entry type", exact: true })
+    .selectOption({ label: "Service visit" });
+  await expect(rows(page)).toHaveCount(2);
+  await summary(page, [2, 1, 0]);
+  await page
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
+  await summary(page, [32, 2, 1]);
   const approved = await savedState(page);
   expect(
     approved.materials.find((i) => i.id === candidates[0].id),
@@ -447,6 +464,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
   });
   for (const r of added) {
     const after = approved.deliveries.find((i) => i.id === r.id)!;
+    expect(after).toEqual(r);
     expect({
       name: after.item_name,
       created: after.created_at,
@@ -463,7 +481,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
     approved.audit.some((e) => e.action === "catalogue.item.approved"),
   ).toBe(true);
   await page.reload();
-  await summary(page, [32, 24, 2]);
+  await summary(page, [32, 2, 1]);
   await noOverflow(page);
   await page.screenshot({
     path: info.outputPath("smart-classified-records.png"),
@@ -479,7 +497,7 @@ test("unknown names deduplicate pending items and remain intact after supervisor
   expect(observed).toEqual({ apiRequests: [], errors: [] });
 });
 
-test("supervisor filters and breakdowns reconcile deliveries, services and pending arrivals and exports visible rows", async ({
+test("supervisor filters and workload reconcile deliveries, services and pending arrivals and export visible rows", async ({
   page,
 }, info) => {
   const observed = monitor(page);
@@ -500,7 +518,7 @@ test("supervisor filters and breakdowns reconcile deliveries, services and pendi
   await page.goto("/demo/supervisor");
   const tableRows = rows(page);
   await expect(tableRows).toHaveCount(33);
-  await summary(page, [33, 25, 2]);
+  await summary(page, [33, 2, 1]);
   await page.getByText("More filters", { exact: true }).click();
   await page
     .getByRole("combobox", { name: "Category", exact: true })
@@ -510,14 +528,17 @@ test("supervisor filters and breakdowns reconcile deliveries, services and pendi
     .getByRole("combobox", { name: "Entry type", exact: true })
     .selectOption({ label: "Service visit" });
   await page
-    .getByRole("combobox", { name: "Recorded by", exact: true })
+    .getByRole("combobox", { name: "Traffic marshal", exact: true })
     .selectOption({ label: "Olamilekan Alaga" });
   await page
     .getByRole("combobox", { name: "Classification", exact: true })
     .selectOption({ label: "Approved" });
   await expect(tableRows).toHaveCount(2);
-  await expect(tableRows.filter({ hasText: suffix })).toHaveCount(2);
-  await summary(page, [33, 25, 2]);
+  await expect(tableRows.filter({ hasText: "Road sweeper" })).toHaveCount(1);
+  await expect(tableRows.filter({ hasText: "Toilet servicing" })).toHaveCount(
+    1,
+  );
+  await summary(page, [2, 1, 0]);
   const ready = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export CSV", exact: true }).click();
   const download = await ready;
@@ -557,25 +578,50 @@ test("supervisor filters and breakdowns reconcile deliveries, services and pendi
     .getByRole("combobox", { name: "Item", exact: true })
     .selectOption({ label: "Road sweeper" });
   await expect(tableRows).toHaveCount(1);
-  await expect(tableRows.first()).toContainText(
-    `Sample Road sweeper ${suffix}`,
+  await tableRows.first().locator("td:first-child button").first().click();
+  await expect(
+    page.getByRole("dialog", { name: "Arrival details", exact: true }),
+  ).toContainText(`Sample Road sweeper ${suffix}`);
+  await page
+    .getByRole("button", { name: "Close details", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
+  await expect(
+    page.getByText("Arrival breakdown", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("No arrivals in this period.", { exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("tab", { name: "Workload", exact: true }).click();
+  const olaActivity = page.getByRole("article", {
+    name: "Activity for Olamilekan Alaga",
+    exact: true,
+  });
+  const bActivity = page.getByRole("article", {
+    name: "Activity for Bemigho Estano",
+    exact: true,
+  });
+  await expect(olaActivity).toContainText("13");
+  await expect(olaActivity).toContainText("Road sweeper");
+  await expect(olaActivity).toContainText("Toilet servicing");
+  await expect(bActivity).toContainText("20");
+  await page
+    .getByRole("combobox", { name: "Traffic marshal", exact: true })
+    .selectOption({ label: "Olamilekan Alaga" });
+  await expect(bActivity).toHaveCount(0);
+  await summary(page, [13, 1, 1]);
+  await expect(olaActivity).toContainText("Timber");
+  await page.getByRole("tab", { name: "Records", exact: true }).click();
+  await expect(tableRows).toHaveCount(13);
+  await expect(tableRows.locator("td:nth-child(2)")).toHaveText(
+    Array(13).fill("Olamilekan Alaga"),
   );
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
-  await page.getByText("Arrival breakdown", { exact: true }).click();
-  for (const [table, name, total] of [
-    ["Service visits by type", "Road sweeper", "1"],
-    ["Arrivals by category", "Services", "2"],
-    ["Records by traffic marshal", "Olamilekan Alaga", "13"],
-    ["Records by traffic marshal", "Bemigho Estano", "20"],
-  ])
-    await expect(
-      page
-        .getByRole("table", { name: table, exact: true })
-        .getByRole("row")
-        .filter({ hasText: name }),
-    ).toContainText(total);
+  await expect(tableRows).toHaveCount(33);
   if (info.project.name === "demo-mobile")
     await page.setViewportSize({ width: 320, height: 740 });
   await noOverflow(page);
