@@ -26,14 +26,13 @@ async function login(page: Page, role: "gate" | "supervisor" = "gate") {
   await expect(page).toHaveURL(role === "gate" ? /\/gate$/ : /\/records$/);
   return bootstrap(page);
 }
-async function selectOwnMarshal(page: Page, data?: Bootstrap) {
+async function expectOwnMarshalForm(page: Page, data?: Bootstrap) {
   const boot = data || (await bootstrap(page));
   const own = (boot.marshals || []).filter(
     (item) => (item as BoundMarshal).can_record,
   );
   expect(own).toHaveLength(1);
   expect((own[0] as BoundMarshal).user_id).toBe(boot.actor.id);
-  await page.getByRole("button", { name: own[0].name, exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "New Delivery", exact: true }),
   ).toBeVisible();
@@ -100,51 +99,13 @@ async function noOverflow(page: Page) {
 const records = (page: Page) =>
   page.getByRole("table", { name: "Saved delivery records", exact: true });
 
-// The role and profile cards are different controls: a photo never grants access.
-test("authorised gate accounts see both square profiles but can record only as their bound marshal", async ({
+test("authorised gate accounts open the delivery form as their bound marshal", async ({
   page,
-}, info) => {
+}) => {
   const boot = await login(page);
-  expect(boot.marshals).toHaveLength(2);
-  const own = boot.marshals!.find((item) => (item as BoundMarshal).can_record)!;
-  const colleague = boot.marshals!.find((item) => item.id !== own.id)!;
-  await page.route("**/api/bootstrap", async (route) => {
-    await route.fulfill({
-      json: {
-        ...boot,
-        marshals: [
-          ...boot.marshals!,
-          { ...own, id: randomUUID(), name: "Unlinked profile", user_id: null },
-          { ...own, id: randomUUID(), name: "Preview GATE" },
-          { ...own, id: randomUUID(), name: `Preview GATE (${randomUUID()})` },
-        ],
-      },
-    });
-  });
-  await page.reload();
-  const profiles = page.getByLabel("Select traffic marshal");
-  await expect(profiles.getByRole("button")).toHaveCount(2);
-  await page.unroute("**/api/bootstrap");
-  await expect(
-    page.getByRole("button", { name: own.name, exact: true }),
-  ).toBeEnabled();
-  await expect(
-    page.getByRole("button", { name: colleague.name, exact: true }),
-  ).toBeDisabled();
-  for (const person of boot.marshals!) {
-    const card = page.getByRole("button", { name: person.name, exact: true });
-    await expect(card.locator("img")).toBeVisible();
-    await expect(
-      card.getByText("Traffic Marshal", { exact: true }),
-    ).toBeVisible();
-    const box = (await card.boundingBox())!;
-    expect(Math.abs(box.width - box.height)).toBeLessThanOrEqual(2);
-  }
-  await page.screenshot({
-    path: info.outputPath("live-profile-permissions.png"),
-    fullPage: true,
-  });
-  await selectOwnMarshal(page, boot);
+  const own = await expectOwnMarshalForm(page, boot);
+  await expect(page.getByText(`Recording for ${own.name}`)).toBeVisible();
+  await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
   await expect(page.getByLabel("Delivery time", { exact: true })).toHaveCount(
     0,
   );
@@ -206,7 +167,7 @@ test("a failed upload resumes one server record and a separate supervisor can re
   browser,
 }, info) => {
   const boot = await login(page);
-  const own = await selectOwnMarshal(page, boot);
+  const own = await expectOwnMarshalForm(page, boot);
   const supplier = `Upload recovery ${randomUUID().slice(0, 8)}`;
   await page
     .getByRole("combobox", { name: "Direction", exact: true })
@@ -249,7 +210,7 @@ test("a failed upload resumes one server record and a separate supervisor can re
   expect(pending).toHaveLength(1);
   expect(pending[0].submitted_at).toBeNull();
   await page.reload();
-  await selectOwnMarshal(page);
+  await expectOwnMarshalForm(page);
   await expect(
     page.getByLabel("New supplier name", { exact: true }),
   ).toHaveValue(supplier);
@@ -284,6 +245,7 @@ test("a failed upload resumes one server record and a separate supervisor can re
   ).toHaveAttribute("href", "/gate");
   await navigation.getByRole("link", { name: "Records", exact: true }).click();
   await expect(page).toHaveURL(/\/records$/);
+  await expect(navigation).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Movement analytics" }),
   ).toBeVisible();
@@ -293,32 +255,21 @@ test("a failed upload resumes one server record and a separate supervisor can re
   const marshalViews = page.getByRole("navigation", { name: "Movement views" });
   await expect(page.getByText("Total records", { exact: true })).toBeVisible();
   await marshalViews.getByRole("button", { name: "Services" }).click();
-  await expect(page.getByText("Service types", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Services recorded" }),
+  ).toBeVisible();
   await expect(
     records(page).getByRole("columnheader", { name: "Provider" }),
   ).toBeVisible();
   await marshalViews.getByRole("button", { name: "Materials" }).click();
-  const materialSummary = page.getByRole("table", {
-    name: "Counts by material",
+  const materialCards = page.getByRole("region", {
+    name: "Material counts",
   });
+  await expect(materialCards.getByText("6F5", { exact: true })).toBeVisible();
+  await expect(materialCards).toHaveCSS("overflow-x", "auto");
   await expect(
-    materialSummary.getByRole("row").filter({ hasText: "6F5" }),
-  ).toBeVisible();
-  const period = page.getByRole("group", { name: "Reporting period" });
-  await period.getByRole("button", { name: "Last month" }).click();
-  await expect(
-    period.getByRole("button", { name: "Last month" }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await expect(
-    records(page).getByRole("row").filter({ hasText: supplier }),
+    page.getByRole("button", { name: "Last month", exact: true }),
   ).toHaveCount(0);
-  await period.getByRole("button", { name: "Today" }).click();
-  await expect(
-    records(page).getByRole("row").filter({ hasText: supplier }),
-  ).toHaveCount(1);
-  await expect(
-    page.getByText("Total material movements", { exact: true }),
-  ).toBeVisible();
   await expect(page.getByLabel("From date", { exact: true })).toBeHidden();
   await marshalFilters.click();
   await page
@@ -428,7 +379,7 @@ test("new material and supplier names survive refresh, remain reusable while pen
   browser,
 }, info) => {
   await login(page);
-  await selectOwnMarshal(page);
+  await expectOwnMarshalForm(page);
   const suffix = randomUUID().slice(0, 8);
   const material = `Loading panel ${suffix}`;
   const supplier = `Logistics ${suffix}`;
@@ -466,7 +417,7 @@ test("new material and supplier names survive refresh, remain reusable while pen
     timeZone: "Europe/London",
   }).format(new Date(first.arrival_at));
   await page.reload();
-  await selectOwnMarshal(page);
+  await expectOwnMarshalForm(page);
   await materialSelect(page).click();
   const materialSearch = page.getByRole("searchbox", {
     name: "Search materials",
@@ -701,7 +652,7 @@ test("a signed-in supervisor sees a new delivery without refreshing", async ({
   browser,
 }) => {
   const gate = await login(page);
-  const marshal = await selectOwnMarshal(page, gate);
+  const marshal = await expectOwnMarshalForm(page, gate);
   await chooseMaterial(page, "6F5");
   const supplier = `Live alert ${randomUUID().slice(0, 8)}`;
   await newSupplier(page, supplier);
