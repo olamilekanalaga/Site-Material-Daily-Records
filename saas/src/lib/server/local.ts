@@ -461,17 +461,18 @@ function hydrate(d: Delivery): Delivery {
       .sort((a, b) => a.created_at.localeCompare(b.created_at)),
   };
 }
+function canReadRecord(actor: Actor, delivery: Delivery) {
+  return (
+    delivery.company_id === actor.company_id &&
+    canSite(actor, delivery.site_id) &&
+    (delivery.created_by === actor.id ||
+      (delivery.status !== "Draft" &&
+        (actor.role !== "gate" || Boolean(delivery.submitted_at))))
+  );
+}
 function record(actor: Actor, id: string) {
   const d = get<Delivery>("delivery", id);
-  assert(
-    d &&
-      d.company_id === actor.company_id &&
-      canSite(actor, d.site_id) &&
-      (actor.role !== "gate" || d.created_by === actor.id) &&
-      (d.status !== "Draft" || d.created_by === actor.id),
-    "Delivery not found",
-    404,
-  );
+  assert(d && canReadRecord(actor, d), "Delivery not found", 404);
   return hydrate(d);
 }
 
@@ -763,12 +764,7 @@ export const local = {
         });
     });
     const deliveries = all<Delivery>("delivery", actor.company_id)
-      .filter(
-        (x) =>
-          canSite(actor, x.site_id) &&
-          (actor.role !== "gate" || x.created_by === actor.id) &&
-          (x.status !== "Draft" || x.created_by === actor.id),
-      )
+      .filter((delivery) => canReadRecord(actor, delivery))
       .map(hydrate)
       .sort((a, b) => b.arrival_at.localeCompare(a.arrival_at));
     const events = all<AuditEvent>("audit", actor.company_id)

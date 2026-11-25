@@ -144,6 +144,7 @@ before(async () => {
   await migration("202611070001_live_delivery_backend.sql");
   await migration("202611250001_delivery_movements.sql");
   await migration("202611250002_streamlined_staff_auth.sql");
+  await migration("202611250003_share_submitted_site_records.sql");
   await as(gate);
   const boot = await rpc("app_bootstrap");
   ownMarshal = boot.marshals.find(
@@ -653,29 +654,31 @@ test("live validation rejects unknown/blank input and invalid correction pairs w
   }
 });
 
-test("live supervisor sees another device's persisted record/photo while other users cannot read or mutate them", async () => {
-  await as(supervisor);
-  const boot = await rpc("app_bootstrap");
-  assert(boot.deliveries.some((d: any) => d.id === storedDelivery.id));
-  assert.equal(
-    (
-      await db.query("select * from delivery_evidence where id=$1", [
-        storedPhoto,
-      ])
-    ).rows.length,
-    1,
-  );
-  assert.equal(
-    (
-      await db.query("select * from storage.objects where name like $1", [
-        `%/${storedPhoto}`,
-      ])
-    ).rows.length,
-    1,
-  );
-  await db.query("select audit_evidence_view($1)", [storedPhoto]);
-  await refused(rpc("log_delivery", fields()));
-  for (const person of [colleague, outsider, platform, unassigned]) {
+test("same-site supervisors and marshals can read submitted records and photos; outsiders cannot", async () => {
+  for (const reader of [supervisor, colleague]) {
+    await as(reader);
+    const boot = await rpc("app_bootstrap");
+    assert(boot.deliveries.some((d: any) => d.id === storedDelivery.id));
+    assert.equal(
+      (
+        await db.query("select * from delivery_evidence where id=$1", [
+          storedPhoto,
+        ])
+      ).rows.length,
+      1,
+    );
+    assert.equal(
+      (
+        await db.query("select * from storage.objects where name like $1", [
+          `%/${storedPhoto}`,
+        ])
+      ).rows.length,
+      1,
+    );
+    await db.query("select audit_evidence_view($1)", [storedPhoto]);
+    await refused(rpc("log_delivery", fields()));
+  }
+  for (const person of [outsider, platform, unassigned]) {
     await as(person);
     assert.equal(
       (

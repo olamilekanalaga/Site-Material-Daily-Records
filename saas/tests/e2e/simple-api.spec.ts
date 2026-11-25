@@ -212,7 +212,7 @@ test("double clicks and response-loss retries create only one saved delivery", a
   expect(rows[0].status).toBe("Submitted");
 });
 
-test("another marshal login cannot read a peer's records or photographs", async () => {
+test("another marshal can read submitted site records and photos under the original marshal's name", async () => {
   const email = `peer-${randomUUID().slice(0, 8)}@demo.invalid`;
   const member = await admin.post("/api/admin", {
     data: {
@@ -228,16 +228,24 @@ test("another marshal login cannot read a peer's records or photographs", async 
   const input = fields();
   const created = await draft(input);
   const imageId = await photo(input.id);
+  const peer = await login(email);
+  const before: Bootstrap = await (await peer.get("/api/bootstrap")).json();
+  expect(before.deliveries.some((d) => d.id === input.id)).toBe(false);
+  expect((await peer.get(`/api/evidence/${imageId}`)).status()).toBe(404);
   expect(
     (
       await post(gate, { ...input, intent: "submit", version: created.version })
     ).ok(),
   ).toBe(true);
-  const peer = await login(email);
   const data: Bootstrap = await (await peer.get("/api/bootstrap")).json();
-  expect(data.deliveries.some((d) => d.id === input.id)).toBe(false);
+  expect(data.deliveries.find((d) => d.id === input.id)).toMatchObject({
+    created_by: boot.actor.id,
+    marshal_name: boot.marshals!.find(
+      (marshal) => marshal.id === input.marshal_id,
+    )!.name,
+  });
   expect(data.audit.some((a) => a.entity_id === input.id)).toBe(false);
-  expect((await peer.get(`/api/evidence/${imageId}`)).status()).toBe(404);
+  expect((await peer.get(`/api/evidence/${imageId}`)).status()).toBe(200);
   expect((await post(peer, input)).status()).toBe(403);
   await peer.dispose();
 });
