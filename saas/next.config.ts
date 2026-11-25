@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
     ],
   },
   poweredByHeader: false,
+  async redirects() {
+    return [{ source: "/demo/:path*", destination: "/", permanent: false }];
+  },
   async headers() {
     return [
       {

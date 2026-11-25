@@ -56,6 +56,7 @@ export function LiveForm({
   onSaved: () => Promise<void>;
   onViewRecords: () => void;
 }) {
+  const [direction, setDirection] = useState<"" | "IN" | "OUT">("");
   const [material, setMaterial] = useState("");
   const [category, setCategory] = useState("");
   const [customMaterial, setCustomMaterial] = useState(false);
@@ -86,6 +87,7 @@ export function LiveForm({
       .then((saved) => {
         if (!active || !saved) return;
         setPending(saved);
+        setDirection(saved.input.direction ?? "IN");
         setMaterial(saved.input.material_id);
         setCategory(saved.input.selected_category || "");
         setCustomMaterial(Boolean(saved.input.custom_item_name));
@@ -190,6 +192,7 @@ export function LiveForm({
     setError("");
     setNotice("");
     try {
+      if (!pending && !direction) throw new Error("Choose IN or OUT.");
       if ((!material && !(customMaterial && materialName.trim())) || !photo)
         throw new Error("Choose a material and add a delivery image.");
       if (!pending) {
@@ -230,6 +233,7 @@ export function LiveForm({
             : selectedSupplier?.name || "",
           arrival_at: new Date().toISOString(),
           capture_kind: "arrival",
+          direction: direction || undefined,
           ...(customMaterial ? { custom_item_name: materialName } : {}),
           ...(customSupplier
             ? { custom_supplier_name: supplierName }
@@ -259,7 +263,8 @@ export function LiveForm({
         );
       await removeCapture(key);
       setPending(null);
-      // Keep the material ready for another arrival; supplier and evidence are individual.
+      setDirection("");
+      // Keep the material ready for the next movement.
       setSupplier("");
       setCustomSupplier(false);
       setSupplierName("");
@@ -301,6 +306,20 @@ export function LiveForm({
         }}
       >
         <fieldset disabled={locked}>
+          <label>
+            Direction
+            <select
+              required
+              value={direction}
+              onChange={(event) =>
+                setDirection(event.target.value as "" | "IN" | "OUT")
+              }
+            >
+              <option value="">Choose IN or OUT</option>
+              <option value="IN">IN — Entering site</option>
+              <option value="OUT">OUT — Leaving site</option>
+            </select>
+          </label>
           <label>
             Category
             <select
@@ -424,7 +443,7 @@ export function LiveForm({
                   maxLength={500}
                   value={correctionReason}
                   onChange={(event) => setCorrectionReason(event.target.value)}
-                  placeholder="For example, recorded after the vehicle arrived"
+                  placeholder="For example, recorded after the vehicle passed the gate"
                 />
               </label>
             </div>

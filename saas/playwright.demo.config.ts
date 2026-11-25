@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 // unconfigured Vercel deployment and must never establish a real user session.
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: /demo\.spec\.ts/,
+  testMatch: /retired-demo\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   timeout: 90_000,
