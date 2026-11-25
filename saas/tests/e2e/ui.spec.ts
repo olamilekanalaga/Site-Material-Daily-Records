@@ -432,6 +432,17 @@ test("new material and supplier names survive refresh, remain reusable while pen
   const supervisorPage = await supervisorContext.newPage();
   try {
     await login(supervisorPage, "supervisor");
+    const toDateInput = supervisorPage.getByLabel("To date", { exact: true });
+    await expect(toDateInput).toBeVisible();
+    const toDate = await toDateInput.boundingBox();
+    const materialFilter = await supervisorPage
+      .getByRole("combobox", { name: "Material", exact: true })
+      .boundingBox();
+    expect(toDate && materialFilter).toBeTruthy();
+    expect(
+      toDate!.x + toDate!.width <= materialFilter!.x ||
+        toDate!.y + toDate!.height <= materialFilter!.y,
+    ).toBe(true);
     await supervisorPage.getByLabel("From date", { exact: true }).fill(date);
     await supervisorPage
       .getByLabel("To date", { exact: true })
