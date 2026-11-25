@@ -1,3 +1,49 @@
+.marshalNav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto 20px;
+  padding: 4px;
+  border: 1px solid var(--daily-border);
+  border-radius: var(--daily-pill-radius);
+  background: var(--daily-surface);
+}
+
+.marshalNav :is(a, button) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--daily-pill-radius);
+  background: transparent;
+  color: var(--daily-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.marshalNav [aria-current="page"] {
+  background: var(--daily-action);
+}
+
+.profilePanel {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.profilePanel img {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .classification {
   margin-top: -12px;
   color: var(--daily-muted);

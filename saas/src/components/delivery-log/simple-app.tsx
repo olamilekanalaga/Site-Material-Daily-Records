@@ -1,7 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, Check, LogOut, RefreshCw, WifiOff } from "lucide-react";
+import {
+  Bell,
+  Check,
+  ClipboardList,
+  House,
+  LogOut,
+  RefreshCw,
+  UserRound,
+  WifiOff,
+} from "lucide-react";
 import type { Bootstrap, Delivery, Marshal } from "@/lib/types";
 import { request } from "@/lib/client/offline";
 import { Brand } from "../shared/brand";
@@ -40,7 +49,7 @@ export function SimpleApp({
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [siteId, setSiteId] = useState("");
-  const [page, setPage] = useState<"home" | "entry" | "records">(
+  const [page, setPage] = useState<"home" | "entry" | "records" | "profile">(
     initialPage || "home",
   );
   const [marshalId, setMarshalId] = useState("");
@@ -54,6 +63,8 @@ export function SimpleApp({
   const canRecord =
     portal !== "supervisor" && (role === "gate" || role === "company_admin");
   const recordsPage = page === "records" || !canRecord;
+  const marshalNavigation = canRecord && role === "gate";
+  const profilePage = marshalNavigation && page === "profile";
 
   const load = useCallback(async (): Promise<Bootstrap | null> => {
     if (!workspaceEnabled) {
@@ -278,175 +289,229 @@ export function SimpleApp({
         </div>
       </header>
       <div className="simple-main">
+        {marshalNavigation && (
+          <nav
+            className={liveStyles.marshalNav}
+            aria-label="Traffic marshal navigation"
+          >
+            <a
+              href="/gate"
+              aria-current={
+                page === "home" || page === "entry" ? "page" : undefined
+              }
+            >
+              <House size={18} aria-hidden="true" />
+              Home
+            </a>
+            <a href="/records" aria-current={recordsPage ? "page" : undefined}>
+              <ClipboardList size={18} aria-hidden="true" />
+              Records
+            </a>
+            <button
+              type="button"
+              aria-current={profilePage ? "page" : undefined}
+              onClick={() => setPage("profile")}
+            >
+              <UserRound size={18} aria-hidden="true" />
+              Profile
+            </button>
+          </nav>
+        )}
         <main>
-          <div className="simple-page-title">
-            <div>
-              <h1>
-                {recordsPage
-                  ? "Delivery Records"
-                  : choosingProfile
-                    ? "Gate Delivery"
-                    : "Record Delivery"}
-              </h1>
-              <p>
-                {recordsPage
-                  ? "Saved deliveries for your site."
-                  : !choosingProfile
-                    ? "Enter the delivery details below."
-                    : "Choose your name to record a delivery."}
-              </p>
-            </div>
-            <div className="simple-page-actions">
-              {canRecord &&
-                (recordsPage ? (
-                  <button
-                    className="primary"
-                    disabled={busy}
-                    onClick={() => window.location.assign("/gate")}
-                  >
-                    Record New Delivery
-                  </button>
-                ) : (
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={showRecords}
-                  >
-                    {page === "home" ? "View Records" : "Back to Records"}
-                  </button>
-                ))}
-              {recordsPage && (
-                <button
-                  className="secondary simple-refresh"
-                  disabled={busy}
-                  aria-label="Refresh deliveries"
-                  onClick={async () => {
-                    setBusy(true);
-                    await load();
-                    setBusy(false);
-                  }}
-                >
-                  <RefreshCw size={18} />
-                  <span>Refresh</span>
-                </button>
-              )}
-            </div>
-            {data.sites.length > 1 && (
-              <label className="simple-site-select">
-                Site
-                <select
-                  aria-label="Current site"
-                  value={siteId}
-                  onChange={(event) => {
-                    setSiteId(event.target.value);
-                    setMarshalId("");
-                    setPage(recordsPage ? "records" : "home");
-                  }}
-                >
-                  {data.sites.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-          </div>
-          {recordsPage && notice && (
-            <div className={liveStyles.activityNotice}>
-              <Bell size={18} aria-hidden="true" />
-              <p role="status">{notice}</p>
-              <button type="button" onClick={() => setActivity([])}>
-                Dismiss
-              </button>
-            </div>
-          )}
-          {!online && page === "entry" && (
-            <p className="simple-offline-note" role="status">
-              <WifiOff size={16} aria-hidden="true" /> Offline
-            </p>
-          )}
-          {error && (
-            <div className="simple-error" role="alert">
-              <p>{error}</p>
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() => void load()}
-              >
-                Try refresh again
-              </button>
-            </div>
-          )}
-          {!site ? (
-            <section className="simple-panel simple-empty">
-              No site is assigned to this account. Ask your company
-              administrator to assign a site.
+          {profilePage ? (
+            <section
+              className={`simple-panel ${liveStyles.profilePanel}`}
+              aria-labelledby="profile-heading"
+            >
+              <h1 id="profile-heading">Profile</h1>
+              <img
+                src={
+                  data.mode === "supabase"
+                    ? "/api/profile/photo"
+                    : "/marshal-placeholder.svg"
+                }
+                onError={onMarshalPhotoError}
+                alt=""
+                width={80}
+                height={80}
+              />
+              <h2>{data.actor.name}</h2>
+              <p className={liveStyles.staffRole}>Traffic Marshal</p>
+              <p>{data.actor.email}</p>
             </section>
-          ) : recordsPage ? (
-            <LiveRecords key={site.id} data={data} siteId={site.id} />
           ) : (
             <>
-              {choosingProfile && (
-                <div
-                  className="simple-marshal-grid"
-                  aria-label="Select traffic marshal"
-                >
-                  {marshals.map((marshal) => (
+              <div className="simple-page-title">
+                <div>
+                  <h1>
+                    {recordsPage
+                      ? "Delivery Records"
+                      : choosingProfile
+                        ? "Gate Delivery"
+                        : "Record Delivery"}
+                  </h1>
+                  <p>
+                    {recordsPage
+                      ? "Saved deliveries for your site."
+                      : !choosingProfile
+                        ? "Enter the delivery details below."
+                        : "Choose your name to record a delivery."}
+                  </p>
+                </div>
+                <div className="simple-page-actions">
+                  {canRecord &&
+                    (recordsPage ? (
+                      <button
+                        className="primary"
+                        disabled={busy}
+                        onClick={() => window.location.assign("/gate")}
+                      >
+                        Record New Delivery
+                      </button>
+                    ) : (
+                      !marshalNavigation && (
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          onClick={showRecords}
+                        >
+                          {page === "home" ? "View Records" : "Back to Records"}
+                        </button>
+                      )
+                    ))}
+                  {recordsPage && (
                     <button
-                      key={marshal.id}
-                      type="button"
-                      className={`simple-marshal-card ${liveStyles.staffCard}`}
-                      aria-label={marshal.name}
-                      aria-pressed={selected?.id === marshal.id}
-                      disabled={busy || marshal.can_record !== true}
-                      onClick={() => selectMarshal(marshal)}
+                      className="secondary simple-refresh"
+                      disabled={busy}
+                      aria-label="Refresh deliveries"
+                      onClick={async () => {
+                        setBusy(true);
+                        await load();
+                        setBusy(false);
+                      }}
                     >
-                      <img
-                        src={marshalPhotoSource(marshal, data.mode)}
-                        onError={onMarshalPhotoError}
-                        alt=""
-                      />
-                      <span>
-                        <span>
-                          {marshal.name}
-                          <small className={liveStyles.staffRole}>
-                            Traffic Marshal
-                          </small>
-                        </span>
-                        {selected?.id === marshal.id && (
-                          <Check size={20} aria-hidden="true" />
-                        )}
-                      </span>
+                      <RefreshCw size={18} />
+                      <span>Refresh</span>
                     </button>
-                  ))}
+                  )}
+                </div>
+                {data.sites.length > 1 && (
+                  <label className="simple-site-select">
+                    Site
+                    <select
+                      aria-label="Current site"
+                      value={siteId}
+                      onChange={(event) => {
+                        setSiteId(event.target.value);
+                        setMarshalId("");
+                        setPage(recordsPage ? "records" : "home");
+                      }}
+                    >
+                      {data.sites.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+              {recordsPage && notice && (
+                <div className={liveStyles.activityNotice}>
+                  <Bell size={18} aria-hidden="true" />
+                  <p role="status">{notice}</p>
+                  <button type="button" onClick={() => setActivity([])}>
+                    Dismiss
+                  </button>
                 </div>
               )}
-              {choosingProfile && !marshals.length && (
-                <section className="simple-panel simple-empty">
-                  No traffic marshals are configured for this site. Ask your
-                  company administrator to add them.
-                </section>
+              {!online && page === "entry" && (
+                <p className="simple-offline-note" role="status">
+                  <WifiOff size={16} aria-hidden="true" /> Offline
+                </p>
               )}
-              {choosingProfile &&
-                marshals.length > 0 &&
-                !marshals.some((item) => item.can_record) && (
-                  <p className="simple-help">
-                    No marshal profile is assigned to your account. Ask your
-                    company administrator to link your staff account.
-                  </p>
-                )}
-              {page === "entry" && selected && (
-                <LiveForm
-                  key={`${data.actor.id}:${selected.id}`}
-                  data={data}
-                  site={site}
-                  marshal={selected}
-                  onSaved={async () => {
-                    await load();
-                  }}
-                  onViewRecords={showRecords}
-                />
+              {error && (
+                <div className="simple-error" role="alert">
+                  <p>{error}</p>
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => void load()}
+                  >
+                    Try refresh again
+                  </button>
+                </div>
+              )}
+              {!site ? (
+                <section className="simple-panel simple-empty">
+                  No site is assigned to this account. Ask your company
+                  administrator to assign a site.
+                </section>
+              ) : recordsPage ? (
+                <LiveRecords key={site.id} data={data} siteId={site.id} />
+              ) : (
+                <>
+                  {choosingProfile && (
+                    <div
+                      className="simple-marshal-grid"
+                      aria-label="Select traffic marshal"
+                    >
+                      {marshals.map((marshal) => (
+                        <button
+                          key={marshal.id}
+                          type="button"
+                          className={`simple-marshal-card ${liveStyles.staffCard}`}
+                          aria-label={marshal.name}
+                          aria-pressed={selected?.id === marshal.id}
+                          disabled={busy || marshal.can_record !== true}
+                          onClick={() => selectMarshal(marshal)}
+                        >
+                          <img
+                            src={marshalPhotoSource(marshal, data.mode)}
+                            onError={onMarshalPhotoError}
+                            alt=""
+                          />
+                          <span>
+                            <span>
+                              {marshal.name}
+                              <small className={liveStyles.staffRole}>
+                                Traffic Marshal
+                              </small>
+                            </span>
+                            {selected?.id === marshal.id && (
+                              <Check size={20} aria-hidden="true" />
+                            )}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {choosingProfile && !marshals.length && (
+                    <section className="simple-panel simple-empty">
+                      No traffic marshals are configured for this site. Ask your
+                      company administrator to add them.
+                    </section>
+                  )}
+                  {choosingProfile &&
+                    marshals.length > 0 &&
+                    !marshals.some((item) => item.can_record) && (
+                      <p className="simple-help">
+                        No marshal profile is assigned to your account. Ask your
+                        company administrator to link your staff account.
+                      </p>
+                    )}
+                  {page === "entry" && selected && (
+                    <LiveForm
+                      key={`${data.actor.id}:${selected.id}`}
+                      data={data}
+                      site={site}
+                      marshal={selected}
+                      onSaved={async () => {
+                        await load();
+                      }}
+                    />
+                  )}
+                </>
               )}
             </>
           )}
