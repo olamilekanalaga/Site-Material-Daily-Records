@@ -1,7 +1,20 @@
-import type { Delivery } from "./types";
+import type { Delivery, EntryType } from "./types";
 import { siteClock } from "./site-time";
 
 export type DateRange = { from: string; to: string };
+export const movementViews = ["Overview", "Materials", "Services"] as const;
+export type MovementView = (typeof movementViews)[number];
+
+export function matchesMovementView(
+  entryType: EntryType | undefined,
+  view: MovementView,
+) {
+  return (
+    view === "Overview" ||
+    entryType === (view === "Materials" ? "Delivery" : "Service visit")
+  );
+}
+
 function uniqueDeliveries(deliveries: Delivery[]) {
   const latest = new Map<string, Delivery>();
   for (const delivery of deliveries) {

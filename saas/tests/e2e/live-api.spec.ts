@@ -393,6 +393,15 @@ test("live exports apply date, material and supplier filters to persistent submi
   expect(body.indexOf(delivery.id)).toBeGreaterThanOrEqual(0);
   expect(body.indexOf(lateEntry.id)).toBeGreaterThanOrEqual(0);
   expect(body.indexOf(delivery.id)).toBeLessThan(body.indexOf(lateEntry.id));
+  params.set("movement_view", "Materials");
+  const materials = await supervisor.get(`/api/reports?${params}`);
+  expect(materials.status()).toBe(200);
+  expect(await materials.text()).toContain(delivery.id);
+  params.set("movement_view", "Services");
+  const services = await supervisor.get(`/api/reports?${params}`);
+  expect(services.status()).toBe(200);
+  expect(await services.text()).not.toContain(delivery.id);
+  params.delete("movement_view");
   params.set("from", "2000-01-01");
   params.set("to", "2000-01-01");
   const excluded = await supervisor.get(`/api/reports?${params}`);

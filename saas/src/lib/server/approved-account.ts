@@ -10,7 +10,7 @@ export function assertApprovedAccount(
     boot?.actor?.company_id &&
       boot.company?.id === boot.actor.company_id &&
       canUsePortal(boot.actor.role, portal),
-    "Your account is not approved for this sign-in entrance. Ask your company administrator.",
+    "This sign-in page is for a different staff role. Use the main sign-in page.",
     403,
   );
   assert(

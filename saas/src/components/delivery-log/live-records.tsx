@@ -5,7 +5,12 @@ import { ArrowLeftRight, ImageIcon } from "lucide-react";
 import { canReadReports } from "@/lib/access";
 import type { Bootstrap, Delivery, Marshal } from "@/lib/types";
 import { normaliseItemName } from "@/lib/catalogue";
-import { periodDeliveries, type DateRange } from "@/lib/delivery-records";
+import {
+  matchesMovementView,
+  periodDeliveries,
+  type DateRange,
+  type MovementView,
+} from "@/lib/delivery-records";
 import { siteClock } from "@/lib/site-time";
 import { downloadReport } from "@/lib/client/offline";
 import { Photo, PhotoDialog } from "./delivery-photo";
@@ -31,9 +36,11 @@ export function onMarshalPhotoError(event: SyntheticEvent<HTMLImageElement>) {
 export function LiveRecords({
   data,
   siteId,
+  view = "Overview",
 }: {
   data: Bootstrap;
   siteId: string;
+  view?: MovementView;
 }) {
   const timezone =
     data.sites.find((site) => site.id === siteId)?.timezone || "Europe/London";
@@ -41,7 +48,10 @@ export function LiveRecords({
     () => siteClock(new Date(), timezone).date,
   );
   const [customRange, setCustomRange] = useState<DateRange | null>(null);
-  const [material, setMaterial] = useState("");
+  const [itemFilters, setItemFilters] = useState<
+    Partial<Record<MovementView, string>>
+  >({});
+  const material = itemFilters[view] ?? "";
   const [direction, setDirection] = useState("");
   const [supplier, setSupplier] = useState("");
   const [viewing, setViewing] = useState<Delivery | null>(null);
@@ -66,13 +76,20 @@ export function LiveRecords({
   const range = customRange || { from: today, to: today };
   const invalid = Boolean(range.from && range.to && range.from > range.to);
   const selectedSupplier = data.suppliers.find((item) => item.id === supplier);
-  const matchingRecords = periodDeliveries(
-    data.deliveries,
-    siteId,
-    timezone,
-    range,
-  )
+  const siteRecords = data.deliveries.filter(
+    (record) =>
+      record.site_id === siteId && matchesMovementView(record.entry_type, view),
+  );
+  const recordedItems = new Set(
+    siteRecords.map((record) => record.material_id),
+  );
+  const viewItems = data.materials.filter(
+    (item) =>
+      matchesMovementView(item.entry_type, view) || recordedItems.has(item.id),
+  );
+  const records = periodDeliveries(siteRecords, siteId, timezone, range)
     .filter((record) => !material || record.material_id === material)
+    .filter((record) => !direction || (record.direction ?? "IN") === direction)
     .filter(
       (record) =>
         !supplier ||
@@ -90,10 +107,7 @@ export function LiveRecords({
         b.id.localeCompare(a.id),
     );
 
-  const records = matchingRecords.filter(
-    (record) => !direction || (record.direction ?? "IN") === direction,
-  );
-  const outCount = matchingRecords.filter(
+  const outCount = records.filter(
     (record) => record.direction === "OUT",
   ).length;
 
@@ -106,6 +120,7 @@ export function LiveRecords({
       direction,
       format: "csv",
       site_id: siteId,
+      movement_view: view,
     });
     for (const [key, value] of Object.entries({
       from: range.from,
@@ -131,28 +146,6 @@ export function LiveRecords({
     <section
       className={`simple-panel simple-records-panel ${styles.filterPanel}`}
     >
-      {canExport && !invalid && (
-        <section
-          className={styles.analytics}
-          aria-labelledby="movement-analytics"
-        >
-          <h2 id="movement-analytics">Movement analytics</h2>
-          <dl>
-            <div>
-              <dt>IN</dt>
-              <dd>{matchingRecords.length - outCount}</dd>
-            </div>
-            <div>
-              <dt>OUT</dt>
-              <dd>{outCount}</dd>
-            </div>
-            <div>
-              <dt>Total movements</dt>
-              <dd>{matchingRecords.length}</dd>
-            </div>
-          </dl>
-        </section>
-      )}
       <div className={styles.filters}>
         <label>
           From date
@@ -185,14 +178,18 @@ export function LiveRecords({
           />
         </label>
         <ItemSelector
-          items={data.materials}
+          items={viewItems}
           value={material}
-          label="Material"
-          searchLabel="Search materials"
-          placeholder="All materials"
-          clearLabel="All materials"
+          label={view === "Services" ? "Service" : "Material"}
+          searchLabel={
+            view === "Services" ? "Search services" : "Search materials"
+          }
+          placeholder={view === "Services" ? "All services" : "All materials"}
+          clearLabel={view === "Services" ? "All services" : "All materials"}
           plainNames
-          onSelect={setMaterial}
+          onSelect={(id) =>
+            setItemFilters((filters) => ({ ...filters, [view]: id }))
+          }
         />
         <ItemSelector
           items={data.suppliers}
@@ -229,7 +226,7 @@ export function LiveRecords({
             onClick={() => {
               setToday(siteClock(new Date(), timezone).date);
               setCustomRange(null);
-              setMaterial("");
+              setItemFilters({});
               setSupplier("");
               setDirection("");
               setError("");
@@ -258,6 +255,28 @@ export function LiveRecords({
         <p role="alert" className="simple-error">
           {error}
         </p>
+      )}
+      {canExport && !invalid && (
+        <section
+          className={styles.analytics}
+          aria-labelledby="movement-analytics"
+        >
+          <h2 id="movement-analytics">Movement analytics</h2>
+          <dl>
+            <div>
+              <dt>IN</dt>
+              <dd>{records.length - outCount}</dd>
+            </div>
+            <div>
+              <dt>OUT</dt>
+              <dd>{outCount}</dd>
+            </div>
+            <div>
+              <dt>Total movements</dt>
+              <dd>{records.length}</dd>
+            </div>
+          </dl>
+        </section>
       )}
       <p className="simple-table-hint">
         <ArrowLeftRight size={16} aria-hidden="true" />

@@ -5,6 +5,11 @@ import { remote } from "@/lib/server/supabase";
 import { route } from "@/lib/server/http";
 import { normaliseItemName } from "@/lib/catalogue";
 import { siteClock } from "@/lib/site-time";
+import {
+  matchesMovementView,
+  movementViews,
+  type MovementView,
+} from "@/lib/delivery-records";
 
 function validDate(value: string | null) {
   if (!value) return true;
@@ -43,6 +48,8 @@ export async function GET(request: Request) {
       (supplier) => supplier.id === p.get("supplier_id"),
     );
     const direction = p.get("direction");
+    const movementView = (p.get("movement_view") ?? "Overview") as MovementView;
+    assert(movementViews.includes(movementView), "Invalid movement view");
     assert(
       !direction || direction === "IN" || direction === "OUT",
       "Choose IN or OUT",
@@ -50,6 +57,7 @@ export async function GET(request: Request) {
     const rows = boot.deliveries.filter(
       (d) =>
         d.submitted_at !== null &&
+        matchesMovementView(d.entry_type, movementView) &&
         (!direction || (d.direction ?? "IN") === direction) &&
         (!siteId || d.site_id === siteId) &&
         (!p.get("supplier_id") ||
@@ -85,6 +93,7 @@ export async function GET(request: Request) {
       supplier_id: p.get("supplier_id"),
       view: p.get("view"),
       direction: direction || null,
+      movement_view: movementView,
     };
     if (c.client) await remote.reportExport(c.client, exportInfo);
     else local.reportExport(c.actor, exportInfo);

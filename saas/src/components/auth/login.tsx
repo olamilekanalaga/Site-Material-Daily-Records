@@ -83,6 +83,12 @@ export function Login({
                 (workspaceEnabled
                   ? startupError
                   : "Staff sign-in is unavailable.")}
+              {portal && workspaceEnabled && (
+                <>
+                  {" "}
+                  <a href="/">Go to main sign-in</a>
+                </>
+              )}
             </p>
           )}
           <button
