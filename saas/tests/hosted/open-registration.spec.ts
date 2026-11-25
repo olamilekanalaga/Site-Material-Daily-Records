@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 
 test.skip(
   process.env.RUN_OPEN_SIGNUP_SMOKE !== "1",
@@ -15,7 +15,7 @@ test("open signup signs in immediately, keeps a private portrait and remembers a
   try {
     const page = await context.newPage();
     const email = `auth-smoke-${randomUUID()}@example.com`;
-    const password = `Test-${randomUUID()}!`;
+    const password = randomBytes(24).toString("base64url");
     await page.goto("/");
     await page.getByRole("link", { name: "Create account" }).click();
     await page.getByLabel("First name").fill("Staging");
