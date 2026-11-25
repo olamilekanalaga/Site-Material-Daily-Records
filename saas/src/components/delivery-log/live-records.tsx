@@ -9,6 +9,7 @@ import { periodDeliveries, type DateRange } from "@/lib/delivery-records";
 import { siteClock } from "@/lib/site-time";
 import { downloadReport } from "@/lib/client/offline";
 import { Photo, PhotoDialog } from "./delivery-photo";
+import { ItemSelector } from "./item-selector";
 import styles from "./live-delivery.module.css";
 
 export function marshalPhotoSource(marshal: Marshal, mode: Bootstrap["mode"]) {
@@ -127,7 +128,9 @@ export function LiveRecords({
   }
 
   return (
-    <section className="simple-panel simple-records-panel">
+    <section
+      className={`simple-panel simple-records-panel ${styles.filterPanel}`}
+    >
       {canExport && !invalid && (
         <section
           className={styles.analytics}
@@ -151,17 +154,6 @@ export function LiveRecords({
         </section>
       )}
       <div className={styles.filters}>
-        <label>
-          Direction
-          <select
-            value={direction}
-            onChange={(event) => setDirection(event.target.value)}
-          >
-            <option value="">All directions</option>
-            <option value="IN">IN</option>
-            <option value="OUT">OUT</option>
-          </select>
-        </label>
         <label>
           From date
           <input
@@ -192,32 +184,35 @@ export function LiveRecords({
             }
           />
         </label>
+        <ItemSelector
+          items={data.materials}
+          value={material}
+          label="Material"
+          searchLabel="Search materials"
+          placeholder="All materials"
+          clearLabel="All materials"
+          plainNames
+          onSelect={setMaterial}
+        />
+        <ItemSelector
+          items={data.suppliers}
+          value={supplier}
+          label="Supplier"
+          searchLabel="Search suppliers"
+          placeholder="All suppliers"
+          clearLabel="All suppliers"
+          plainNames
+          onSelect={setSupplier}
+        />
         <label>
-          Material
+          Direction
           <select
-            value={material}
-            onChange={(event) => setMaterial(event.target.value)}
+            value={direction}
+            onChange={(event) => setDirection(event.target.value)}
           >
-            <option value="">All materials</option>
-            {data.materials.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Supplier
-          <select
-            value={supplier}
-            onChange={(event) => setSupplier(event.target.value)}
-          >
-            <option value="">All suppliers</option>
-            {data.suppliers.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
+            <option value="">All directions</option>
+            <option value="IN">IN</option>
+            <option value="OUT">OUT</option>
           </select>
         </label>
       </div>
@@ -281,12 +276,11 @@ export function LiveRecords({
           <thead>
             <tr>
               {[
-                "Date",
-                "Time",
+                "Marshal",
                 "Direction",
                 "Material",
                 "Supplier",
-                "Marshal",
+                "Time",
                 "Photo",
               ].map((label) => (
                 <th scope="col" key={label}>
@@ -298,21 +292,34 @@ export function LiveRecords({
           <tbody>
             {records.map((record) => {
               const clock = siteClock(new Date(record.arrival_at), timezone);
+              const movementDirection = record.direction ?? "IN";
               const marshal = data.marshals?.find(
                 (item) => item.id === record.marshal_id,
               );
               return (
                 <tr key={record.id}>
-                  <td className={styles.clockCell}>{clock.date}</td>
-                  <td className={styles.clockCell}>
-                    <time dateTime={record.arrival_at}>{clock.time}</time>
-                    {record.correction_reason && (
-                      <small title={record.correction_reason}>
-                        Corrected time
-                      </small>
-                    )}
+                  <td>
+                    <span className={styles.marshal}>
+                      {marshal && (
+                        <img
+                          src={marshalPhotoSource(marshal, data.mode)}
+                          onError={onMarshalPhotoError}
+                          alt=""
+                          width={36}
+                          height={36}
+                        />
+                      )}
+                      <span>{record.marshal_name || record.creator_name}</span>
+                    </span>
                   </td>
-                  <td>{record.direction ?? "IN"}</td>
+                  <td>
+                    <span
+                      className={styles.direction}
+                      data-direction={movementDirection}
+                    >
+                      {movementDirection}
+                    </span>
+                  </td>
                   <td>
                     {record.item_name ||
                       data.materials.find(
@@ -327,19 +334,13 @@ export function LiveRecords({
                       )?.name ||
                       "Not recorded"}
                   </td>
-                  <td>
-                    <span className={styles.marshal}>
-                      {marshal && (
-                        <img
-                          src={marshalPhotoSource(marshal, data.mode)}
-                          onError={onMarshalPhotoError}
-                          alt=""
-                          width={36}
-                          height={36}
-                        />
-                      )}
-                      <span>{record.marshal_name || record.creator_name}</span>
-                    </span>
+                  <td className={styles.clockCell}>
+                    <time dateTime={record.arrival_at}>{clock.time}</time>
+                    {record.correction_reason && (
+                      <small title={record.correction_reason}>
+                        Corrected time
+                      </small>
+                    )}
                   </td>
                   <td>
                     {record.evidence.length ? (

@@ -91,19 +91,16 @@ export async function json(request: Request): Promise<Record<string, unknown>> {
     throw new AppError(400, "Invalid JSON");
   }
 }
-export async function session(request: Request): Promise<Context> {
+type CaptureContext =
+  { client: SupabaseClient } | { client: null; actor: Actor };
+
+async function authenticate(request: Request): Promise<CaptureContext> {
   requestSafety(request);
   const jar = await cookies();
   const token = jar.get("delivery_session")?.value || "";
   assert(token, "Sign in required", 401);
-  if (appMode() === "local") {
-    const actor = local.actor(token);
-    return {
-      actor,
-      client: null,
-      bootstrap: async () => local.bootstrap(actor),
-    };
-  }
+  if (appMode() === "local") return { client: null, actor: local.actor(token) };
+
   let client: SupabaseClient;
   try {
     client = await remote.user(token);
@@ -119,12 +116,17 @@ export async function session(request: Request): Promise<Context> {
     );
     client = await remote.user(renewed.access);
   }
-  const boot = await remote.bootstrap(client);
-  return {
-    actor: boot.actor,
-    client,
-    bootstrap: async () => remote.bootstrap(client),
-  };
+  return { client };
+}
+
+export async function session(request: Request): Promise<Context> {
+  const context = await authenticate(request);
+  if (!context.client) {
+    const { actor } = context;
+    return { ...context, bootstrap: async () => local.bootstrap(actor) };
+  }
+  const boot = await remote.bootstrap(context.client);
+  return { ...context, actor: boot.actor, bootstrap: async () => boot };
 }
 function cookieOptions() {
   return {
@@ -164,15 +166,30 @@ export async function clearTokens() {
   ])
     jar.set(name, "", { ...cookieOptions(), maxAge: 0 });
 }
-export async function route(
+export function route(
   request: Request,
-  fn: (context: Context) => Promise<Response | unknown>,
+  fn: (context: Context) => Promise<unknown>,
   write = false,
-): Promise<Response> {
+) {
+  return respond(request, async () => fn(await session(request)), write);
+}
+
+// Capture RPCs and Storage policies enforce the actor's role and site directly.
+export function captureRoute(
+  request: Request,
+  fn: (context: CaptureContext) => Promise<unknown>,
+) {
+  return respond(request, async () => fn(await authenticate(request)), true);
+}
+
+async function respond(
+  request: Request,
+  work: () => Promise<unknown>,
+  write: boolean,
+) {
   try {
     requestSafety(request, write);
-    const context = await session(request);
-    const result = await fn(context);
+    const result = await work();
     const response =
       result instanceof Response ? result : Response.json(result);
     response.headers.set("Cache-Control", "private, no-store");

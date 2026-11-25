@@ -1,6 +1,6 @@
 .classification {
   margin-top: -12px;
-  color: #756b5c;
+  color: var(--daily-muted);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -9,30 +9,51 @@
   cursor: not-allowed;
 }
 
+.staffRole {
+  display: block;
+  margin-top: 3px;
+  color: var(--daily-muted);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
 .pending {
-  color: #82602e;
+  color: var(--daily-muted);
 }
 
 .clock {
-  color: #756b5c;
+  color: var(--daily-muted);
   font-size: 12px;
   line-height: 1.6;
 }
 
 .clock strong {
   display: block;
-  color: #3a392f;
+  color: var(--daily-text);
   font-size: 13px;
 }
 
 .recordsTable.recordsTable {
-  min-width: 780px;
+  min-width: 620px;
+  font-size: 14px;
+}
+
+.recordsTable.recordsTable th {
+  background: var(--daily-surface);
+  font-size: 13px;
+  letter-spacing: normal;
+}
+
+.recordsTable.recordsTable :is(th, td) {
+  padding: 10px 14px;
 }
 
 .marshal {
   display: flex;
   align-items: center;
   gap: 9px;
+  min-width: 124px;
 }
 
 .marshal img {
@@ -41,7 +62,7 @@
   flex-shrink: 0;
   border-radius: 50%;
   object-fit: cover;
-  background: #eee9df;
+  background: var(--daily-action);
 }
 
 .clockCell {
@@ -51,20 +72,44 @@
 
 .clockCell small {
   display: block;
-  color: #756b5c;
+  color: var(--daily-muted);
   font-size: 10px;
 }
 
 .analytics {
   padding: 22px 24px;
-  border-bottom: 1px solid #ddd0bc;
+  border-bottom: 1px solid var(--daily-border);
+}
+
+.analytics h2 {
+  font-size: 17px;
+  font-weight: 700;
 }
 
 .analytics dl {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 32px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
   margin: 12px 0 0;
+}
+
+.analytics dl > div {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px clamp(8px, 3vw, 16px);
+  border: 1px solid var(--daily-border);
+  border-radius: 14px;
+  background: var(--daily-soft);
+}
+
+.analytics dt {
+  color: var(--daily-muted);
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .analytics dd {
@@ -74,13 +119,33 @@
   font-variant-numeric: tabular-nums;
 }
 
+.direction {
+  display: inline-block;
+  min-width: 40px;
+  border-radius: var(--daily-pill-radius);
+  padding: 3px 9px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.direction[data-direction="IN"] {
+  background: #d9f2e4;
+  color: #17603d;
+}
+
+.direction[data-direction="OUT"] {
+  background: #fce7db;
+  color: #89401f;
+}
+
 .filters {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: end;
   gap: 16px;
   padding: 22px 24px;
-  border-bottom: 1px solid #ddd0bc;
+  border-bottom: 1px solid var(--daily-border);
 }
 
 .filters label {
@@ -94,7 +159,7 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 16px 24px;
-  color: #655034;
+  color: var(--daily-muted);
   font-size: 12px;
 }
 
@@ -105,6 +170,10 @@
 }
 
 @media (max-width: 700px) {
+  .analytics {
+    padding: 18px;
+  }
+
   .filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
@@ -126,4 +195,37 @@
   height: 32px;
   border-radius: 50%;
   object-fit: cover;
+}
+
+.activityNotice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 6px 12px;
+  border: 1px solid var(--daily-border);
+  border-radius: 14px;
+  background: var(--daily-surface);
+  color: var(--daily-text);
+}
+
+.activityNotice svg {
+  flex: none;
+}
+
+.activityNotice p {
+  flex: 1;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.activityNotice button {
+  padding-inline: 8px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Search results can extend beyond the card when no records match yet. */
+.filterPanel {
+  overflow: visible;
 }

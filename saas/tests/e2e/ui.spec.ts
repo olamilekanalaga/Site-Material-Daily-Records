@@ -108,6 +108,23 @@ test("authorised gate accounts see both square profiles but can record only as t
   expect(boot.marshals).toHaveLength(2);
   const own = boot.marshals!.find((item) => (item as BoundMarshal).can_record)!;
   const colleague = boot.marshals!.find((item) => item.id !== own.id)!;
+  await page.route("**/api/bootstrap", async (route) => {
+    await route.fulfill({
+      json: {
+        ...boot,
+        marshals: [
+          ...boot.marshals!,
+          { ...own, id: randomUUID(), name: "Unlinked profile", user_id: null },
+          { ...own, id: randomUUID(), name: "Preview GATE" },
+          { ...own, id: randomUUID(), name: `Preview GATE (${randomUUID()})` },
+        ],
+      },
+    });
+  });
+  await page.reload();
+  const profiles = page.getByLabel("Select traffic marshal");
+  await expect(profiles.getByRole("button")).toHaveCount(2);
+  await page.unroute("**/api/bootstrap");
   await expect(
     page.getByRole("button", { name: own.name, exact: true }),
   ).toBeEnabled();
@@ -117,6 +134,9 @@ test("authorised gate accounts see both square profiles but can record only as t
   for (const person of boot.marshals!) {
     const card = page.getByRole("button", { name: person.name, exact: true });
     await expect(card.locator("img")).toBeVisible();
+    await expect(
+      card.getByText("Traffic Marshal", { exact: true }),
+    ).toBeVisible();
     const box = (await card.boundingBox())!;
     expect(Math.abs(box.width - box.height)).toBeLessThanOrEqual(2);
   }
@@ -272,12 +292,11 @@ test("a failed upload resumes one server record and a separate supervisor can re
       }),
     ).toHaveCount(0);
     await expect(records(supervisorPage).getByRole("columnheader")).toHaveText([
-      "Date",
-      "Time",
+      "Marshal",
       "Direction",
       "Material",
       "Supplier",
-      "Marshal",
+      "Time",
       "Photo",
     ]);
     const row = records(supervisorPage)
@@ -285,9 +304,10 @@ test("a failed upload resumes one server record and a separate supervisor can re
       .filter({ hasText: supplier });
     await expect(row).toHaveCount(1);
     await expect(row).toContainText(own.name);
-    await expect(
-      row.getByRole("cell", { name: "OUT", exact: true }),
-    ).toBeVisible();
+    await expect(row.getByText("OUT", { exact: true })).toHaveCSS(
+      "background-color",
+      "rgb(252, 231, 219)",
+    );
     await expect(
       supervisorPage.getByRole("heading", { name: "Movement analytics" }),
     ).toBeVisible();
@@ -329,8 +349,8 @@ test("new material and supplier names survive refresh, remain reusable while pen
   await login(page);
   await selectOwnMarshal(page);
   const suffix = randomUUID().slice(0, 8);
-  const material = `Test panel ${suffix}`;
-  const supplier = `Test supplier ${suffix}`;
+  const material = `Loading panel ${suffix}`;
+  const supplier = `Logistics ${suffix}`;
   await page
     .getByRole("combobox", { name: "Category", exact: true })
     .selectOption({ label: "Other Materials" });
@@ -367,14 +387,28 @@ test("new material and supplier names survive refresh, remain reusable while pen
   await page.reload();
   await selectOwnMarshal(page);
   await materialSelect(page).click();
-  await page
-    .getByRole("searchbox", { name: "Search materials", exact: true })
-    .fill(suffix);
+  const materialSearch = page.getByRole("searchbox", {
+    name: "Search materials",
+    exact: true,
+  });
+  await materialSearch.fill("l");
+  await expect(
+    page.getByRole("option").filter({ hasText: material }),
+  ).toBeVisible();
+  await materialSearch.fill("lo");
+  await expect(
+    page.getByRole("option").filter({ hasText: material }),
+  ).toBeVisible();
+  await materialSearch.fill("panel");
+  await expect(
+    page.getByRole("option").filter({ hasText: material }),
+  ).toHaveCount(0);
+  await materialSearch.fill(material);
   await page.getByRole("option").filter({ hasText: material }).click();
   await supplierSelect(page).click();
   await page
     .getByRole("searchbox", { name: "Search suppliers", exact: true })
-    .fill(suffix);
+    .fill(supplier);
   await page.getByRole("option", { name: supplier, exact: true }).click();
   await attach(page);
   await save(page);
@@ -408,10 +442,22 @@ test("new material and supplier names survive refresh, remain reusable while pen
       );
     await supervisorPage
       .getByRole("combobox", { name: "Material", exact: true })
-      .selectOption({ value: first.material_id });
+      .click();
+    await supervisorPage
+      .getByRole("searchbox", { name: "Search materials" })
+      .fill(material);
+    await supervisorPage
+      .getByRole("option", { name: material, exact: true })
+      .click();
     await supervisorPage
       .getByRole("combobox", { name: "Supplier", exact: true })
-      .selectOption({ value: first.supplier_id! });
+      .click();
+    await supervisorPage
+      .getByRole("searchbox", { name: "Search suppliers" })
+      .fill(supplier);
+    await supervisorPage
+      .getByRole("option", { name: supplier, exact: true })
+      .click();
     await expect(records(supervisorPage).locator("tbody tr")).toHaveCount(2);
     const displayedTimes = await records(supervisorPage)
       .locator("tbody time")
@@ -547,4 +593,52 @@ test("staff sign-in entrances enforce assigned roles and sign-out removes privat
     path: info.outputPath("live-authenticated-portals.png"),
     fullPage: true,
   });
+});
+
+test("a signed-in supervisor sees a new delivery without refreshing", async ({
+  page,
+  browser,
+}) => {
+  const gate = await login(page);
+  const marshal = await selectOwnMarshal(page, gate);
+  await chooseMaterial(page, "6F5");
+  const supplier = `Live alert ${randomUUID().slice(0, 8)}`;
+  await newSupplier(page, supplier);
+  await attach(page);
+
+  const managerContext = await browser.newContext({
+    viewport: page.viewportSize() ?? undefined,
+  });
+  try {
+    const manager = await managerContext.newPage();
+    await login(manager, "supervisor");
+    await expect(records(manager)).toBeVisible();
+    const notice = manager.getByText(`${marshal.name} just added a delivery.`, {
+      exact: true,
+    });
+    await expect(notice).toHaveCount(0);
+
+    await page.bringToFront();
+    await save(page);
+    await manager.bringToFront();
+
+    await expect(notice).toBeVisible();
+    const row = records(manager).getByRole("row").filter({ hasText: supplier });
+    await expect(row).toHaveCount(1);
+    await expect(row.getByText("IN", { exact: true })).toHaveCSS(
+      "background-color",
+      "rgb(217, 242, 228)",
+    );
+    await manager.getByRole("button", { name: "Dismiss", exact: true }).click();
+    await expect(notice).toHaveCount(0);
+    await manager
+      .getByRole("button", { name: "Refresh deliveries", exact: true })
+      .click();
+    await expect(
+      manager.getByRole("button", { name: "Refresh deliveries", exact: true }),
+    ).toBeEnabled();
+    await expect(notice).toHaveCount(0);
+  } finally {
+    await managerContext.close();
+  }
 });

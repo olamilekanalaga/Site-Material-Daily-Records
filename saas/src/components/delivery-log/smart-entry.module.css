@@ -14,10 +14,10 @@
   gap: 12px;
   width: 100%;
   min-height: 52px;
-  padding: 12px 13px;
-  border: 1px solid #d6cdbf;
-  border-radius: 7px;
-  background: white;
+  padding: 12px 16px;
+  border: 1px solid var(--daily-control-border);
+  border-radius: var(--daily-pill-radius);
+  background: var(--daily-surface);
   text-align: left;
   font-size: 16px;
 }
@@ -27,11 +27,11 @@
 }
 .dropdownTrigger svg {
   flex-shrink: 0;
-  color: #756851;
+  color: var(--daily-muted);
 }
 .dropdownTrigger[aria-expanded="true"] {
-  border-color: #967443;
-  box-shadow: 0 0 0 3px #eee4d6;
+  border-color: #767676;
+  box-shadow: 0 0 0 3px var(--daily-action);
 }
 .dropdownTrigger[aria-expanded="true"] svg {
   transform: rotate(180deg);
@@ -43,20 +43,20 @@
   right: 0;
   z-index: 10;
   overflow: hidden;
-  border: 1px solid #d2c5b0;
-  border-radius: 7px;
-  background: white;
-  box-shadow: 0 8px 24px #33271926;
+  border: 1px solid var(--daily-border);
+  border-radius: 14px;
+  background: var(--daily-surface);
+  box-shadow: 0 8px 24px #00000014;
 }
 .dropdownSearch {
   padding: 12px;
-  border-bottom: 1px solid #ece5d8;
+  border-bottom: 1px solid var(--daily-border);
 }
 .options {
   max-height: 280px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: white;
+  background: var(--daily-surface);
 }
 .options button {
   display: flex;
@@ -64,24 +64,24 @@
   width: 100%;
   min-height: 48px;
   padding: 12px;
-  border-bottom: 1px solid #ece5d8;
+  border-bottom: 1px solid var(--daily-border);
   text-align: left;
   font-size: 14px;
 }
 .options button[aria-selected="true"],
 .options button:hover {
-  background: #f3ecde;
+  background: var(--daily-soft);
 }
 .options button:last-child {
   border-bottom: 0;
 }
 .options .other {
   font-weight: 600;
-  color: #77582d;
+  color: var(--daily-text);
 }
 .noMatches {
   padding: 12px;
-  color: #756851;
+  color: var(--daily-muted);
   font-size: 12px;
 }
 .customField {
@@ -89,17 +89,17 @@
 }
 .pending {
   margin-top: -12px;
-  color: #82602e;
+  color: var(--daily-muted);
   font-size: 12px;
   line-height: 1.6;
 }
 .automaticTime {
-  color: #756b5c;
+  color: var(--daily-muted);
   font-size: 12px;
   line-height: 1.6;
 }
 .automaticTime strong {
   display: block;
-  color: #3a392f;
+  color: var(--daily-text);
   font-size: 13px;
 }
