@@ -147,6 +147,18 @@
   display: block;
 }
 
+.originalNames {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.originalNames ul {
+  margin-top: 4px;
+  padding-left: 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .reviewItemName strong {
   color: #55432c;
   font-size: 14px;

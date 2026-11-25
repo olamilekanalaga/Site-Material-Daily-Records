@@ -56,7 +56,7 @@ Each new arrival also retains its explicit `selected_category` for pending class
 To approve an item:
 
 1. Open `/demo/supervisor` in the same browser profile.
-2. Set the date range to include the affected arrivals. Expand **Pending classification** if necessary; each item shows its occurrence count in the selected period.
+2. All saved dates are shown by default. Open the supervisor **Review** tab; each item shows its occurrence count in the selected period.
 3. Confirm or choose one of the three categories and either **Delivery** or **Service visit**.
 4. Choose **Approve item**. The demo engine checks the supervisor, site-manager or company-administrator role, validates both choices and records an audit event.
 5. Return to a marshal's form and select the approved category. The approved item becomes a normal searchable option within it and remains available after a refresh.
@@ -77,11 +77,11 @@ One saved arrival contributes one count. Two confirmed saves for separate 6F5 ar
 
 ## Records and supervisor reporting
 
-The five-column **Daily Records** table includes **Traffic marshal** (a 40px circular profile picture), **Item**, **Category**, **Logistics company** and **Photo**. The two sample marshals use their supplied portraits without visible name text, with names available to assistive technology and on hover; other staff use a placeholder. Date and time columns are hidden, while their original values remain stored for newest-first ordering, custom date filters and CSV exports. The default view covers the current Europe/London site day, from site midnight to the following midnight, and automatically advances when the next site day begins. Earlier records remain stored and available through custom date ranges. Open evidence using the existing photo viewer; absence of legacy evidence remains visible rather than being fabricated.
+The five-column **Daily Records** table includes **Traffic marshal** (a 40px circular profile picture), **Item**, **Category**, **Logistics company** and **Photo**. The two sample marshals use their supplied portraits without visible name text, with names available to assistive technology and on hover; other staff use a placeholder. Date and time columns are hidden, while their original values remain stored for newest-first ordering, custom date filters and CSV exports. The default public demo view includes all saved dates. Earlier records stay visible after refresh, reopening and day changes; optional custom date ranges remain available without rewriting stored timestamps. Open evidence using the existing photo viewer; absence of legacy evidence remains visible rather than being fabricated.
 
 Entry type remains stored and derived for delivery/service totals, filtering and supervisor catalogue approval. It has no field on the delivery form and no column in the records table or arrival CSV. Existing legacy report exports retain their compatible format.
 
-Editing **From date** or **To date** switches to a custom range that stays fixed across midnight while the records view remains open. **Clear filters** returns to the automatic current-day view; reopening the page also starts with today. The table, summary cards and arrival CSV use the same effective dates. Additional filters cover item, category, entry type, marshal and pending classification. Dates use the site timezone. Horizontal summary cards follow the selected dates; item selection narrows the table while period totals remain comparable. The supervisor can inspect:
+Editing **From date** or **To date** switches to a custom range that stays fixed across midnight while the records view remains open. **Clear filters** restores all saved dates; reopening the demo records page also starts with all dates. The table, summary cards and arrival CSV use the same effective dates. Additional filters cover item, category, entry type, marshal and pending classification. Dates use the site timezone. Horizontal summary cards follow the selected dates; item selection narrows the table while period totals remain comparable. The supervisor Workload and Review tabs provide:
 
 - Three summary cards: total recorded arrivals, material deliveries and service visits. Pending items still count toward total arrivals and remain available in the classification filter and review list.
 - Counts by item and category, including frequently delivered items.

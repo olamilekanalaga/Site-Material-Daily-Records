@@ -1,3 +1,48 @@
+# DJ Civils home-screen icon
+
+The app artwork now reads **DJ Civils**, with versioned opaque PNGs for Apple touch (180px), manifest (192/512px), maskable installation (512px) and browser tabs (32px). Application and Apple web-app titles are DJ Civils. The original company JPEG, app start URL, internal storage identifiers and records are unchanged.
+
+TypeScript and the optimised Next.js build passed. A Chromium smoke check against the locally running production build verified the application/Apple titles, Apple icon URL, manifest names/start URL, all five PNG responses and dimensions, maskable declaration, SVG branding, 30 visible demo records and no page errors. The 180px artwork was visually inspected. The preceding 117-unit/24-browser workflow results below belong to the earlier UI revision and were not repeated for this asset/metadata-only change.
+
+Physical iPhone installation and replacement of an already cached home-screen icon are not verified. Versioned paths support fresh installation; iOS may still retain an existing icon. Keep the old installed app until local records are exported or verified elsewhere. No hosted backend or production release was performed.
+
+---
+
+# Demo display defaults — all recorded dates
+
+Both public demo record views now open on **All recorded dates**. Clear filters restores all dates; a custom range still applies to records, cards, workload, review and CSV. Older entries remain visible after refresh, reopening and day changes. Original delivery objects, dates and timestamps are unchanged. The live staff records page, marshal entry form, storage engine/schema and backend configuration are unchanged.
+
+The extra Arrival breakdown section and explanatory/empty classification paragraphs were removed. Existing pending approval controls and success/error feedback remain in Review.
+
+Validation for this revision: TypeScript passed; **117/117 unit/database tests passed**; **24/24 browser scenarios passed** across phone, tablet and desktop. The updated date scenario checks a multi-day historical dataset, midnight changes, refresh/reopen, custom October ranges and CSV, Clear filters returning to all records, the marshal own-records view, and exact unchanged stored delivery snapshots. The optimised Next.js 16.4.5 / Turbopack build passed, including TypeScript and all 13 static pages.
+
+---
+
+# Gate supervisor workspace — 10 November 2026
+
+The `feat/supervisor-workspace` branch adds a frontend-only supervisor view on top of the existing demo. It is based on the existing unmerged backend-review branch so the reviewed demo continues to work; this change does not activate Supabase, production authentication or a live database. The marshal form, IndexedDB schema/engine, existing catalogue, migrations, archived dashboard and Vercel configuration are unchanged.
+
+The dark workspace has Arrivals / Marshals / To Classify cards and Records / Workload / Review tabs. All counters and tabs use the same filtered, deduplicated submitted arrivals. To Classify counts distinct pending catalogue IDs with matching arrivals; original names and arrival occurrences remain visible for review. Classification approval uses the existing demo operation and audit history, preserving the complete original delivery objects and evidence.
+
+| Check                                                    | Executed result                                                                                                                             |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript (`npm run typecheck`)                         | Passed                                                                                                                                      |
+| Unit/database suite (`npm test`)                         | **117/117 passed**, including six new supervisor model checks                                                                               |
+| Complete public demo browser suite (`npm run test:demo`) | **24/24 passed** in the final complete run, across phone/tablet/desktop                                                                     |
+| Optimised Next.js build (`npm run build`)                | Passed with Next.js 16.4.5 / Turbopack, TypeScript and all 13 static pages                                                                  |
+| Review and visual inspection                             | Independent read-only code review completed; phone Records and Review screenshots visually inspected; responsive checks include 320px width |
+| Hosted Auth/Storage or production rollout                | Not performed by this UI upgrade                                                                                                            |
+
+Browser scenarios cover both demo entrances, unchanged marshal capture, shared same-browser records, correct recording/legacy timestamps, date rollover and fixed custom ranges, date/marshal/item/category/type/classification filters, matching CSV output, evidence access, workload grouping/activity, keyboard tabs, and classification approval with unchanged delivery snapshots. The runner starts without Supabase credentials and verifies that public demo workflows issue no real company API requests or staff session cookies.
+
+The initial browser run passed 21 of 24 scenarios. The remaining three were one assertion repeated across viewports: it assumed original-name variants would display in creation order. The assertion now compares their exact contents without prescribing order, preserving whitespace/case and the full immutable-delivery checks. Record button labels were also improved to announce material names. The final complete 24-scenario run passed on the resulting source.
+
+The referenced supervisor illustration was not attached. The written dark layout has been implemented, but no exact screenshot comparison is claimed. Browser checks use Chromium device emulation and synthetic images; physical phone-camera behaviour remains a manual check. Records remain local to a browser profile and origin, so a new preview URL has its own demo storage and does not automatically show records from an older URL.
+
+See [workspace behaviour and counting rules](SUPERVISOR-WORKSPACE.md). Earlier validation below belongs to earlier implementation stages and is not a new hosted-backend verification.
+
+---
+
 # Production backend integration — review validation
 
 The `feat/production-delivery-backend` branch upgrades the existing application. It is prepared for pull-request review; production merge/deployment requires approval. The results below this section are **earlier release evidence**, not proof that the supplied hosted Supabase project is connected.
