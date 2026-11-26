@@ -36,13 +36,18 @@ export function requestSafety(request: Request, write = false) {
   if (write) {
     const origin = request.headers.get("origin");
     const fetchSite = request.headers.get("sec-fetch-site");
+    // Next.js can normalize Request.url to an internal host behind the server.
+    // The HTTP Host selects the served domain. Vercel terminates public HTTPS.
+    const host = request.headers.get("host");
+    const protocol = process.env.VERCEL ? "https:" : url.protocol;
+    const servingOrigin = host ? `${protocol}//${host}` : url.origin;
     assert(
       !fetchSite || ["same-origin", "none"].includes(fetchSite),
       "Cross-site request rejected",
       403,
     );
     assert(
-      !origin || origin === (process.env.APP_ORIGIN || url.origin),
+      !origin || origin === servingOrigin,
       "Cross-origin request rejected",
       403,
     );
