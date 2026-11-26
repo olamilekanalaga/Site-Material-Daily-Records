@@ -326,7 +326,10 @@ test("a failed upload resumes one server record and a separate supervisor can re
     exact: true,
   });
   await expect(period).toHaveValue("Today");
-  await expect(period.getByRole("option")).toHaveText(["Today", "Custom dates"]);
+  await expect(period.getByRole("option")).toHaveText([
+    "Today",
+    "Custom dates",
+  ]);
   await period.selectOption("Custom dates");
   await page.getByLabel("From date", { exact: true }).fill("2000-01-01");
   await page.getByLabel("To date", { exact: true }).fill("2000-01-01");
