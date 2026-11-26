@@ -17,6 +17,7 @@ import { Brand } from "../shared/brand";
 import { Login } from "../auth/login";
 import { LiveForm } from "./live-form";
 import { LiveRecords, onMarshalPhotoError } from "./live-records";
+import { MarshalActivity } from "./marshal-activity";
 import liveStyles from "./live-delivery.module.css";
 import {
   canReadReports,
@@ -318,26 +319,31 @@ export function SimpleApp({
           )}
         <main>
           {profilePage ? (
-            <section
-              className={`simple-panel ${liveStyles.profilePanel}`}
-              aria-labelledby="profile-heading"
-            >
-              <h1 id="profile-heading">Profile</h1>
-              <img
-                src={
-                  data.mode === "supabase"
-                    ? "/api/profile/photo"
-                    : "/marshal-placeholder.svg"
-                }
-                onError={onMarshalPhotoError}
-                alt=""
-                width={80}
-                height={80}
-              />
-              <h2>{data.actor.name}</h2>
-              <p className={liveStyles.staffRole}>Traffic Marshal</p>
-              <p>{data.actor.email}</p>
-            </section>
+            <>
+              <section
+                className={`simple-panel ${liveStyles.profilePanel}`}
+                aria-labelledby="profile-heading"
+              >
+                <h1 id="profile-heading">Profile</h1>
+                <img
+                  src={
+                    data.mode === "supabase"
+                      ? "/api/profile/photo"
+                      : "/marshal-placeholder.svg"
+                  }
+                  onError={onMarshalPhotoError}
+                  alt=""
+                  width={80}
+                  height={80}
+                />
+                <h2>{data.actor.name}</h2>
+                <p className={liveStyles.staffRole}>Traffic Marshal</p>
+                <p>{data.actor.email}</p>
+              </section>
+              {site && (
+                <MarshalActivity key={site.id} data={data} site={site} />
+              )}
+            </>
           ) : (
             <>
               <div className="simple-page-title">

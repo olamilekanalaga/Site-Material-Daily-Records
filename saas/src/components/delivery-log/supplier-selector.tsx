@@ -26,6 +26,7 @@ export function SupplierSelector({
 }) {
   return (
     <ItemSelector
+      captureField="supplier"
       items={suppliers}
       value={value}
       custom={custom}

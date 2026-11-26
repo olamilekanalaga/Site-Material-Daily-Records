@@ -140,14 +140,31 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
   await expect(
     page.locator('[aria-label="Automatic classification"]'),
   ).toHaveText("Aggregate · Delivery");
-  await page
-    .getByRole("button", { name: "Save Delivery", exact: true })
-    .click();
-  await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
-    /image|photo/i,
+  const saveButton = page.getByRole("button", {
+    name: "Save Delivery",
+    exact: true,
+  });
+  await expect(saveButton).toHaveAttribute("data-ready", "false");
+  const incompleteColor = await saveButton.evaluate(
+    (button) => getComputedStyle(button).backgroundColor,
   );
-  await expect(page.getByText("Delivery saved", { exact: false })).toHaveCount(
-    0,
+  await saveButton.click();
+  await expect(supplierSelect(page)).toBeFocused();
+  await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
+    "Choose a supplier",
+  );
+  const supplier = boot.suppliers.find((item) => item.active)!;
+  await supplierSelect(page).click();
+  await page
+    .getByRole("searchbox", { name: "Search suppliers", exact: true })
+    .fill(supplier.name);
+  await page.getByRole("option", { name: supplier.name, exact: true }).click();
+  await saveButton.click();
+  await expect(
+    page.getByRole("button", { name: "Take photo", exact: true }),
+  ).toBeFocused();
+  await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
+    "Add a delivery image",
   );
   await page.getByLabel("Delivery image", { exact: true }).setInputFiles({
     name: "bad.txt",
@@ -158,18 +175,8 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
     /JPEG|PNG|WebP|image/i,
   );
   await attach(page);
-  await page
-    .getByRole("button", { name: "Save Delivery", exact: true })
-    .click();
-  await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
-    "Choose a supplier",
-  );
-  const supplier = boot.suppliers.find((item) => item.active)!;
-  await supplierSelect(page).click();
-  await page
-    .getByRole("searchbox", { name: "Search suppliers", exact: true })
-    .fill(supplier.name);
-  await page.getByRole("option", { name: supplier.name, exact: true }).click();
+  await expect(saveButton).toHaveAttribute("data-ready", "true");
+  await expect(saveButton).not.toHaveCSS("background-color", incompleteColor);
   await page.getByText("Enter actual time (optional)", { exact: true }).click();
   await page
     .getByLabel("Actual date (defaults to today)", { exact: true })
@@ -307,6 +314,30 @@ test("a failed upload resumes one server record and a separate supervisor can re
   await expect(
     page.getByRole("heading", { name: "Profile", exact: true }),
   ).toBeVisible();
+  const counts = page.getByRole("table", { name: "My saved record counts" });
+  await expect(counts.getByRole("columnheader")).toHaveText([
+    "Category",
+    "IN",
+    "OUT",
+    "Total",
+  ]);
+  const period = page.getByLabel("Reporting period", { exact: true });
+  await expect(period).toHaveValue("Today");
+  await period.selectOption("Custom dates");
+  await page.getByLabel("From date", { exact: true }).fill("2000-01-01");
+  await page.getByLabel("To date", { exact: true }).fill("2000-01-01");
+  await expect(
+    counts.getByRole("row", { name: "Total saved 0 0 0" }),
+  ).toBeVisible();
+  await noOverflow(page);
+  await period.selectOption("This week");
+  await counts.getByRole("button", { name: "Aggregate" }).click();
+  await expect(
+    page
+      .getByRole("table", { name: "My saved record details" })
+      .getByRole("row")
+      .filter({ hasText: supplier }),
+  ).toContainText("OUT");
   await expect(
     navigation.getByRole("link", { name: "Home", exact: true }),
   ).toHaveAttribute("href", "/gate");
@@ -502,6 +533,9 @@ test("new material and supplier names survive refresh, remain reusable while pen
   }).format(new Date(first.arrival_at));
   await page.reload();
   await expectOwnMarshalForm(page);
+  await page
+    .getByRole("combobox", { name: "Category", exact: true })
+    .selectOption({ label: "Other Materials" });
   await materialSelect(page).click();
   const materialSearch = page.getByRole("searchbox", {
     name: "Search materials",

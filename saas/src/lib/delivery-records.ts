@@ -18,18 +18,16 @@ export const reportMovementViews = [
 ] as const;
 export type ReportMovementView = (typeof reportMovementViews)[number];
 
-export function matchesMovementView(
-  item: {
-    entry_type?: EntryType;
-    category?: string;
-    selected_category?: string;
-  },
-  view: ReportMovementView,
+type MovementItem = {
+  entry_type?: EntryType;
+  category?: string;
+  selected_category?: string;
+};
+
+export function movementCategory(
+  item: MovementItem,
   name: string,
-) {
-  if (view === "Overview") return true;
-  if (view === "Materials") return item.entry_type === "Delivery";
-  if (view === "Services") return item.entry_type === "Service visit";
+): MovementView {
   const category = captureCategory(
     item.selected_category || item.category,
     name,
@@ -38,11 +36,22 @@ export function matchesMovementView(
     item.entry_type === "Service visit" ||
     (item.entry_type !== "Delivery" && category === "Services")
   )
-    return view === "Service";
-  if (category === "Concrete") return view === "Concrete";
+    return "Service";
+  if (category === "Concrete") return "Concrete";
   if (category === "Aggregates / Sands" || category === "Aggregate")
-    return view === "Aggregate";
-  return view === "Material";
+    return "Aggregate";
+  return "Material";
+}
+
+export function matchesMovementView(
+  item: MovementItem,
+  view: ReportMovementView,
+  name: string,
+) {
+  if (view === "Overview") return true;
+  if (view === "Materials") return item.entry_type === "Delivery";
+  if (view === "Services") return item.entry_type === "Service visit";
+  return movementCategory(item, name) === view;
 }
 
 function uniqueDeliveries(deliveries: Delivery[]) {
@@ -58,6 +67,35 @@ function uniqueDeliveries(deliveries: Delivery[]) {
       latest.set(delivery.id, delivery);
   }
   return [...latest.values()];
+}
+
+export function personalSavedDeliveries(
+  deliveries: Delivery[],
+  actorId: string,
+  siteId: string,
+  timezone: string,
+  range: DateRange,
+) {
+  return uniqueDeliveries(deliveries)
+    .flatMap((delivery) => {
+      if (
+        delivery.created_by !== actorId ||
+        delivery.site_id !== siteId ||
+        !delivery.submitted_at ||
+        delivery.status === "Draft"
+      )
+        return [];
+      const saved = new Date(delivery.submitted_at);
+      if (!Number.isFinite(saved.getTime())) return [];
+      const clock = siteClock(saved, timezone);
+      return clock.date >= range.from && clock.date <= range.to
+        ? [{ delivery, clock, savedAt: saved.getTime() }]
+        : [];
+    })
+    .sort(
+      (a, b) =>
+        b.savedAt - a.savedAt || a.delivery.id.localeCompare(b.delivery.id),
+    );
 }
 
 /** Both endpoints include the whole arrival day in the selected site's timezone. */
