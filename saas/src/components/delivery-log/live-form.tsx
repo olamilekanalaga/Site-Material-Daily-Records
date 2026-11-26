@@ -237,6 +237,8 @@ export function LiveForm({
       if ((!material && !(customMaterial && materialName.trim())) || !photo)
         throw new Error("Choose a material and add a delivery image.");
       if (!pending) {
+        if (!customSupplier && !supplier)
+          throw new Error("Choose a supplier or enter a new supplier name.");
         if (customMaterial && !normaliseItemName(materialName))
           throw new Error(
             "Enter a material name containing letters or numbers.",

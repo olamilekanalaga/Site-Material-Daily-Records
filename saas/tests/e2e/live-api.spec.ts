@@ -157,12 +157,12 @@ test("live capture requires an approved account, its bound marshal and an author
   expect(
     (await bootstrap(gate)).deliveries.some((row) => row.id === bypassId),
   ).toBe(false);
-  const withoutSupplier = await save(
+  const withoutSupplier = await post(
+    gate,
     fields({ supplier_id: "", supplier_name: "" }),
   );
-  expect(withoutSupplier.delivery.supplier_id).toBeNull();
-  expect(withoutSupplier.delivery.supplier_name || "").toBe("");
-  expect(withoutSupplier.delivery.status).toBe("Submitted");
+  expect(withoutSupplier.status()).toBe(400);
+  expect((await withoutSupplier.json()).error).toMatch(/supplier/i);
 });
 
 test("manual material and supplier names persist once and remain reusable while classification is pending", async () => {

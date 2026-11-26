@@ -30,9 +30,9 @@ export function SupplierSelector({
       customName={name}
       usage={{}}
       disabled={disabled}
-      label="Supplier / Company name (if known)"
+      label="Supplier / Company name"
       searchLabel="Search suppliers"
-      placeholder="Choose a supplier, if known"
+      placeholder="Choose a supplier"
       otherLabel="Other — Enter new supplier"
       customLabel="New supplier name"
       customPlaceholder="Enter the supplier or company name"

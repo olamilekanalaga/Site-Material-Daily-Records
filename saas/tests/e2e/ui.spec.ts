@@ -126,12 +126,6 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
   await expect(
     page.locator('[aria-label="Automatic classification"]'),
   ).toHaveText("Aggregates / Sands · Delivery");
-  const supplier = boot.suppliers.find((item) => item.active)!;
-  await supplierSelect(page).click();
-  await page
-    .getByRole("searchbox", { name: "Search suppliers", exact: true })
-    .fill(supplier.name);
-  await page.getByRole("option", { name: supplier.name, exact: true }).click();
   await page
     .getByRole("button", { name: "Save Delivery", exact: true })
     .click();
@@ -149,6 +143,19 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
   await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
     /JPEG|PNG|WebP|image/i,
   );
+  await attach(page);
+  await page
+    .getByRole("button", { name: "Save Delivery", exact: true })
+    .click();
+  await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
+    "Choose a supplier",
+  );
+  const supplier = boot.suppliers.find((item) => item.active)!;
+  await supplierSelect(page).click();
+  await page
+    .getByRole("searchbox", { name: "Search suppliers", exact: true })
+    .fill(supplier.name);
+  await page.getByRole("option", { name: supplier.name, exact: true }).click();
   await page.getByText("Enter actual time (optional)", { exact: true }).click();
   await page
     .getByLabel("Actual date (defaults to today)", { exact: true })
