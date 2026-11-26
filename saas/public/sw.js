@@ -1,11 +1,11 @@
 /* Cache only a public help page. Never cache authenticated pages, API responses,
    evidence, session data, or tenant records. Open app tabs retain local draft UI. */
-const CACHE = "site-ledger-public-v1";
+const CACHE = "site-ledger-public-v2";
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll(["/offline.html", "/icon.svg"])),
+      .then((cache) => cache.addAll(["/offline.html", "/dj-civils-192.png"])),
   );
   self.skipWaiting();
 });
