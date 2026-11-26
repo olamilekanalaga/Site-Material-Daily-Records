@@ -4,6 +4,7 @@ import type { Delivery } from "../../src/lib/types";
 import {
   arrivalCounts,
   periodDeliveries,
+  personalSavedDeliveries,
 } from "../../src/lib/delivery-records";
 
 function delivery(
@@ -38,6 +39,40 @@ function delivery(
     ...patch,
   };
 }
+
+test("personal activity counts only the marshal's saved records on the site-local submission date", () => {
+  const savedAt = "2026-09-30T23:30:00Z";
+  const range = { from: "2026-10-01", to: "2026-10-01" };
+  const own = delivery("own", "2026-09-23T09:00:00Z", {
+    submitted_at: savedAt,
+    direction: "OUT",
+  });
+  const records = [
+    own,
+    delivery("peer", savedAt, { created_by: "another-marshal" }),
+    delivery("draft", savedAt, { status: "Draft", submitted_at: null }),
+    delivery("other-site", savedAt, { site_id: "another-site" }),
+    delivery("yesterday", "2026-09-30T22:59:59Z"),
+    { ...own, version: 2 },
+  ];
+  const result = personalSavedDeliveries(
+    records,
+    "marshal",
+    "site",
+    "Europe/London",
+    range,
+  );
+  assert.deepEqual(
+    result.map(({ delivery, clock }) => [
+      delivery.id,
+      delivery.version,
+      delivery.direction,
+      clock.date,
+      clock.time,
+    ]),
+    [["own", 2, "OUT", "2026-10-01", "00:30"]],
+  );
+});
 
 test("October date range includes entire site-local endpoint days and excludes drafts and other sites", () => {
   const data = [

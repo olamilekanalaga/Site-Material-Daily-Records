@@ -218,6 +218,46 @@ export function LiveForm({
         item.approval_status === "Pending"),
   );
   const locked = busy || Boolean(pending) || restoring;
+  const weight = Number(tonnage);
+  const missing = [
+    { valid: direction, field: "direction", message: "Choose IN or OUT." },
+    {
+      valid: !manualDate || manualTime,
+      field: "actual-time",
+      message: "Enter an actual time or clear the manual date.",
+    },
+    { valid: chosenCategory, field: "category", message: "Choose a category." },
+    {
+      valid: customMaterial ? normaliseItemName(materialName) : material,
+      field: customMaterial ? "material-name" : "material",
+      message: service
+        ? "Choose a service or enter its name."
+        : "Choose a material or enter its name.",
+    },
+    {
+      valid: !concrete || mix.trim(),
+      field: "mix",
+      message: "Enter the concrete mix.",
+    },
+    {
+      valid:
+        !concrete ||
+        (weight >= 0.001 &&
+          weight <= 1000000000 &&
+          Math.abs(weight * 1000 - Math.round(weight * 1000)) < 0.0001),
+      field: "tonnage",
+      message: "Enter a positive tonnage with up to three decimal places.",
+    },
+    {
+      valid: customSupplier ? normaliseItemName(supplierName) : supplier,
+      field: customSupplier ? "supplier-name" : "supplier",
+      message: service
+        ? "Choose a service provider or enter their name."
+        : "Choose a supplier or enter a new supplier name.",
+    },
+    { valid: photo, field: "photo", message: "Add a delivery image." },
+  ].find((field) => !field.valid);
+  const readyToSave = Boolean(pending) || !missing;
 
   function choosePhoto(file: File | undefined, input: HTMLInputElement) {
     setError("");
@@ -237,40 +277,51 @@ export function LiveForm({
     setPhoto(file);
   }
 
-  async function save() {
+  async function save(form: HTMLFormElement) {
     if (saving.current || restoring) return;
+    const focusField = (field: string, message: string) => {
+      setError(message);
+      const control = form.querySelector<HTMLElement>(
+        `[data-capture-field="${field}"]`,
+      );
+      const details = control?.closest("details");
+      if (details) details.open = true;
+      control?.focus({ preventScroll: true });
+      control?.scrollIntoView({ block: "center" });
+    };
+    if (!pending && missing) {
+      setNotice("");
+      focusField(missing.field, missing.message);
+      return;
+    }
+    if (!photo) return;
+    const deviceNow = new Date();
+    let manualArrival = null;
+    if (!pending && manualTime) {
+      try {
+        manualArrival = siteArrival(
+          manualDate || siteClock(deviceNow, site.timezone).date,
+          manualTime,
+          site.timezone,
+          deviceNow,
+        );
+        if (Date.parse(manualArrival) > deviceNow.getTime() + 300000)
+          throw new Error("Actual time cannot be in the future.");
+      } catch (problem) {
+        focusField(
+          "actual-time",
+          problem instanceof Error
+            ? problem.message
+            : "Enter a valid actual time.",
+        );
+        return;
+      }
+    }
     saving.current = true;
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      if (!pending && !direction) throw new Error("Choose IN or OUT.");
-      if ((!material && !(customMaterial && materialName.trim())) || !photo)
-        throw new Error("Choose a material and add a delivery image.");
-      if (!pending) {
-        if (!customSupplier && !supplier)
-          throw new Error("Choose a supplier or enter a new supplier name.");
-        if (customMaterial && !normaliseItemName(materialName))
-          throw new Error(
-            "Enter a material name containing letters or numbers.",
-          );
-        if (customSupplier && !normaliseItemName(supplierName))
-          throw new Error(
-            "Enter a supplier name containing letters or numbers.",
-          );
-      }
-      const deviceNow = new Date();
-      if (!pending && manualDate && !manualTime)
-        throw new Error("Enter an actual time or clear the manual date.");
-      const manualArrival =
-        !pending && manualTime
-          ? siteArrival(
-              manualDate || siteClock(deviceNow, site.timezone).date,
-              manualTime,
-              site.timezone,
-              deviceNow,
-            )
-          : null;
       const draft: CaptureDraft = pending || {
         key,
         photo: await prepareDeliveryPhoto(photo),
@@ -292,7 +343,7 @@ export function LiveForm({
             : { device_arrival_at: deviceNow.toISOString() }),
           capture_kind: "arrival",
           direction: direction || undefined,
-          ...(concrete ? { mix: mix.trim(), tonnage: Number(tonnage) } : {}),
+          ...(concrete ? { mix: mix.trim(), tonnage: weight } : {}),
           ...(customMaterial ? { custom_item_name: materialName } : {}),
           ...(customSupplier
             ? { custom_supplier_name: supplierName }
@@ -355,15 +406,21 @@ export function LiveForm({
         </div>
       </div>
       <form
+        data-incomplete={Boolean(error && missing && !pending)}
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          void save();
+          void save(event.currentTarget);
         }}
       >
         <fieldset disabled={locked}>
           <label>
-            Direction
+            <span>
+              Direction
+              <span className="simple-required" aria-hidden="true" />
+            </span>
             <select
+              data-capture-field="direction"
               required
               value={direction}
               onChange={(event) =>
@@ -390,8 +447,15 @@ export function LiveForm({
               />
             </label>
             <label>
-              Actual time
+              <span>
+                Actual time
+                {manualDate && (
+                  <span className="simple-required" aria-hidden="true" />
+                )}
+              </span>
               <input
+                data-capture-field="actual-time"
+                required={Boolean(manualDate)}
                 type="time"
                 value={manualTime}
                 onChange={(event) => setManualTime(event.target.value)}
@@ -399,8 +463,13 @@ export function LiveForm({
             </label>
           </details>
           <label>
-            Category
+            <span>
+              Category
+              <span className="simple-required" aria-hidden="true" />
+            </span>
             <select
+              data-capture-field="category"
+              required
               value={chosenCategory}
               onChange={(event) => {
                 setCategory(event.target.value);
@@ -422,6 +491,7 @@ export function LiveForm({
             </select>
           </label>
           <ItemSelector
+            captureField="material"
             key={category}
             items={availableMaterials}
             value={material}
@@ -464,8 +534,12 @@ export function LiveForm({
           {concrete && (
             <>
               <label>
-                Mix
+                <span>
+                  Mix
+                  <span className="simple-required" aria-hidden="true" />
+                </span>
                 <input
+                  data-capture-field="mix"
                   required
                   maxLength={100}
                   value={mix}
@@ -474,8 +548,12 @@ export function LiveForm({
                 />
               </label>
               <label>
-                Tonnage (t)
+                <span>
+                  Tonnage (t)
+                  <span className="simple-required" aria-hidden="true" />
+                </span>
                 <input
+                  data-capture-field="tonnage"
                   type="number"
                   required
                   min="0.001"
@@ -506,10 +584,16 @@ export function LiveForm({
             The date and time are saved automatically · {site.timezone}
           </div>
           <div className="simple-upload">
-            <label htmlFor="delivery-image">Delivery image</label>
+            <label htmlFor="delivery-image">
+              <span>
+                Delivery image
+                <span className="simple-required" aria-hidden="true" />
+              </span>
+            </label>
             <div className="simple-image-controls">
               <button
                 type="button"
+                data-capture-field="photo"
                 className="secondary"
                 onClick={() => camera.current?.click()}
               >
@@ -576,6 +660,7 @@ export function LiveForm({
         <button
           type="submit"
           className="primary simple-save"
+          data-ready={readyToSave}
           disabled={busy || restoring}
         >
           {busy ? "Saving delivery…" : "Save Delivery"}

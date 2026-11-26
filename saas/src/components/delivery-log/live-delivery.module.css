@@ -48,6 +48,67 @@
   object-fit: cover;
 }
 
+.activityPanel {
+  margin-top: 20px;
+}
+
+.activityControls {
+  display: grid;
+  gap: 12px;
+  padding: 16px 20px;
+  justify-items: start;
+}
+
+.activityControls label {
+  width: 100%;
+  min-width: 0;
+}
+
+.activityDates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.activityDates input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+}
+
+.activityDates input::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
+
+.activitySummary.activitySummary :is(th, td):not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.activitySummary.activitySummary tfoot tr > * {
+  background: var(--daily-soft);
+  border-top: 1px solid var(--daily-border);
+  font-weight: 700;
+}
+
+.activityLink {
+  background: none;
+  border: 0;
+  color: var(--daily-text);
+  font: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.activityDetailHeading {
+  margin: 0 20px 12px;
+}
+
 .captureTime summary {
   cursor: pointer;
   font-weight: 600;

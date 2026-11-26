@@ -3971,6 +3971,19 @@ code {
   font-size: 15px;
   width: 100%;
 }
+.simple-app .simple-save[data-ready="true"]:not(:disabled) {
+  background: var(--daily-text);
+  color: var(--daily-surface);
+}
+.simple-required::after {
+  content: " *";
+  color: #c23838;
+  font-weight: 700;
+}
+.simple-entry form[data-incomplete="true"] [data-capture-field]:focus {
+  outline: 2px solid #c23838;
+  outline-offset: 2px;
+}
 .simple-view-records {
   display: flex;
   width: 100%;

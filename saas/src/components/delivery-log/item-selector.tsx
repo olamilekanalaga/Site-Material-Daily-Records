@@ -13,6 +13,7 @@ export function ItemSelector({
   customName = "",
   usage = {},
   disabled = false,
+  captureField,
   placeholder = "Choose an item",
   selectedLabel,
   label = "Item / material / activity",
@@ -34,6 +35,7 @@ export function ItemSelector({
   customName?: string;
   usage?: Record<string, number>;
   disabled?: boolean;
+  captureField?: "material" | "supplier";
   placeholder?: string;
   selectedLabel?: string;
   label?: string;
@@ -141,7 +143,12 @@ export function ItemSelector({
       }}
     >
       <label id={`${id}-label`} htmlFor={id}>
-        {label}
+        <span>
+          {label}
+          {captureField && (
+            <span className="simple-required" aria-hidden="true" />
+          )}
+        </span>
       </label>
       <div className={styles.dropdown}>
         <button
@@ -149,6 +156,8 @@ export function ItemSelector({
           id={id}
           type="button"
           role="combobox"
+          data-capture-field={captureField}
+          aria-required={captureField ? true : undefined}
           aria-labelledby={`${id}-label`}
           aria-haspopup="listbox"
           aria-expanded={expanded}
@@ -236,8 +245,14 @@ export function ItemSelector({
       </div>
       {custom && (
         <label className={styles.customField}>
-          {customLabel}
+          <span>
+            {customLabel}
+            {captureField && (
+              <span className="simple-required" aria-hidden="true" />
+            )}
+          </span>
           <input
+            data-capture-field={captureField && `${captureField}-name`}
             required
             maxLength={maxLength}
             value={customName}
