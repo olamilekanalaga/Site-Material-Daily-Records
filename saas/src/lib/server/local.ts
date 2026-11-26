@@ -552,6 +552,10 @@ function logArrival(
     input.intent === "draft",
     "Save the draft and upload a delivery image first",
   );
+  assert(
+    signature.supplier_id || signature.custom_supplier_name,
+    "Choose a supplier or enter a new supplier name",
+  );
   let material =
     input.custom_item_name !== undefined
       ? findExactCatalogueItem(
@@ -628,8 +632,7 @@ function logArrival(
     }
   }
   assert(
-    (!signature.supplier_id && !signature.custom_supplier_name) ||
-      (supplier?.company_id === actor.company_id && supplier.active),
+    supplier?.company_id === actor.company_id && supplier.active,
     "Supplier not available",
   );
   const stamp = now();

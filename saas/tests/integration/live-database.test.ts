@@ -146,6 +146,7 @@ before(async () => {
   await migration("202611250002_streamlined_staff_auth.sql");
   await migration("202611250003_share_submitted_site_records.sql");
   await migration("202611260001_delivery_capture_time.sql");
+  await migration("202611260002_require_delivery_supplier.sql");
   await as(gate);
   const boot = await rpc("app_bootstrap");
   ownMarshal = boot.marshals.find(
@@ -629,16 +630,14 @@ test("live database permissions reject colleague impersonation, unauthorised sit
   );
 });
 
-test("live arrivals may omit an unknown supplier without inventing a supplier catalogue row", async () => {
+test("new arrivals require a supplier without inventing a supplier catalogue row", async () => {
   await as(gate);
   const count = (
     await db.query<{ count: number }>(
       "select count(*)::integer count from suppliers",
     )
   ).rows[0].count;
-  const { delivery } = await finish(fields({ supplier_id: null }));
-  assert.equal(delivery.supplier_id, null);
-  assert.equal(delivery.supplier_name, "");
+  await refused(rpc("log_delivery", fields({ supplier_id: null })));
   assert.equal(
     (
       await db.query<{ count: number }>(
