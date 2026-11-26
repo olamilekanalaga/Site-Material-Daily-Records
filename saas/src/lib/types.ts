@@ -134,6 +134,7 @@ export type SimpleDeliveryInput = {
   selected_category?: string;
   recorded_at?: string;
   capture_kind?: "arrival";
+  device_arrival_at?: string;
   corrected_arrival_at?: string;
   correction_reason?: string;
 };

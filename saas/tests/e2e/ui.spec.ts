@@ -106,9 +106,7 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
   const own = await expectOwnMarshalForm(page, boot);
   await expect(page.getByText(`Recording for ${own.name}`)).toBeVisible();
   await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
-  await expect(page.getByLabel("Delivery time", { exact: true })).toHaveCount(
-    0,
-  );
+  await expect(page.getByLabel("Actual time", { exact: true })).toBeHidden();
   await expect(
     page.getByLabel(
       /vehicle registration|invoice number|tonnage|quantity|price/i,
@@ -151,13 +149,26 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
   await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
     /JPEG|PNG|WebP|image/i,
   );
-  await page.getByLabel("Delivery image", { exact: true }).setInputFiles({
-    name: "large.png",
-    mimeType: "image/png",
-    buffer: Buffer.concat([png, Buffer.alloc(3 * 1024 * 1024)]),
+  await page.getByText("Enter actual time (optional)", { exact: true }).click();
+  await page
+    .getByLabel("Actual date (defaults to today)", { exact: true })
+    .fill("2025-11-05");
+  await page.getByLabel("Actual time", { exact: true }).fill("07:00");
+  await attach(page);
+  const submitted = page.waitForResponse((response) => {
+    const request = response.request();
+    return (
+      new URL(request.url()).pathname === "/api/log-deliveries" &&
+      request.method() === "POST" &&
+      request.postDataJSON().intent === "submit"
+    );
   });
-  await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
-    /3\s*MiB|too large|size/i,
+  await save(page);
+  const { delivery } = await (await submitted).json();
+  expect(delivery.arrival_at).toBe("2025-11-05T07:00:00.000Z");
+  expect(delivery.correction_reason).toBe("Arrival time entered manually");
+  expect(Date.parse(delivery.recorded_at)).toBeGreaterThan(
+    Date.parse(delivery.arrival_at),
   );
   await noOverflow(page);
 });
@@ -174,14 +185,46 @@ test("a failed upload resumes one server record and a separate supervisor can re
     .selectOption("OUT");
   await chooseMaterial(page, "6F5");
   await newSupplier(page, supplier);
-  await attach(page);
+  const originalSize = await page
+    .getByLabel("Delivery image", { exact: true })
+    .evaluate(async (input: HTMLInputElement) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 2200;
+      canvas.height = 1700;
+      const context = canvas.getContext("2d")!;
+      const pixels = context.createImageData(canvas.width, canvas.height);
+      let seed = 17;
+      for (let i = 0; i < pixels.data.length; i += 4) {
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+        pixels.data[i] = seed >>> 24;
+        pixels.data[i + 1] = (seed >>> 16) & 255;
+        pixels.data[i + 2] = (seed >>> 8) & 255;
+        pixels.data[i + 3] = 255;
+      }
+      context.putImageData(pixels, 0, 0);
+      const image = await new Promise<Blob>((resolve) =>
+        canvas.toBlob((blob) => resolve(blob!), "image/png"),
+      );
+      const transfer = new DataTransfer();
+      transfer.items.add(
+        new File([image], "high-resolution-ticket.png", { type: "image/png" }),
+      );
+      input.files = transfer.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      return image.size;
+    });
+  expect(originalSize).toBeGreaterThan(3 * 1024 * 1024);
   const submittedIds: string[] = [];
+  const deviceTimes: string[] = [];
   page.on("request", (request) => {
     if (
       request.method() === "POST" &&
       new URL(request.url()).pathname === "/api/log-deliveries"
-    )
-      submittedIds.push(request.postDataJSON().id);
+    ) {
+      const input = request.postDataJSON();
+      submittedIds.push(input.id);
+      deviceTimes.push(input.device_arrival_at);
+    }
   });
   await page.route(
     "**/api/deliveries/*/evidence",
@@ -224,6 +267,9 @@ test("a failed upload resumes one server record and a separate supervisor can re
     (record) => record.supplier_name === supplier,
   );
   expect(matches).toHaveLength(1);
+  expect(new Set(deviceTimes)).toEqual(new Set([matches[0].arrival_at]));
+  expect(matches[0].evidence[0].size).toBeLessThanOrEqual(500_000);
+  expect(matches[0].evidence[0].mime).toBe("image/jpeg");
   expect(matches[0].marshal_id).toBe(own.id);
   expect(matches[0].created_by).toBe(boot.actor.id);
   expect(matches[0].evidence).toHaveLength(1);
@@ -346,7 +392,14 @@ test("a failed upload resumes one server record and a separate supervisor can re
     await row.getByRole("button", { name: "View photo", exact: true }).click();
     const photo = supervisorPage.getByRole("dialog").getByRole("img");
     await expect(photo).toBeVisible();
-    await expect(photo).toHaveJSProperty("naturalWidth", 1);
+    await expect
+      .poll(() =>
+        photo.evaluate((image: HTMLImageElement) => image.naturalWidth),
+      )
+      .toBeGreaterThan(0);
+    expect(
+      await photo.evaluate((image: HTMLImageElement) => image.naturalWidth),
+    ).toBeLessThanOrEqual(1600);
     await supervisorPage
       .getByRole("button", { name: "Close photo", exact: true })
       .click();

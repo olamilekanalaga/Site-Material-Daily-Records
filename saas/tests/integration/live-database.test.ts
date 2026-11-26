@@ -145,6 +145,7 @@ before(async () => {
   await migration("202611250001_delivery_movements.sql");
   await migration("202611250002_streamlined_staff_auth.sql");
   await migration("202611250003_share_submitted_site_records.sql");
+  await migration("202611260001_delivery_capture_time.sql");
   await as(gate);
   const boot = await rpc("app_bootstrap");
   ownMarshal = boot.marshals.find(
@@ -430,6 +431,28 @@ test("live capture uses the server clock and a private photo before becoming a s
   assert.equal(storedDelivery.evidence[0].id, storedPhoto);
   assert.equal(storedDelivery.accepted_quantity, null);
   assert.deepEqual(storedDelivery.reviews, []);
+});
+
+test("arrival uses the phone time unless an actual time was entered", async () => {
+  await as(gate);
+  const deviceTime = "2025-11-05T08:00:00.000Z";
+  const manualTime = "2025-11-05T07:00:00.000Z";
+  const automatic = (
+    await rpc("log_delivery", fields({ device_arrival_at: deviceTime }))
+  ).delivery;
+  const manual = (
+    await rpc(
+      "log_delivery",
+      fields({
+        device_arrival_at: deviceTime,
+        corrected_arrival_at: manualTime,
+        correction_reason: "Arrival time entered manually",
+      }),
+    )
+  ).delivery;
+  assert.equal(new Date(automatic.arrival_at).toISOString(), deviceTime);
+  assert.equal(new Date(manual.arrival_at).toISOString(), manualTime);
+  assert(Date.parse(manual.recorded_at) > Date.parse(manualTime));
 });
 
 test("live manual material and supplier names deduplicate across case/spacing and remain selectable while pending", async () => {
