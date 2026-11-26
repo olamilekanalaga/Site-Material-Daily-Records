@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { CATEGORIES, normaliseItemName } from "../catalogue";
+import { CAPTURE_CATEGORIES, normaliseItemName } from "../catalogue";
 import type {
   Actor,
   Delivery,
@@ -147,7 +147,7 @@ export function parseSimpleDelivery(raw: unknown): SimpleDeliveryInput {
   if (selectedCategory !== undefined)
     assert(
       typeof selectedCategory === "string" &&
-        (CATEGORIES as readonly string[]).includes(selectedCategory),
+        (CAPTURE_CATEGORIES as readonly string[]).includes(selectedCategory),
       "Choose a valid category",
     );
   const corrected =
@@ -155,6 +155,12 @@ export function parseSimpleDelivery(raw: unknown): SimpleDeliveryInput {
       ? x.corrected_arrival_at
       : undefined;
   const reason = smart ? text(x.correction_reason ?? "", 500) : "";
+  const mix = smart && x.mix !== undefined ? text(x.mix, 100, true) : undefined;
+  const tonnage = smart && x.tonnage !== undefined ? quantity(x.tonnage) : null;
+  assert(
+    selectedCategory === "Concrete" || (mix === undefined && tonnage === null),
+    "Mix and tonnage are only used for concrete",
+  );
   const deviceArrival = smart ? x.device_arrival_at : undefined;
   if (deviceArrival !== undefined)
     assert(
@@ -184,6 +190,8 @@ export function parseSimpleDelivery(raw: unknown): SimpleDeliveryInput {
     intent: x.intent,
     version: x.version as number | undefined,
     ...(smart ? { capture_kind: "arrival" as const } : {}),
+    ...(mix !== undefined ? { mix } : {}),
+    ...(tonnage !== null ? { tonnage } : {}),
     ...(deviceArrival !== undefined && corrected === undefined
       ? { device_arrival_at: new Date(deviceArrival as string).toISOString() }
       : {}),

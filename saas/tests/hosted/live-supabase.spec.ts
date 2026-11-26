@@ -172,6 +172,10 @@ for (const direction of ["IN", "OUT"] as const) {
       expect(viewerData.actor.company_id).toBe(data.actor.company_id);
       const viewer = await supervisor.newPage();
       await viewer.goto("/records");
+      await viewer
+        .getByRole("navigation", { name: "Movement views" })
+        .getByRole("button", { name: "Material", exact: true })
+        .click();
       if (viewerData.sites.length > 1)
         await viewer
           .getByRole("combobox", { name: "Current site", exact: true })
@@ -201,7 +205,7 @@ for (const direction of ["IN", "OUT"] as const) {
         row.getByRole("cell", { name: direction, exact: true }),
       ).toBeVisible();
       await expect(
-        viewer.getByRole("heading", { name: "Movement analytics" }),
+        viewer.getByRole("heading", { name: "Material records" }),
       ).toBeVisible();
       expect(
         (

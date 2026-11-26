@@ -1,18 +1,48 @@
 import type { Delivery, EntryType } from "./types";
+import { captureCategory } from "./catalogue";
 import { siteClock } from "./site-time";
 
 export type DateRange = { from: string; to: string };
-export const movementViews = ["Overview", "Materials", "Services"] as const;
+export const movementViews = [
+  "Aggregate",
+  "Concrete",
+  "Material",
+  "Service",
+] as const;
 export type MovementView = (typeof movementViews)[number];
+export const reportMovementViews = [
+  ...movementViews,
+  "Overview",
+  "Materials",
+  "Services",
+] as const;
+export type ReportMovementView = (typeof reportMovementViews)[number];
 
 export function matchesMovementView(
-  entryType: EntryType | undefined,
-  view: MovementView,
+  item: {
+    entry_type?: EntryType;
+    category?: string;
+    selected_category?: string;
+  },
+  view: ReportMovementView,
+  name: string,
 ) {
-  return (
-    view === "Overview" ||
-    entryType === (view === "Materials" ? "Delivery" : "Service visit")
+  if (view === "Overview") return true;
+  if (view === "Materials") return item.entry_type === "Delivery";
+  if (view === "Services") return item.entry_type === "Service visit";
+  const category = captureCategory(
+    item.selected_category || item.category,
+    name,
   );
+  if (
+    item.entry_type === "Service visit" ||
+    (item.entry_type !== "Delivery" && category === "Services")
+  )
+    return view === "Service";
+  if (category === "Concrete") return view === "Concrete";
+  if (category === "Aggregates / Sands" || category === "Aggregate")
+    return view === "Aggregate";
+  return view === "Material";
 }
 
 function uniqueDeliveries(deliveries: Delivery[]) {

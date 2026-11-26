@@ -88,6 +88,7 @@ export type Delivery = {
   material_id: string;
   supplier_id: string | null;
   supplier_name?: string;
+  mix?: string | null;
   marshal_id?: string;
   marshal_name?: string;
   capture_mode?: "simple" | "legacy";
@@ -135,6 +136,8 @@ export type SimpleDeliveryInput = {
   recorded_at?: string;
   capture_kind?: "arrival";
   device_arrival_at?: string;
+  mix?: string;
+  tonnage?: number;
   corrected_arrival_at?: string;
   correction_reason?: string;
 };

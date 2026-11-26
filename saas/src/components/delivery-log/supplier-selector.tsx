@@ -9,6 +9,7 @@ export function SupplierSelector({
   custom,
   name,
   disabled,
+  service,
   onSelect,
   onCustom,
   onName,
@@ -18,6 +19,7 @@ export function SupplierSelector({
   custom: boolean;
   name: string;
   disabled: boolean;
+  service: boolean;
   onSelect: (id: string) => void;
   onCustom: (selected: boolean) => void;
   onName: (name: string) => void;
@@ -30,7 +32,7 @@ export function SupplierSelector({
       customName={name}
       usage={{}}
       disabled={disabled}
-      label="Supplier / Company name"
+      label={service ? "Service provider" : "Supplier / Company name"}
       searchLabel="Search suppliers"
       placeholder="Choose a supplier"
       otherLabel="Other — Enter new supplier"

@@ -147,6 +147,7 @@ before(async () => {
   await migration("202611250003_share_submitted_site_records.sql");
   await migration("202611260001_delivery_capture_time.sql");
   await migration("202611260002_require_delivery_supplier.sql");
+  await migration("202611260003_concrete_delivery_fields.sql");
   await as(gate);
   const boot = await rpc("app_bootstrap");
   ownMarshal = boot.marshals.find(
@@ -628,6 +629,24 @@ test("live database permissions reject colleague impersonation, unauthorised sit
       .rows.length,
     0,
   );
+});
+
+test("concrete requires a mix and preserves ticket tonnage", async () => {
+  await as(gate);
+  await refused(rpc("log_delivery", fields({ selected_category: "Concrete" })));
+  const { delivery } = await finish(
+    fields({
+      selected_category: "Concrete",
+      material_id: "",
+      custom_item_name: "Ready-mix concrete",
+      mix: "C25/30",
+      tonnage: 12.345,
+    }),
+  );
+  assert.equal(delivery.mix, "C25/30");
+  assert.equal(delivery.ticket_quantity, 12.345);
+  assert.equal(delivery.ticket_unit, "tonnes");
+  await refused(rpc("log_delivery", fields({ mix: "C25/30", tonnage: 12 })));
 });
 
 test("new arrivals require a supplier without inventing a supplier catalogue row", async () => {
