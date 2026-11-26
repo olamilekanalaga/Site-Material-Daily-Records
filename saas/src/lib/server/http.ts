@@ -42,7 +42,7 @@ export function requestSafety(request: Request, write = false) {
       403,
     );
     assert(
-      !origin || origin === (process.env.APP_ORIGIN || url.origin),
+      !origin || origin === url.origin,
       "Cross-origin request rejected",
       403,
     );

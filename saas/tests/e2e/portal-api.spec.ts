@@ -31,6 +31,24 @@ function signIn(
   });
 }
 
+test("logout keeps rejecting a mismatched Origin even with same-origin fetch metadata", async () => {
+  const context = await createContext();
+  try {
+    const response = await context.post("/api/auth/logout", {
+      headers: {
+        Origin: "https://different-origin.invalid",
+        "Sec-Fetch-Site": "same-origin",
+      },
+    });
+    expect(response.status()).toBe(403);
+    expect(await response.json()).toEqual({
+      error: "Cross-origin request rejected",
+    });
+  } finally {
+    await context.dispose();
+  }
+});
+
 for (const [email, portal, role] of [
   ["gate@demo.invalid", "marshal", "gate"],
   ["supervisor@demo.invalid", "supervisor", "supervisor"],

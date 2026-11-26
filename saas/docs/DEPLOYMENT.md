@@ -95,13 +95,7 @@ Use the project's public `sb_publishable_…` API key. The legacy `SUPABASE_ANON
 
 The application uses a server API boundary with HttpOnly employee session cookies. The public API key is used with the authenticated employee's JWT, so RLS still applies. No `NEXT_PUBLIC_` secret or browser service-role client is required. `SUPABASE_SERVICE_ROLE_KEY` must not be added to Vercel application settings.
 
-`APP_ORIGIN` may be set to the exact preview origin after the preview hostname is known, or left unset to use the request's same-origin default. Do not point Preview at the production origin. For an approved production deployment, set it explicitly:
-
-```dotenv
-APP_ORIGIN=https://site-material-daily-records-saas.vercel.app
-```
-
-An origin has no trailing page path such as `/gate` or `/records`. Environment changes require a fresh build in the selected environment. An unavailable Supabase service fails clearly; the live app does not fall back to browser demo records.
+Each Vercel domain attached to the project accepts writes from pages served on that same origin. `APP_ORIGIN` is no longer used and can be removed from Vercel. Sessions use host-only cookies, so signing in on a new domain creates a separate browser session with the same account. An unavailable Supabase service fails clearly; the live app does not fall back to browser demo records.
 
 Do not set `APP_MODE=local` on Vercel: this localhost-only SQLite test adapter is deliberately refused on hosted deployments. It cannot provide persistent production data on an ephemeral function filesystem.
 
