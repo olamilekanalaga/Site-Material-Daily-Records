@@ -321,7 +321,10 @@ test("a failed upload resumes one server record and a separate supervisor can re
     "OUT",
     "Total",
   ]);
-  const period = page.getByLabel("Reporting period", { exact: true });
+  const period = page.getByRole("combobox", {
+    name: "Reporting period",
+    exact: true,
+  });
   await expect(period).toHaveValue("Today");
   await period.selectOption("Custom dates");
   await page.getByLabel("From date", { exact: true }).fill("2000-01-01");
