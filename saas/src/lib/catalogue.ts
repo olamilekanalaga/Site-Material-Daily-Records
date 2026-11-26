@@ -10,6 +10,12 @@ export const CATEGORIES = [
   "Other Materials",
   "Services",
 ] as const;
+export const CAPTURE_CATEGORIES = [
+  CATEGORIES[0],
+  "Concrete",
+  CATEGORIES[1],
+  CATEGORIES[2],
+] as const;
 export const ENTRY_TYPES = ["Delivery", "Service visit"] as const;
 export const PENDING_CATEGORY = "Pending classification";
 export const PENDING_ENTRY_TYPE = "Pending review";
@@ -219,6 +225,26 @@ const definitions: Definition[] = groups.flatMap(([category, names]) =>
     synonyms: aliases[name] || [],
   })),
 );
+
+const concreteNames = new Set(
+  (groups.find(([category]) => category === "Concrete and cement")?.[1] ?? [])
+    .flatMap((name) => [name, ...(aliases[name] ?? [])])
+    .map(normaliseItemName),
+);
+
+export function captureCategory(category: string | undefined, name: string) {
+  if (
+    category === "Concrete" ||
+    category === "Concrete and cement" ||
+    concreteNames.has(normaliseItemName(name))
+  )
+    return "Concrete";
+  return currentCategory(category, name) ?? category;
+}
+
+export function captureCategoryLabel(category: string) {
+  return category === "Aggregates / Sands" ? "Aggregate" : category;
+}
 
 function hiddenByDefault(definition: Definition | undefined) {
   return Boolean(

@@ -7,8 +7,8 @@ import { normaliseItemName } from "@/lib/catalogue";
 import { siteClock } from "@/lib/site-time";
 import {
   matchesMovementView,
-  movementViews,
-  type MovementView,
+  reportMovementViews,
+  type ReportMovementView,
 } from "@/lib/delivery-records";
 
 function validDate(value: string | null) {
@@ -48,8 +48,12 @@ export async function GET(request: Request) {
       (supplier) => supplier.id === p.get("supplier_id"),
     );
     const direction = p.get("direction");
-    const movementView = (p.get("movement_view") ?? "Overview") as MovementView;
-    assert(movementViews.includes(movementView), "Invalid movement view");
+    const movementView = (p.get("movement_view") ??
+      "Overview") as ReportMovementView;
+    assert(reportMovementViews.includes(movementView), "Invalid movement view");
+    const materialNames = new Map(
+      boot.materials.map((item) => [item.id, item.name]),
+    );
     assert(
       !direction || direction === "IN" || direction === "OUT",
       "Choose IN or OUT",
@@ -57,7 +61,11 @@ export async function GET(request: Request) {
     const rows = boot.deliveries.filter(
       (d) =>
         d.submitted_at !== null &&
-        matchesMovementView(d.entry_type, movementView) &&
+        matchesMovementView(
+          d,
+          movementView,
+          d.item_name || materialNames.get(d.material_id) || "",
+        ) &&
         (!direction || (d.direction ?? "IN") === direction) &&
         (!siteId || d.site_id === siteId) &&
         (!p.get("supplier_id") ||
@@ -122,6 +130,7 @@ export async function GET(request: Request) {
         "Created by ID",
         "Marshal ID",
         "Direction",
+        ...(movementView === "Concrete" ? ["Mix", "Tonnage (t)"] : []),
       ];
       const body = rows.map((delivery) => {
         const site = boot.sites.find((site) => site.id === delivery.site_id);
@@ -153,6 +162,14 @@ export async function GET(request: Request) {
           delivery.created_by,
           delivery.marshal_id || "",
           delivery.direction ?? "IN",
+          ...(movementView === "Concrete"
+            ? [
+                delivery.mix ?? "",
+                delivery.ticket_unit === "tonnes"
+                  ? delivery.ticket_quantity
+                  : null,
+              ]
+            : []),
         ];
       });
       return new Response(

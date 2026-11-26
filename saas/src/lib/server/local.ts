@@ -492,6 +492,8 @@ function liveCaptureInput(input: SimpleDeliveryInput) {
     selected_category: input.selected_category ?? null,
     corrected_arrival_at: input.corrected_arrival_at ?? null,
     correction_reason: input.correction_reason ?? "",
+    ...(input.mix !== undefined ? { mix: input.mix } : {}),
+    ...(input.tonnage !== undefined ? { tonnage: input.tonnage } : {}),
     ...(input.device_arrival_at
       ? { device_arrival_at: input.device_arrival_at }
       : {}),
@@ -556,6 +558,8 @@ function logArrival(
     signature.supplier_id || signature.custom_supplier_name,
     "Choose a supplier or enter a new supplier name",
   );
+  if (input.selected_category === "Concrete")
+    assert(input.mix && input.tonnage, "Enter the concrete mix and tonnage");
   let material =
     input.custom_item_name !== undefined
       ? findExactCatalogueItem(
@@ -665,8 +669,9 @@ function logArrival(
     capture_input: signature,
     vehicle: "",
     ticket_number: "",
-    ticket_quantity: null,
-    ticket_unit: "loads",
+    mix: input.mix ?? null,
+    ticket_quantity: input.tonnage ?? null,
+    ticket_unit: input.tonnage === undefined ? "loads" : "tonnes",
     notes: "",
     created_by: actor.id,
     creator_name: actor.name,

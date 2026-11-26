@@ -36,7 +36,7 @@ export function onMarshalPhotoError(event: SyntheticEvent<HTMLImageElement>) {
 export function LiveRecords({
   data,
   siteId,
-  view = "Overview",
+  view = "Aggregate",
 }: {
   data: Bootstrap;
   siteId: string;
@@ -78,14 +78,15 @@ export function LiveRecords({
   const selectedSupplier = data.suppliers.find((item) => item.id === supplier);
   const siteRecords = data.deliveries.filter(
     (record) =>
-      record.site_id === siteId && matchesMovementView(record.entry_type, view),
+      record.site_id === siteId &&
+      matchesMovementView(record, view, itemName(record)),
   );
   const recordedItems = new Set(
     siteRecords.map((record) => record.material_id),
   );
   const viewItems = data.materials.filter(
     (item) =>
-      matchesMovementView(item.entry_type, view) || recordedItems.has(item.id),
+      matchesMovementView(item, view, item.name) || recordedItems.has(item.id),
   );
   const records = periodDeliveries(siteRecords, siteId, timezone, range)
     .filter((record) => !material || record.material_id === material)
@@ -116,32 +117,14 @@ export function LiveRecords({
   }
 
   const totals = new Map<string, { label: string; count: number }>();
-  let unclassifiedCount = 0;
-  if (view === "Overview") {
-    const materialCount = records.filter((record) =>
-      matchesMovementView(record.entry_type, "Materials"),
-    ).length;
-    const serviceCount = records.filter((record) =>
-      matchesMovementView(record.entry_type, "Services"),
-    ).length;
-    totals.set("materials", {
-      label: "Material movements",
-      count: materialCount,
-    });
-    totals.set("services", { label: "Service records", count: serviceCount });
-    totals.set("records", { label: "Total records", count: records.length });
-    unclassifiedCount = records.length - materialCount - serviceCount;
-  } else {
-    for (const record of records) {
-      const existing = totals.get(record.material_id);
-      if (existing) existing.count++;
-      else
-        totals.set(record.material_id, { label: itemName(record), count: 1 });
-    }
+  for (const record of records) {
+    const existing = totals.get(record.material_id);
+    if (existing) existing.count++;
+    else totals.set(record.material_id, { label: itemName(record), count: 1 });
   }
-  const metrics = [...totals];
-  if (view !== "Overview")
-    metrics.sort(([, a], [, b]) => a.label.localeCompare(b.label));
+  const metrics = [...totals].sort(([, a], [, b]) =>
+    a.label.localeCompare(b.label),
+  );
 
   async function exportRows() {
     if (exporting || invalid) return;
@@ -183,25 +166,13 @@ export function LiveRecords({
           className={styles.analytics}
           aria-labelledby="movement-analytics"
         >
-          <h2 id="movement-analytics">
-            {view === "Overview"
-              ? "Movement analytics"
-              : view === "Materials"
-                ? "Materials recorded"
-                : "Services recorded"}
-          </h2>
+          <h2 id="movement-analytics">{view} records</h2>
           {metrics.length > 0 ? (
             <div
-              className={view === "Overview" ? undefined : styles.cardScroll}
-              role={view === "Overview" ? undefined : "region"}
-              aria-label={
-                view === "Overview"
-                  ? undefined
-                  : view === "Materials"
-                    ? "Material counts"
-                    : "Service counts"
-              }
-              tabIndex={view === "Overview" ? undefined : 0}
+              className={styles.cardScroll}
+              role="region"
+              aria-label={`${view} counts`}
+              tabIndex={0}
             >
               <dl>
                 {metrics.map(([id, { label, count }]) => (
@@ -215,11 +186,6 @@ export function LiveRecords({
           ) : (
             <p className={styles.classificationNote}>
               No {view.toLowerCase()} match these filters.
-            </p>
-          )}
-          {view === "Overview" && unclassifiedCount > 0 && (
-            <p className={styles.classificationNote}>
-              {unclassifiedCount} awaiting classification
             </p>
           )}
         </section>
@@ -262,12 +228,12 @@ export function LiveRecords({
           <ItemSelector
             items={viewItems}
             value={material}
-            label={view === "Services" ? "Service" : "Material"}
+            label={view === "Service" ? "Service" : "Material"}
             searchLabel={
-              view === "Services" ? "Search services" : "Search materials"
+              view === "Service" ? "Search services" : "Search materials"
             }
-            placeholder={view === "Services" ? "All services" : "All materials"}
-            clearLabel={view === "Services" ? "All services" : "All materials"}
+            placeholder={view === "Service" ? "All services" : "All materials"}
+            clearLabel={view === "Service" ? "All services" : "All materials"}
             plainNames
             onSelect={(id) =>
               setItemFilters((filters) => ({ ...filters, [view]: id }))
@@ -276,14 +242,12 @@ export function LiveRecords({
           <ItemSelector
             items={data.suppliers}
             value={supplier}
-            label={view === "Services" ? "Provider" : "Supplier"}
+            label={view === "Service" ? "Provider" : "Supplier"}
             searchLabel={
-              view === "Services" ? "Search providers" : "Search suppliers"
+              view === "Service" ? "Search providers" : "Search suppliers"
             }
-            placeholder={
-              view === "Services" ? "All providers" : "All suppliers"
-            }
-            clearLabel={view === "Services" ? "All providers" : "All suppliers"}
+            placeholder={view === "Service" ? "All providers" : "All suppliers"}
+            clearLabel={view === "Service" ? "All providers" : "All suppliers"}
             plainNames
             onSelect={setSupplier}
           />
@@ -364,9 +328,11 @@ export function LiveRecords({
               {[
                 "Marshal",
                 "Direction",
-                view === "Services" ? "Service" : "Material",
-                view === "Services" ? "Provider" : "Supplier",
+                view === "Service" ? "Service" : "Material",
+                ...(view === "Concrete" ? ["Mix"] : []),
+                view === "Service" ? "Provider" : "Supplier",
                 "Time",
+                ...(view === "Concrete" ? ["Tonnage"] : []),
                 "Photo",
               ].map((label) => (
                 <th scope="col" key={label}>
@@ -407,6 +373,7 @@ export function LiveRecords({
                     </span>
                   </td>
                   <td>{itemName(record)}</td>
+                  {view === "Concrete" && <td>{record.mix || "—"}</td>}
                   <td>
                     {record.supplier_name ||
                       data.suppliers.find(
@@ -422,6 +389,14 @@ export function LiveRecords({
                       </small>
                     )}
                   </td>
+                  {view === "Concrete" && (
+                    <td>
+                      {record.ticket_unit === "tonnes" &&
+                      record.ticket_quantity != null
+                        ? `${record.ticket_quantity} t`
+                        : "—"}
+                    </td>
+                  )}
                   <td>
                     {record.evidence.length ? (
                       <button

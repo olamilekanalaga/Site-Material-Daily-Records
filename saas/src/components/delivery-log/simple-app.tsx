@@ -52,7 +52,7 @@ export function SimpleApp({
   const refreshing = useRef(false);
   const signingOut = useRef(false);
   const [activity, setActivity] = useState<DeliveryActivity[]>([]);
-  const [movementView, setMovementView] = useState<MovementView>("Overview");
+  const [movementView, setMovementView] = useState<MovementView>("Aggregate");
   const role = data?.actor.role;
   const canRecord =
     portal !== "supervisor" && (role === "gate" || role === "company_admin");
@@ -300,7 +300,10 @@ export function SimpleApp({
           (role === "gate" ||
             role === "supervisor" ||
             role === "site_manager") && (
-            <nav className={liveStyles.marshalNav} aria-label="Movement views">
+            <nav
+              className={`${liveStyles.marshalNav} ${liveStyles.categoryNav}`}
+              aria-label="Movement views"
+            >
               {movementViews.map((view) => (
                 <button
                   key={view}

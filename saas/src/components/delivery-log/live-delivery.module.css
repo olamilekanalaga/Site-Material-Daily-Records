@@ -30,6 +30,10 @@
   background: var(--daily-action);
 }
 
+.categoryNav {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .profilePanel {
   display: grid;
   justify-items: center;

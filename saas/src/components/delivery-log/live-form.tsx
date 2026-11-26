@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Check, Upload } from "lucide-react";
 import type { Bootstrap, Marshal, Site } from "@/lib/types";
 import {
-  CATEGORIES,
+  CAPTURE_CATEGORIES,
+  captureCategory,
+  captureCategoryLabel,
   findExactCatalogueItem,
   normaliseItemName,
   PENDING_CATEGORY,
@@ -114,6 +116,8 @@ export function LiveForm({
   const [photo, setPhoto] = useState<File | null>(null);
   const [manualDate, setManualDate] = useState("");
   const [manualTime, setManualTime] = useState("");
+  const [mix, setMix] = useState("");
+  const [tonnage, setTonnage] = useState("");
   const [preview, setPreview] = useState("");
   const [pending, setPending] = useState<CaptureDraft | null>(null);
   const [restoring, setRestoring] = useState(true);
@@ -146,6 +150,8 @@ export function LiveForm({
           saved.input.custom_supplier_name || saved.input.supplier_name || "",
         );
         setPhoto(saved.photo);
+        setMix(saved.input.mix ?? "");
+        setTonnage(saved.input.tonnage?.toString() ?? "");
         if (saved.input.corrected_arrival_at) {
           const actual = siteClock(
             new Date(saved.input.corrected_arrival_at),
@@ -196,14 +202,19 @@ export function LiveForm({
   const known = selectedMaterial?.approval_status === "Approved";
   const chosenCategory =
     pending?.input.selected_category ||
-    (known ? selectedMaterial.category : category) ||
+    category ||
+    (known
+      ? captureCategory(selectedMaterial.category, selectedMaterial.name)
+      : "") ||
     "";
+  const concrete = chosenCategory === "Concrete";
+  const service = chosenCategory === "Services";
   const availableMaterials = data.materials.filter(
     (item) =>
       item.active &&
-      !item.capture_hidden &&
+      (!item.capture_hidden || concrete) &&
       (!chosenCategory ||
-        item.category === chosenCategory ||
+        captureCategory(item.category, item.name) === chosenCategory ||
         item.approval_status === "Pending"),
   );
   const locked = busy || Boolean(pending) || restoring;
@@ -281,6 +292,7 @@ export function LiveForm({
             : { device_arrival_at: deviceNow.toISOString() }),
           capture_kind: "arrival",
           direction: direction || undefined,
+          ...(concrete ? { mix: mix.trim(), tonnage: Number(tonnage) } : {}),
           ...(customMaterial ? { custom_item_name: materialName } : {}),
           ...(customSupplier
             ? { custom_supplier_name: supplierName }
@@ -311,6 +323,8 @@ export function LiveForm({
       setCustomSupplier(false);
       setSupplierName("");
       setPhoto(null);
+      setMix("");
+      setTonnage("");
       setManualDate("");
       setManualTime("");
       if (upload.current) upload.current.value = "";
@@ -393,14 +407,16 @@ export function LiveForm({
                 setMaterial("");
                 setCustomMaterial(false);
                 setMaterialName("");
+                setMix("");
+                setTonnage("");
                 setError("");
                 setNotice("");
               }}
             >
               <option value="">All categories</option>
-              {CATEGORIES.map((name) => (
+              {CAPTURE_CATEGORIES.map((name) => (
                 <option key={name} value={name}>
-                  {name}
+                  {captureCategoryLabel(name)}
                 </option>
               ))}
             </select>
@@ -414,11 +430,15 @@ export function LiveForm({
             customName={materialName}
             usage={usage}
             disabled={locked}
-            label="Material"
-            searchLabel="Search materials"
-            placeholder="Choose a material"
-            otherLabel="Other — Enter new material"
-            customLabel="New material name"
+            label={service ? "Service" : "Material"}
+            searchLabel={service ? "Search services" : "Search materials"}
+            placeholder={service ? "Choose a service" : "Choose a material"}
+            otherLabel={
+              service
+                ? "Other — Enter new service"
+                : "Other — Enter new material"
+            }
+            customLabel={service ? "New service name" : "New material name"}
             customPlaceholder="Enter the material or activity name"
             includePending
             onSelect={setMaterial}
@@ -437,11 +457,38 @@ export function LiveForm({
               aria-label="Automatic classification"
             >
               {known
-                ? `${selectedMaterial.category || PENDING_CATEGORY} · ${selectedMaterial.entry_type || PENDING_ENTRY_TYPE}`
+                ? `${captureCategoryLabel(chosenCategory || PENDING_CATEGORY)} · ${selectedMaterial.entry_type || PENDING_ENTRY_TYPE}`
                 : "Pending classification · Pending review. You can save this delivery now."}
             </p>
           )}
+          {concrete && (
+            <>
+              <label>
+                Mix
+                <input
+                  required
+                  maxLength={100}
+                  value={mix}
+                  onChange={(event) => setMix(event.target.value)}
+                  placeholder="e.g. C25/30"
+                />
+              </label>
+              <label>
+                Tonnage (t)
+                <input
+                  type="number"
+                  required
+                  min="0.001"
+                  max="1000000000"
+                  step="0.001"
+                  value={tonnage}
+                  onChange={(event) => setTonnage(event.target.value)}
+                />
+              </label>
+            </>
+          )}
           <SupplierSelector
+            service={service}
             suppliers={data.suppliers}
             value={supplier}
             custom={customSupplier}

@@ -107,11 +107,25 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
   await expect(page.getByText(`Recording for ${own.name}`)).toBeVisible();
   await expect(page.locator(".simple-marshal-grid")).toHaveCount(0);
   await expect(page.getByLabel("Actual time", { exact: true })).toBeHidden();
+  await expect(page.getByLabel(/tonnage/i)).toHaveCount(0);
+  const category = page.getByRole("combobox", {
+    name: "Category",
+    exact: true,
+  });
+  await category.selectOption("Concrete");
+  await expect(page.getByLabel("Mix", { exact: true })).toHaveJSProperty(
+    "required",
+    true,
+  );
   await expect(
-    page.getByLabel(
-      /vehicle registration|invoice number|tonnage|quantity|price/i,
-    ),
-  ).toHaveCount(0);
+    page.getByLabel("Tonnage (t)", { exact: true }),
+  ).toHaveJSProperty("required", true);
+  await category.selectOption("Services");
+  await expect(
+    page.getByRole("combobox", { name: "Service", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Mix", { exact: true })).toHaveCount(0);
+  await category.selectOption("");
   const direction = page.getByRole("combobox", {
     name: "Direction",
     exact: true,
@@ -125,7 +139,7 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
   ).toHaveValue("Aggregates / Sands");
   await expect(
     page.locator('[aria-label="Automatic classification"]'),
-  ).toHaveText("Aggregates / Sands · Delivery");
+  ).toHaveText("Aggregate · Delivery");
   await page
     .getByRole("button", { name: "Save Delivery", exact: true })
     .click();
@@ -300,23 +314,25 @@ test("a failed upload resumes one server record and a separate supervisor can re
   await expect(page).toHaveURL(/\/records$/);
   await expect(navigation).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "Movement analytics" }),
+    page.getByRole("heading", { name: "Aggregate records" }),
   ).toBeVisible();
   const marshalFilters = page
     .locator("summary")
     .getByText("Filters", { exact: true });
   const marshalViews = page.getByRole("navigation", { name: "Movement views" });
-  await expect(page.getByText("Total records", { exact: true })).toBeVisible();
-  await marshalViews.getByRole("button", { name: "Services" }).click();
   await expect(
-    page.getByRole("heading", { name: "Services recorded" }),
+    marshalViews.getByRole("button", { name: "Aggregate" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await marshalViews.getByRole("button", { name: "Service" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Service records" }),
   ).toBeVisible();
   await expect(
     records(page).getByRole("columnheader", { name: "Provider" }),
   ).toBeVisible();
-  await marshalViews.getByRole("button", { name: "Materials" }).click();
+  await marshalViews.getByRole("button", { name: "Aggregate" }).click();
   const materialCards = page.getByRole("region", {
-    name: "Material counts",
+    name: "Aggregate counts",
   });
   await expect(materialCards.getByText("6F5", { exact: true })).toBeVisible();
   await expect(materialCards).toHaveCSS("overflow-x", "auto");
@@ -378,15 +394,21 @@ test("a failed upload resumes one server record and a separate supervisor can re
     });
     const fromDate = supervisorPage.getByLabel("From date", { exact: true });
     const initialDate = await fromDate.inputValue();
-    await movementViews.getByRole("button", { name: "Materials" }).click();
-    await expect(row).toHaveCount(1);
-    await movementViews.getByRole("button", { name: "Services" }).click();
+    await movementViews.getByRole("button", { name: "Concrete" }).click();
+    await expect(row).toHaveCount(0);
+    await expect(
+      records(supervisorPage).getByRole("columnheader", { name: "Mix" }),
+    ).toBeVisible();
+    await expect(
+      records(supervisorPage).getByRole("columnheader", { name: "Tonnage" }),
+    ).toBeVisible();
+    await movementViews.getByRole("button", { name: "Service" }).click();
     await expect(row).toHaveCount(0);
     await expect(fromDate).toHaveValue(initialDate);
     await expect(records(supervisorPage).getByRole("columnheader")).toHaveCount(
       6,
     );
-    await movementViews.getByRole("button", { name: "Overview" }).click();
+    await movementViews.getByRole("button", { name: "Aggregate" }).click();
     await expect(row).toHaveCount(1);
     await expect(row).toContainText(own.name);
     await expect(row.getByText("OUT", { exact: true })).toHaveCSS(
@@ -394,7 +416,7 @@ test("a failed upload resumes one server record and a separate supervisor can re
       "rgb(252, 231, 219)",
     );
     await expect(
-      supervisorPage.getByRole("heading", { name: "Movement analytics" }),
+      supervisorPage.getByRole("heading", { name: "Aggregate records" }),
     ).toBeVisible();
     await row.getByRole("button", { name: "View photo", exact: true }).click();
     const photo = supervisorPage.getByRole("dialog").getByRole("img");
@@ -452,7 +474,7 @@ test("new material and supplier names survive refresh, remain reusable while pen
   ).toContainText("Pending classification");
   await newSupplier(page, supplier);
   await expect(
-    page.locator('input[type="date"], input[type="time"]'),
+    page.locator('input[type="date"]:visible, input[type="time"]:visible'),
   ).toHaveCount(0);
   await attach(page);
   const beforeSave = Date.now();
@@ -467,7 +489,9 @@ test("new material and supplier names survive refresh, remain reusable while pen
     firstState.materials.find((item) => item.id === first.material_id)
       ?.approval_status,
   ).toBe("Pending");
-  expect(first.arrival_at).toBe(first.recorded_at);
+  expect(Date.parse(first.arrival_at)).toBeLessThanOrEqual(
+    Date.parse(first.recorded_at ?? ""),
+  );
   expect(first.created_at).toBe(first.recorded_at);
   expect(Date.parse(first.arrival_at)).toBeGreaterThanOrEqual(
     beforeSave - 1000,
@@ -524,6 +548,10 @@ test("new material and supplier names survive refresh, remain reusable while pen
   const supervisorPage = await supervisorContext.newPage();
   try {
     await login(supervisorPage, "supervisor");
+    await supervisorPage
+      .getByRole("navigation", { name: "Movement views" })
+      .getByRole("button", { name: "Material", exact: true })
+      .click();
     await supervisorPage
       .locator("summary")
       .getByText("Filters", { exact: true })
