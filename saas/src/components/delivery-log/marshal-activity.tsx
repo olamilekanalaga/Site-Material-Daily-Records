@@ -13,37 +13,8 @@ import type { Bootstrap, Delivery, Site } from "@/lib/types";
 import { PhotoDialog } from "./delivery-photo";
 import styles from "./live-delivery.module.css";
 
-const periods = [
-  "Today",
-  "This week",
-  "Last week",
-  "This month",
-  "Last month",
-  "Custom dates",
-] as const;
+const periods = ["Today", "Custom dates"] as const;
 type Period = (typeof periods)[number];
-
-function presetRange(
-  period: Exclude<Period, "Custom dates">,
-  today: string,
-): DateRange {
-  const day = new Date(`${today}T00:00:00Z`);
-  const format = (date: Date) => date.toISOString().slice(0, 10);
-  if (period === "Today") return { from: today, to: today };
-  if (period === "This month")
-    return { from: `${today.slice(0, 7)}-01`, to: today };
-  if (period === "Last month") {
-    day.setUTCDate(0);
-    const to = format(day);
-    return { from: `${to.slice(0, 7)}-01`, to };
-  }
-  day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
-  if (period === "This week") return { from: format(day), to: today };
-  day.setUTCDate(day.getUTCDate() - 1);
-  const to = format(day);
-  day.setUTCDate(day.getUTCDate() - 6);
-  return { from: format(day), to };
-}
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -80,7 +51,7 @@ export function MarshalActivity({
     };
   }, [site.timezone]);
 
-  const range = period === "Custom dates" ? custom : presetRange(period, today);
+  const range = period === "Custom dates" ? custom : { from: today, to: today };
   const valid = Boolean(range.from && range.to && range.from <= range.to);
   const materialNames = new Map(
     data.materials.map((item) => [item.id, item.name]),
