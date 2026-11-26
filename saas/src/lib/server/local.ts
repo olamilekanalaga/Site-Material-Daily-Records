@@ -492,6 +492,9 @@ function liveCaptureInput(input: SimpleDeliveryInput) {
     selected_category: input.selected_category ?? null,
     corrected_arrival_at: input.corrected_arrival_at ?? null,
     correction_reason: input.correction_reason ?? "",
+    ...(input.device_arrival_at
+      ? { device_arrival_at: input.device_arrival_at }
+      : {}),
   };
 }
 
@@ -648,7 +651,12 @@ function logArrival(
       ? { selected_category: input.selected_category }
       : {}),
     recorded_at: stamp,
-    arrival_at: input.corrected_arrival_at || stamp,
+    arrival_at:
+      input.corrected_arrival_at ||
+      (input.device_arrival_at &&
+      Date.parse(input.device_arrival_at) <= Date.parse(stamp) + 300000
+        ? input.device_arrival_at
+        : stamp),
     correction_reason: input.correction_reason || "",
     direction: input.direction ?? "IN",
     capture_input: signature,

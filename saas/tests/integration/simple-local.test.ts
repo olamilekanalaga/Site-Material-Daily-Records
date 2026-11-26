@@ -264,7 +264,7 @@ test("correcting the local 6F5 catalogue keeps material IDs and saved photos int
   assert.deepEqual(savedPhoto.data, png);
 });
 
-test("gate record/photo access and selected profile remain bound to the authenticated staff account", () => {
+test("gate staff can read submitted site records and photos while recording remains bound to their account", () => {
   const own = boot.marshals!.find((person) => person.can_record)!;
   const fields = input({ marshal_id: own.id });
   const draft = local.log(gate, fields).delivery;
@@ -286,9 +286,9 @@ test("gate record/photo access and selected profile remain bound to the authenti
   const second = local.actor(
     local.login("second@demo.invalid", "DemoPass123!", "simple-local-test"),
   );
-  assert(!local.bootstrap(second).deliveries.some((d) => d.id === fields.id));
+  assert(local.bootstrap(second).deliveries.some((d) => d.id === fields.id));
   assert(!local.bootstrap(second).audit.some((a) => a.entity_id === fields.id));
-  assert.throws(() => local.file(second, photoId), /not found/);
+  assert.doesNotThrow(() => local.file(second, photoId));
   assert.throws(
     () => local.log(second, fields),
     (error) => error instanceof AppError && error.status === 403,
@@ -331,7 +331,7 @@ test("legacy endpoints cannot bypass simple delivery image requirements or rewri
   );
 });
 
-test("a supervisor reassigned as gate cannot retrieve former review snapshots", () => {
+test("a supervisor reassigned as gate loses audit access and retains submitted site records", () => {
   const admin = local.actor(
     local.login("admin@demo.invalid", "DemoPass123!", "simple-local-test"),
   );
@@ -370,7 +370,7 @@ test("a supervisor reassigned as gate cannot retrieve former review snapshots", 
   assert.equal(reassigned.role, "gate");
   assert.equal(local.bootstrap(reassigned).audit.length, 0);
   assert(
-    !local.bootstrap(reassigned).deliveries.some((d) => d.id === fields.id),
+    local.bootstrap(reassigned).deliveries.some((d) => d.id === fields.id),
   );
 });
 

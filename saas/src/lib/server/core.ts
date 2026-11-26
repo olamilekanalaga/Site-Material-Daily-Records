@@ -155,6 +155,13 @@ export function parseSimpleDelivery(raw: unknown): SimpleDeliveryInput {
       ? x.corrected_arrival_at
       : undefined;
   const reason = smart ? text(x.correction_reason ?? "", 500) : "";
+  const deviceArrival = smart ? x.device_arrival_at : undefined;
+  if (deviceArrival !== undefined)
+    assert(
+      typeof deviceArrival === "string" &&
+        Number.isFinite(Date.parse(deviceArrival)),
+      "Valid automatic delivery time required",
+    );
   if (corrected !== undefined) {
     assert(
       typeof corrected === "string" && Number.isFinite(Date.parse(corrected)),
@@ -177,6 +184,9 @@ export function parseSimpleDelivery(raw: unknown): SimpleDeliveryInput {
     intent: x.intent,
     version: x.version as number | undefined,
     ...(smart ? { capture_kind: "arrival" as const } : {}),
+    ...(deviceArrival !== undefined && corrected === undefined
+      ? { device_arrival_at: new Date(deviceArrival as string).toISOString() }
+      : {}),
     ...(x.direction !== undefined ? { direction: x.direction } : {}),
     ...(customItem !== undefined
       ? { custom_item_name: customItem as string }

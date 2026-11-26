@@ -44,6 +44,22 @@
   object-fit: cover;
 }
 
+.captureTime summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.captureTime label {
+  margin-top: 12px;
+}
+
+.captureTime :is(input[type="date"], input[type="time"]) {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+}
+
 .classification {
   margin-top: -12px;
   color: var(--daily-muted);
