@@ -75,7 +75,7 @@ export function Login({
           </label>
           <PasswordField existing />
           <label className={styles.remember}>
-            <input type="checkbox" name="remember" /> Remember me
+            <input type="checkbox" name="remember" defaultChecked /> Remember me
           </label>
           {(error || startupError || !workspaceEnabled) && (
             <p role="alert" className="error-text">

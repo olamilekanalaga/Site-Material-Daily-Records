@@ -33,7 +33,8 @@ export function canUsePortal(role: Role, portal: SignInPortal | null): boolean {
     : role === "supervisor" || role === "site_manager";
 }
 
-export const rememberSeconds = 30 * 24 * 3600;
+// Browsers cap persistent cookies. Successful session renewal extends this window.
+export const rememberSeconds = 365 * 24 * 3600;
 
 export function staffDashboard(role: Role) {
   return role === "gate" || role === "company_admin" ? "/gate" : "/records";

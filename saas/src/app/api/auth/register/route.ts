@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       } catch {
         photoPending = true;
       }
-      await setTokens(tokens.access, tokens.refresh);
+      await setTokens(tokens.access, tokens.refresh, true);
     } catch (problem) {
       await remote.logout(tokens.access).catch(() => undefined);
       throw problem;

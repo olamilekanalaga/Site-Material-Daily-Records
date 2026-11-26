@@ -589,7 +589,9 @@ test("staff sign-in entrances enforce assigned roles and sign-out removes privat
   await page
     .getByLabel("Email address", { exact: true })
     .fill("supervisor@demo.invalid");
-  await page.getByRole("checkbox", { name: "Remember me" }).check();
+  await expect(
+    page.getByRole("checkbox", { name: "Remember me" }),
+  ).toBeChecked();
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/records$/);
   const saved = await context.storageState();
@@ -597,7 +599,7 @@ test("staff sign-in entrances enforce assigned roles and sign-out removes privat
     (cookie) => cookie.name === "delivery_session",
   );
   expect(session?.httpOnly).toBe(true);
-  expect(session?.expires).toBeGreaterThan(Date.now() / 1000 + 24 * 3600);
+  expect(session?.expires).toBeGreaterThan(Date.now() / 1000 + 364 * 24 * 3600);
   const reopened = await context
     .browser()!
     .newContext({ baseURL: new URL(page.url()).origin, storageState: saved });
