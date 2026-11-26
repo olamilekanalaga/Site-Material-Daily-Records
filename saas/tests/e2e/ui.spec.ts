@@ -490,7 +490,7 @@ test("new material and supplier names survive refresh, remain reusable while pen
       ?.approval_status,
   ).toBe("Pending");
   expect(Date.parse(first.arrival_at)).toBeLessThanOrEqual(
-    Date.parse(first.recorded_at),
+    Date.parse(first.recorded_at ?? ""),
   );
   expect(first.created_at).toBe(first.recorded_at);
   expect(Date.parse(first.arrival_at)).toBeGreaterThanOrEqual(
