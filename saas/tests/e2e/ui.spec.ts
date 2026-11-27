@@ -234,7 +234,40 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
     .getByText("5 Nov 2025 · 07:00", { exact: true })
     .first();
   await expect(historical).toBeVisible();
+  await expect(views).not.toHaveCSS("animation-name", "none");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(views).toHaveCSS("animation-name", "none");
   await page.locator("summary").getByText("Filters", { exact: true }).click();
+  const categoryFilter = page.getByRole("combobox", {
+    name: "Category",
+    exact: true,
+  });
+  await expect(categoryFilter.getByRole("option")).toHaveText([
+    "All categories",
+    "Aggregate",
+    "Concrete",
+    "Material",
+    "Service",
+  ]);
+  await expect(
+    page.getByRole("combobox", { name: "Item", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("combobox", { name: "Supplier", exact: true }),
+  ).toHaveCount(0);
+  const viewport = page.viewportSize();
+  if (viewport && viewport.width <= 420) {
+    await page.setViewportSize({ width: 320, height: viewport.height });
+    await expect(categoryFilter).toBeVisible();
+    await noOverflow(page);
+    await page.setViewportSize(viewport);
+  }
+  await categoryFilter.focus();
+  await expect(categoryFilter).toBeFocused();
+  await categoryFilter.selectOption("Service");
+  await expect(historical).toHaveCount(0);
+  await categoryFilter.selectOption("Aggregate");
+  await expect(historical).toBeVisible();
   await page.getByLabel("From date", { exact: true }).fill("2000-01-01");
   await page.getByLabel("To date", { exact: true }).fill("2000-01-01");
   await expect(historical).toHaveCount(0);
@@ -242,6 +275,7 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
+  await expect(categoryFilter).toHaveValue("");
   await expect(historical).toBeVisible();
   await expect(total).not.toHaveText("0");
   await noOverflow(page);
@@ -475,6 +509,24 @@ test("a failed upload resumes one server record and a separate supervisor can re
       .getByRole("row")
       .filter({ hasText: supplier });
     await expect(row).toHaveCount(1);
+    await supervisorPage
+      .locator("summary")
+      .getByText("Filters", { exact: true })
+      .click();
+    await supervisorPage
+      .getByRole("combobox", { name: "Category", exact: true })
+      .selectOption("Aggregate");
+    const visibleRows = await records(supervisorPage)
+      .locator("tbody tr")
+      .count();
+    const downloadReady = supervisorPage.waitForEvent("download");
+    await supervisorPage
+      .getByRole("button", { name: "Export CSV", exact: true })
+      .click();
+    const download = await downloadReady;
+    const csv = await readFile((await download.path())!, "utf8");
+    expect(csv).toContain(supplier);
+    expect(csv.trim().split(/\r?\n/)).toHaveLength(visibleRows + 1);
     const movementViews = supervisorPage.getByRole("navigation", {
       name: "Movement views",
     });

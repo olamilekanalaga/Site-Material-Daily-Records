@@ -343,7 +343,13 @@ export function SimpleApp({
             </>
           ) : (
             <>
-              <div className="simple-page-title">
+              <div
+                className={
+                  recordsPage
+                    ? `simple-page-title ${liveStyles.recordsTitle}`
+                    : "simple-page-title"
+                }
+              >
                 <div>
                   <h1>
                     {recordsPage ? "Delivery Records" : "Record Delivery"}
