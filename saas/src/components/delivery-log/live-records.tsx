@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type SyntheticEvent } from "react";
+import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { ArrowLeftRight, ChevronDown, ImageIcon } from "lucide-react";
 import { canReadReports } from "@/lib/access";
 import type { Bootstrap, Delivery, Marshal } from "@/lib/types";
@@ -11,6 +11,7 @@ import {
   movementViews,
   periodDeliveries,
   type DateRange,
+  type MovementView,
   type RecordsView,
 } from "@/lib/delivery-records";
 import { siteClock } from "@/lib/site-time";
@@ -60,12 +61,13 @@ export function LiveRecords({
   const [itemFilters, setItemFilters] = useState<
     Partial<Record<RecordsView, string>>
   >({});
-  const material = itemFilters[view] ?? "";
+  const [category, setCategory] = useState<MovementView | "">("");
   const [direction, setDirection] = useState("");
-  const [supplier, setSupplier] = useState("");
+  const [supplierFilter, setSupplierFilter] = useState("");
   const [viewing, setViewing] = useState<Delivery | null>(null);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
+  const tableHint = useRef<HTMLParagraphElement>(null);
   const canExport = canReadReports(data.actor.role);
   useEffect(() => {
     const refresh = () => setToday(siteClock(new Date(), timezone).date);
@@ -82,10 +84,35 @@ export function LiveRecords({
       document.removeEventListener("visibilitychange", resume);
     };
   }, [timezone]);
+
+  useEffect(() => {
+    const hint = tableHint.current;
+    if (
+      !hint ||
+      typeof IntersectionObserver === "undefined" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        hint.dataset.revealed = "true";
+        observer.disconnect();
+      },
+      { threshold: 0.25 },
+    );
+    observer.observe(hint);
+    return () => observer.disconnect();
+  }, []);
+
   const overview = view === "Overview";
+  const activeCategory = overview ? category : "";
+  const filteredView = activeCategory || view;
+  const material = overview ? "" : (itemFilters[view] ?? "");
+  const supplier = overview ? "" : supplierFilter;
   const service = view === "Service";
-  const itemLabel = overview ? "Item" : service ? "Service" : "Material";
-  const itemPlural = overview ? "items" : service ? "services" : "materials";
+  const itemLabel = service ? "Service" : "Material";
+  const itemPlural = service ? "services" : "materials";
   const supplierLabel = service ? "Provider" : "Supplier";
   const defaultDate = overview ? "" : today;
   const range = customRange ?? { from: defaultDate, to: defaultDate };
@@ -98,7 +125,7 @@ export function LiveRecords({
   const siteRecords = data.deliveries.filter(
     (record) =>
       record.site_id === siteId &&
-      matchesMovementView(record, view, itemName(record)),
+      matchesMovementView(record, filteredView, itemName(record)),
   );
   const recordedItems = new Set(
     siteRecords.map((record) => record.material_id),
@@ -167,7 +194,7 @@ export function LiveRecords({
       direction,
       format: "csv",
       site_id: siteId,
-      movement_view: view,
+      movement_view: filteredView,
     });
     for (const [key, value] of Object.entries({
       from: range.from,
@@ -203,6 +230,7 @@ export function LiveRecords({
           </h2>
           {metrics.length > 0 ? (
             <div
+              key={view}
               className={styles.cardScroll}
               role="region"
               aria-label={`${view} counts`}
@@ -228,7 +256,13 @@ export function LiveRecords({
         <summary>
           Filters <ChevronDown size={18} aria-hidden="true" />
         </summary>
-        <div className={styles.filters}>
+        <div
+          className={
+            overview
+              ? `${styles.filters} ${styles.overviewFilters}`
+              : styles.filters
+          }
+        >
           <label>
             From date
             <input
@@ -259,28 +293,47 @@ export function LiveRecords({
               }
             />
           </label>
-          <ItemSelector
-            items={viewItems}
-            value={material}
-            label={itemLabel}
-            searchLabel={`Search ${itemPlural}`}
-            placeholder={`All ${itemPlural}`}
-            clearLabel={`All ${itemPlural}`}
-            plainNames
-            onSelect={(id) =>
-              setItemFilters((filters) => ({ ...filters, [view]: id }))
-            }
-          />
-          <ItemSelector
-            items={data.suppliers}
-            value={supplier}
-            label={supplierLabel}
-            searchLabel={service ? "Search providers" : "Search suppliers"}
-            placeholder={service ? "All providers" : "All suppliers"}
-            clearLabel={service ? "All providers" : "All suppliers"}
-            plainNames
-            onSelect={setSupplier}
-          />
+          {overview ? (
+            <label>
+              Category
+              <select
+                value={category}
+                onChange={(event) =>
+                  setCategory(event.target.value as MovementView | "")
+                }
+              >
+                <option value="">All categories</option>
+                {movementViews.map((category) => (
+                  <option key={category}>{category}</option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <>
+              <ItemSelector
+                items={viewItems}
+                value={material}
+                label={itemLabel}
+                searchLabel={`Search ${itemPlural}`}
+                placeholder={`All ${itemPlural}`}
+                clearLabel={`All ${itemPlural}`}
+                plainNames
+                onSelect={(id) =>
+                  setItemFilters((filters) => ({ ...filters, [view]: id }))
+                }
+              />
+              <ItemSelector
+                items={data.suppliers}
+                value={supplier}
+                label={supplierLabel}
+                searchLabel={service ? "Search providers" : "Search suppliers"}
+                placeholder={service ? "All providers" : "All suppliers"}
+                clearLabel={service ? "All providers" : "All suppliers"}
+                plainNames
+                onSelect={setSupplierFilter}
+              />
+            </>
+          )}
           <label>
             Direction
             <select
@@ -296,7 +349,8 @@ export function LiveRecords({
       </details>
       <div className={styles.actions}>
         <span>
-          {periodLabel} · {timezone} · {records.length}{" "}
+          {periodLabel} · {activeCategory && `${activeCategory} · `}
+          {timezone} · {records.length}{" "}
           {records.length === 1 ? "record" : "records"}
         </span>
         <div>
@@ -307,7 +361,8 @@ export function LiveRecords({
               setToday(siteClock(new Date(), timezone).date);
               setCustomRange(null);
               setItemFilters({});
-              setSupplier("");
+              setCategory("");
+              setSupplierFilter("");
               setDirection("");
               setError("");
             }}
@@ -336,7 +391,7 @@ export function LiveRecords({
           {error}
         </p>
       )}
-      <p className="simple-table-hint">
+      <p className={`simple-table-hint ${styles.tableHint}`} ref={tableHint}>
         <ArrowLeftRight size={16} aria-hidden="true" />
         Swipe sideways to see all columns.
       </p>
@@ -355,7 +410,7 @@ export function LiveRecords({
               {[
                 "Marshal",
                 "Direction",
-                itemLabel,
+                overview ? "Item" : itemLabel,
                 ...(view === "Concrete" ? ["Mix"] : []),
                 overview ? "Supplier / provider" : supplierLabel,
                 overview ? "Date & time" : "Time",
