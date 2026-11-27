@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { OpeningMotion } from "@/components/shared/opening-motion";
+import { ScrollMotion } from "@/components/shared/opening-motion";
 import "./globals.css";
 export const metadata: Metadata = {
   title: "DJ Civils | Delivery Control",
@@ -21,14 +21,13 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#111110",
-  colorScheme: "dark",
+  themeColor: "#f8f8f8",
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <OpeningMotion />
+        <ScrollMotion />
         {children}
       </body>
     </html>

@@ -102,7 +102,7 @@ async function noOverflow(page: Page) {
 const records = (page: Page) =>
   page.getByRole("table", { name: "Saved delivery records", exact: true });
 
-test("the DJ Civils opening plays once per tab and scrolling responds without locking the page", async ({
+test("the dark opening follows workspace loading and the light screens keep scroll motion", async ({
   page,
   context,
 }) => {
@@ -127,7 +127,7 @@ test("the DJ Civils opening plays once per tab and scrolling responds without lo
     await page.goto("/", { waitUntil: "commit" });
     await expect(opening).toBeAttached();
     await expect(opening).toHaveCSS("pointer-events", "none");
-    await expect(opening).toHaveCSS("animation-delay", "2s");
+    await expect(opening).toHaveCSS("animation-name", "none");
     await expect(opening.locator("img").locator("..")).toHaveCSS(
       "animation-name",
       "none",
@@ -137,11 +137,12 @@ test("the DJ Civils opening plays once per tab and scrolling responds without lo
       "/djcu-logo.jpg",
     );
     await expect(page.getByText("Opening DJ Civils…")).toHaveCount(0);
-    await expect(opening).toHaveCount(0);
-    await expect(page.getByText("Opening DJ Civils…")).toHaveCount(0);
+    await page.waitForTimeout(2300);
+    await expect(opening).toBeVisible();
   } finally {
     releaseBootstrap();
   }
+  await expect(opening).toHaveCount(0);
   await expect(
     page.getByRole("img", { name: "DJ Civils Ltd", exact: true }),
   ).toBeVisible();
@@ -150,7 +151,7 @@ test("the DJ Civils opening plays once per tab and scrolling responds without lo
     exact: true,
   });
   await expect(email).toBeEditable();
-  await expect(email).toHaveCSS("background-color", "rgb(21, 20, 18)");
+  await expect(email).toHaveCSS("background-color", "rgb(255, 255, 255)");
   if (viewport && viewport.width <= 420) {
     await page.setViewportSize({ width: 320, height: viewport.height });
     await noOverflow(page);
@@ -183,7 +184,7 @@ test("the DJ Civils opening plays once per tab and scrolling responds without lo
   const progress = page.locator("[data-scroll-progress]");
   await expect(page.locator(".simple-entry")).toHaveCSS(
     "background-color",
-    "rgb(29, 26, 23)",
+    "rgb(255, 255, 255)",
   );
   await page.evaluate(() => window.scrollTo(0, 160));
   await expect
@@ -205,7 +206,7 @@ test("the DJ Civils opening plays once per tab and scrolling responds without lo
   ).toBeVisible();
   await expect(page.locator(".simple-records-panel")).toHaveCSS(
     "background-color",
-    "rgb(29, 26, 23)",
+    "rgb(255, 255, 255)",
   );
   await expect(
     page.getByRole("button", { name: "Record New Delivery", exact: true }),
@@ -217,7 +218,7 @@ test("the DJ Civils opening plays once per tab and scrolling responds without lo
   ).toBeVisible();
   await expect(records(page).getByRole("columnheader").first()).toHaveCSS(
     "background-color",
-    "rgb(29, 26, 23)",
+    "rgb(255, 255, 255)",
   );
 });
 

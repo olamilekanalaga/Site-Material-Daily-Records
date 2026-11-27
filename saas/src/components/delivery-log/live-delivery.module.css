@@ -28,8 +28,6 @@
 
 .marshalNav :is([aria-current="page"], [aria-pressed="true"]) {
   background: var(--daily-action);
-  color: var(--daily-accent);
-  box-shadow: inset 0 0 0 1px var(--daily-control-border);
 }
 
 .categoryNav {
@@ -306,15 +304,6 @@
   font-size: 1.35rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-}
-
-.analytics dl > div[data-total="true"] {
-  border-color: var(--daily-control-border);
-  background: linear-gradient(145deg, #3b2c1d, var(--daily-action));
-}
-
-.analytics dl > div[data-total="true"] dd {
-  color: var(--daily-accent);
 }
 
 .direction {

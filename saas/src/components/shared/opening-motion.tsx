@@ -1,46 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import styles from "./opening-motion.module.css";
 
-const seenOpening = "dj-civils-opening-seen-v2";
-
-function firstVisitInTab() {
-  try {
-    if (sessionStorage.getItem(seenOpening)) return false;
-    sessionStorage.setItem(seenOpening, "1");
-  } catch {
-    return false;
-  }
-  return true;
+export function OpeningSplash() {
+  return (
+    <div
+      className={styles.opening}
+      role="status"
+      aria-label="Loading workspace"
+      data-opening-reveal=""
+    >
+      <div className={styles.openingMark}>
+        <img
+          src="/djcu-logo.jpg"
+          alt=""
+          width={354}
+          height={200}
+          fetchPriority="high"
+        />
+      </div>
+    </div>
+  );
 }
 
-export function OpeningMotion() {
-  const [show, setShow] = useState(false);
-  const eligible = useRef<boolean | null>(null);
+export function ScrollMotion() {
   const progress = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    eligible.current ??= !reduced.matches && firstVisitInTab();
-    if (!eligible.current) return;
-
-    setShow(true);
-    const dismiss = () => setShow(false);
-    const fallback = window.setTimeout(dismiss, 2500);
-    window.addEventListener("pointerdown", dismiss, {
-      once: true,
-      passive: true,
-    });
-    window.addEventListener("keydown", dismiss, { once: true });
-    reduced.addEventListener("change", dismiss);
-    return () => {
-      window.clearTimeout(fallback);
-      window.removeEventListener("pointerdown", dismiss);
-      window.removeEventListener("keydown", dismiss);
-      reduced.removeEventListener("change", dismiss);
-    };
-  }, []);
 
   useEffect(() => {
     const bar = progress.current;
@@ -112,33 +97,11 @@ export function OpeningMotion() {
   }, []);
 
   return (
-    <>
-      <div
-        ref={progress}
-        className={styles.progress}
-        aria-hidden="true"
-        data-scroll-progress=""
-      />
-      {show && (
-        <div
-          className={styles.opening}
-          aria-hidden="true"
-          data-opening-reveal=""
-          onAnimationEnd={(event) => {
-            if (event.target === event.currentTarget) setShow(false);
-          }}
-        >
-          <div className={styles.openingMark}>
-            <img
-              src="/djcu-logo.jpg"
-              alt=""
-              width={354}
-              height={200}
-              fetchPriority="high"
-            />
-          </div>
-        </div>
-      )}
-    </>
+    <div
+      ref={progress}
+      className={styles.progress}
+      aria-hidden="true"
+      data-scroll-progress=""
+    />
   );
 }

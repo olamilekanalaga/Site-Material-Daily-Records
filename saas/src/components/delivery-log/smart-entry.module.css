@@ -30,7 +30,7 @@
   color: var(--daily-muted);
 }
 .dropdownTrigger[aria-expanded="true"] {
-  border-color: var(--daily-accent);
+  border-color: #767676;
   box-shadow: 0 0 0 3px var(--daily-action);
 }
 .dropdownTrigger[aria-expanded="true"] svg {
@@ -46,7 +46,7 @@
   border: 1px solid var(--daily-border);
   border-radius: 14px;
   background: var(--daily-surface);
-  box-shadow: 0 12px 30px rgb(0 0 0 / 38%);
+  box-shadow: 0 8px 24px #00000014;
 }
 
 @keyframes suggestionsEnter {

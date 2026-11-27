@@ -2,29 +2,15 @@
 
 /* Shared colors and shapes for account and delivery screens. */
 :root {
-  --daily-canvas: #111110;
-  --daily-surface: #1d1a17;
-  --daily-input: #151412;
-  --daily-text: #f4ede2;
-  --daily-muted: #c4b6a4;
-  --daily-border: #463b2e;
-  --daily-control-border: #796951;
-  --daily-soft: #27221d;
-  --daily-action: #392d20;
-  --daily-action-hover: #4b3926;
-  --daily-accent: #e7bf8b;
-  --daily-accent-hover: #f4d3a7;
-  --daily-on-accent: #25190d;
-  --daily-danger: #ffab9d;
-  --daily-danger-border: #815044;
-  --daily-danger-surface: #38241f;
-  --daily-success: #bce8c5;
-  --daily-success-border: #486a4d;
-  --daily-success-surface: #202e22;
-  --daily-backdrop:
-    radial-gradient(ellipse at 70% 0, #2e261c, transparent 65%) center top /
-      100% 380px no-repeat,
-    var(--daily-canvas);
+  --daily-canvas: #f8f8f8;
+  --daily-surface: #fff;
+  --daily-text: #363636;
+  --daily-muted: #636363;
+  --daily-border: #e3e3e3;
+  --daily-control-border: #dedede;
+  --daily-soft: #f6f6f6;
+  --daily-action: #ededed;
+  --daily-action-hover: #e2e2e2;
   --daily-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --daily-card-radius: 20px;
   --daily-pill-radius: 999px;
@@ -85,9 +71,8 @@
   --bronze: #b9986a;
   --bronze-dark: #7a5c32;
   font-family: Arial, Helvetica, sans-serif;
-  color-scheme: dark;
-  color: var(--daily-text);
-  background: var(--daily-canvas);
+  color: var(--ink);
+  background: var(--canvas);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -3642,7 +3627,7 @@ code {
 /* The delivery log keeps its two working pages independent of the legacy shell. */
 .simple-app {
   min-height: 100dvh;
-  background: var(--daily-backdrop);
+  background: var(--daily-canvas);
   color: var(--daily-text);
 }
 
@@ -3650,7 +3635,7 @@ code {
 .simple-app select {
   border-color: var(--daily-control-border);
   border-radius: var(--daily-pill-radius);
-  background: var(--daily-input);
+  background: var(--daily-surface);
   color: var(--daily-text);
   padding-inline: 16px;
   font-size: 16px;
@@ -3658,7 +3643,7 @@ code {
 
 .simple-app input:focus,
 .simple-app select:focus {
-  border-color: var(--daily-accent);
+  border-color: #767676;
   box-shadow: 0 0 0 3px var(--daily-action);
 }
 
@@ -3666,7 +3651,7 @@ code {
 .simple-app a:focus-visible,
 .simple-image-controls:has(.simple-file-input:focus-visible)
   .simple-upload-button {
-  outline: 2px solid var(--daily-accent);
+  outline: 2px solid #565656;
   outline-offset: 3px;
 }
 
@@ -3678,18 +3663,16 @@ code {
 }
 
 .simple-app .primary {
-  background: var(--daily-accent);
-  color: var(--daily-on-accent);
+  background: var(--daily-action);
   box-shadow: none;
 }
 
 .simple-app .primary:hover:not(:disabled) {
-  background: var(--daily-accent-hover);
+  background: var(--daily-action-hover);
 }
 
 .simple-app .secondary {
   border-color: var(--daily-control-border);
-  background: var(--daily-input);
 }
 
 .simple-app .secondary:hover:not(:disabled),
@@ -3708,7 +3691,7 @@ code {
   flex-wrap: wrap;
   gap: 18px;
   padding: 16px max(24px, calc((100vw - 1040px) / 2));
-  background: linear-gradient(112deg, var(--daily-surface), #2d241a);
+  background: var(--daily-surface);
   color: var(--daily-text);
   border-bottom: 1px solid var(--daily-border);
 }
@@ -3739,7 +3722,7 @@ code {
   padding: 0;
   margin-top: 7px;
   font-size: 8px;
-  color: var(--daily-accent);
+  color: var(--daily-muted);
 }
 .simple-identity {
   display: flex;
@@ -3797,10 +3780,10 @@ code {
   gap: 8px;
   padding: 12px 16px;
   margin-bottom: 18px;
-  border: 1px solid var(--daily-control-border);
+  border: 1px solid #d8c4a4;
   border-radius: 7px;
-  background: var(--daily-action);
-  color: var(--daily-accent);
+  background: #faf3e6;
+  color: #75522a;
   font-size: 13px;
 }
 .simple-page-title h1 {
@@ -3827,7 +3810,7 @@ code {
 }
 .simple-panel {
   min-width: 0;
-  background: var(--daily-surface);
+  background: white;
   border: 1px solid var(--daily-border);
   border-radius: var(--daily-card-radius);
   overflow: hidden;
@@ -3837,7 +3820,6 @@ code {
   margin-inline: auto;
   padding: clamp(16px, 4vw, 28px);
 }
-
 @keyframes daily-enter {
   from {
     opacity: 0.78;
@@ -3954,7 +3936,7 @@ code {
 }
 .simple-image-controls:has(.simple-file-input:focus-visible)
   .simple-upload-button {
-  outline: 2px solid var(--daily-accent);
+  outline: 2px solid #565656;
   outline-offset: 3px;
 }
 .simple-image-preview {
@@ -3991,15 +3973,15 @@ code {
 .simple-success {
   padding: 14px 16px;
   margin: 18px 0;
-  border: 1px solid var(--daily-danger-border);
+  border: 1px solid #e3bbae;
   border-radius: 7px;
-  background: var(--daily-danger-surface);
-  color: var(--daily-danger);
+  background: #fff2ec;
+  color: #963d29;
   font-size: 13px;
   line-height: 1.6;
 }
 .simple-error .text-button {
-  color: var(--daily-danger);
+  color: #963d29;
   font-size: 12px;
   margin-top: 5px;
 }
@@ -4007,9 +3989,9 @@ code {
   display: flex;
   align-items: flex-start;
   gap: 9px;
-  border-color: var(--daily-success-border);
-  background: var(--daily-success-surface);
-  color: var(--daily-success);
+  border-color: #cddabd;
+  background: #f0f5e9;
+  color: #45612e;
 }
 .simple-success svg {
   flex-shrink: 0;
@@ -4022,17 +4004,17 @@ code {
   font-size: 15px;
   width: 100%;
 }
-.simple-app .simple-save[data-ready="false"] {
-  background: var(--daily-action);
-  color: var(--daily-muted);
+.simple-app .simple-save[data-ready="true"]:not(:disabled) {
+  background: var(--daily-text);
+  color: var(--daily-surface);
 }
 .simple-required::after {
   content: " *";
-  color: var(--daily-danger);
+  color: #c23838;
   font-weight: 700;
 }
 .simple-entry form[data-incomplete="true"] [data-capture-field]:focus {
-  outline: 2px solid var(--daily-danger);
+  outline: 2px solid #c23838;
   outline-offset: 2px;
 }
 .simple-view-records {
@@ -4062,7 +4044,7 @@ code {
 .simple-range-error {
   padding: 0 24px 18px;
   background: var(--daily-soft);
-  color: var(--daily-danger);
+  color: #963d29;
   font-size: 13px;
 }
 .simple-summary-heading {
@@ -4173,10 +4155,10 @@ code {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
-  scrollbar-color: var(--daily-control-border) var(--daily-input);
+  scrollbar-color: #b1b1b1 var(--daily-soft);
 }
 .simple-table-scroll:focus-visible {
-  outline: 2px solid var(--daily-accent);
+  outline: 2px solid #565656;
   outline-offset: -3px;
 }
 .simple-table {
@@ -4199,7 +4181,7 @@ code {
 .simple-table td {
   padding: 16px 18px;
   border-bottom: 1px solid var(--daily-border);
-  background: var(--daily-surface);
+  background: #fff;
   color: var(--daily-text);
   vertical-align: middle;
   max-width: 230px;
@@ -4244,7 +4226,7 @@ code {
   font-size: 11px;
 }
 .simple-photo-button:focus-visible {
-  outline: 2px solid var(--daily-accent);
+  outline: 2px solid #565656;
   outline-offset: 3px;
 }
 .simple-photo-button > span {
@@ -4267,7 +4249,7 @@ code {
   border: 1px solid var(--daily-border);
   border-radius: var(--daily-card-radius);
   color: var(--daily-text);
-  background: var(--daily-surface);
+  background: white;
   overflow-y: auto;
   box-shadow: 0 20px 80px #16150e44;
 }
