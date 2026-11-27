@@ -26,6 +26,7 @@ export function SupplierSelector({
   onCustom: (selected: boolean) => void;
   onName: (name: string) => void;
 }) {
+  const choice = service ? "supplier" : "supplier or driver";
   return (
     <ItemSelector
       captureField="supplier"
@@ -36,12 +37,16 @@ export function SupplierSelector({
       customName={name}
       usage={{}}
       disabled={disabled}
-      label={service ? "Service provider" : "Supplier / Company name"}
-      searchLabel="Search suppliers"
-      placeholder="Choose a supplier"
-      otherLabel="Other — Enter new supplier"
-      customLabel="New supplier name"
-      customPlaceholder="Enter the supplier or company name"
+      label={service ? "Service provider" : "Supplier / Driver"}
+      searchLabel={service ? "Search suppliers" : "Search suppliers or drivers"}
+      placeholder={`Choose a ${choice}`}
+      otherLabel={`Other — Enter new ${choice}`}
+      customLabel={`New ${choice} name`}
+      customPlaceholder={
+        service
+          ? "Enter the supplier or company name"
+          : "Enter the supplier or driver name"
+      }
       maxLength={200}
       plainNames
       onSelect={onSelect}
