@@ -14,12 +14,14 @@ import type { Bootstrap, Delivery } from "@/lib/types";
 import { captureCategoryLabel } from "@/lib/catalogue";
 import { recordsViews, type RecordsView } from "@/lib/delivery-records";
 import { request } from "@/lib/client/offline";
+import { captureDraftKey } from "@/lib/client/simple-drafts";
 import { Brand } from "../shared/brand";
 import { OpeningSplash } from "../shared/opening-motion";
 import { Login } from "../auth/login";
 import { LiveForm } from "./live-form";
 import { LiveRecords, onMarshalPhotoError } from "./live-records";
 import { MarshalActivity } from "./marshal-activity";
+import { PendingCapture } from "./pending-capture";
 import liveStyles from "./live-delivery.module.css";
 import {
   canReadReports,
@@ -150,27 +152,38 @@ export function SimpleApp({
     }
   }, [workspaceEnabled, portal]);
 
-  function onPhotoReplaced(delivery: Delivery) {
+  const applySavedDelivery = useCallback((delivery: Delivery) => {
     const workspace = lastWorkspace.current;
     if (
       !workspace ||
       signingOut.current ||
+      !delivery.submitted_at ||
       delivery.created_by !== workspace.actor.id
     )
       return;
     const previous = workspace.deliveries.find(
       (record) => record.id === delivery.id,
     );
-    if (!previous || previous.version >= delivery.version) return;
+    if (previous && previous.version >= delivery.version) return;
     const next = {
       ...workspace,
-      deliveries: workspace.deliveries.map((record) =>
-        record.id === delivery.id ? delivery : record,
-      ),
+      deliveries: previous
+        ? workspace.deliveries.map((record) =>
+            record.id === delivery.id ? delivery : record,
+          )
+        : [...workspace.deliveries, delivery],
     };
     lastWorkspace.current = next;
     setData(next);
-  }
+  }, []);
+
+  const onCaptureSaved = useCallback(
+    (delivery: Delivery) => {
+      applySavedDelivery(delivery);
+      void load();
+    },
+    [applySavedDelivery, load],
+  );
 
   useEffect(() => {
     void load();
@@ -252,7 +265,11 @@ export function SimpleApp({
     if (siteActivity.length > 1) {
       notice = `${siteActivity.length} deliveries changed.`;
     } else if (added) {
-      notice = `${delivery.marshal_name || delivery.creator_name} just added a delivery.`;
+      const recorder = delivery.marshal_name || delivery.creator_name;
+      notice =
+        delivery.direction === "OUT" && delivery.selected_category === "Hire"
+          ? `${recorder} just recorded a hire return.`
+          : `${recorder} just added a delivery.`;
     } else {
       notice = "A delivery was just updated.";
     }
@@ -366,7 +383,7 @@ export function SimpleApp({
                   key={site.id}
                   data={data}
                   site={site}
-                  onPhotoReplaced={onPhotoReplaced}
+                  onPhotoReplaced={applySavedDelivery}
                 />
               )}
             </>
@@ -472,22 +489,33 @@ export function SimpleApp({
                   administrator to assign a site.
                 </section>
               ) : recordsPage ? (
-                <LiveRecords
-                  key={site.id}
-                  data={data}
-                  siteId={site.id}
-                  view={movementView}
-                  onPhotoReplaced={onPhotoReplaced}
-                />
+                <>
+                  {canRecord && ownMarshal && (
+                    <PendingCapture
+                      key={captureDraftKey(data.actor, site.id, ownMarshal.id)}
+                      draftKey={captureDraftKey(
+                        data.actor,
+                        site.id,
+                        ownMarshal.id,
+                      )}
+                      onSaved={onCaptureSaved}
+                    />
+                  )}
+                  <LiveRecords
+                    key={site.id}
+                    data={data}
+                    siteId={site.id}
+                    view={movementView}
+                    onPhotoReplaced={applySavedDelivery}
+                  />
+                </>
               ) : ownMarshal ? (
                 <LiveForm
                   key={`${data.actor.id}:${ownMarshal.id}`}
                   data={data}
                   site={site}
                   marshal={ownMarshal}
-                  onSaved={async () => {
-                    await load();
-                  }}
+                  onSaved={onCaptureSaved}
                 />
               ) : (
                 <section className="simple-panel simple-empty">

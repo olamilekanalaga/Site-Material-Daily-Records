@@ -85,3 +85,40 @@ test("a retry after a lost submit response does not upload evidence or submit tw
   assert.equal(result.id, capture.input.id);
   assert(result.submitted_at);
 });
+
+test("an OUT Hire draft resumes submission using the photo already attached on the server", async (t) => {
+  const capture = draft();
+  capture.input.direction = "OUT";
+  capture.input.selected_category = "Hire";
+  const calls: { url: string; options: RequestInit }[] = [];
+  const recordedAt = "2026-11-06T10:00:00.000Z";
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (url: string, options: RequestInit) => {
+      calls.push({ url, options });
+      return Response.json({
+        delivery: {
+          ...capture.input,
+          material_id: capture.input.id,
+          evidence: [{ id: capture.photoId }],
+          version: 1,
+          submitted_at: calls.length === 2 ? recordedAt : null,
+        },
+      });
+    },
+  );
+
+  const saved = await submitCapture(capture);
+  assert.deepEqual(
+    calls.map(({ url }) => url),
+    ["/api/log-deliveries", "/api/log-deliveries"],
+  );
+  const finish = JSON.parse(calls[1].options.body as string);
+  assert.equal(finish.intent, "submit");
+  assert.equal(finish.direction, "OUT");
+  assert.equal(finish.selected_category, "Hire");
+  assert.equal(calls[1].options.keepalive, true);
+  assert.equal(saved.id, capture.input.id);
+  assert.equal(saved.submitted_at, recordedAt);
+});

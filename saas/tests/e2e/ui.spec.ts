@@ -98,9 +98,13 @@ async function save(page: Page) {
   if (!(await companySelect(page).inputValue()))
     await companySelect(page).selectOption("DJ Civils Ltd.");
   await page
-    .getByRole("button", { name: "Save Delivery", exact: true })
+    .getByRole("button", {
+      name: /^(Save Delivery|Save Hire Return|Retry save)$/,
+    })
     .click();
-  await expect(page.getByRole("status")).toContainText("Delivery saved");
+  await expect(page.getByRole("status")).toContainText(
+    /Delivery saved|Hire return saved/,
+  );
 }
 async function noOverflow(page: Page) {
   expect(
@@ -994,6 +998,81 @@ test("a failed upload resumes one server record and a separate supervisor can re
   } finally {
     await supervisorContext.close();
   }
+});
+
+test("Records resumes a pending OUT Hire return without uploading its photo twice", async ({
+  page,
+}) => {
+  await login(page);
+  await page
+    .getByRole("combobox", { name: "Direction", exact: true })
+    .selectOption("OUT");
+  await companySelect(page).selectOption("DJ Civils Ltd.");
+  await page
+    .getByRole("combobox", { name: "Category", exact: true })
+    .selectOption("Hire");
+  await page.getByRole("combobox", { name: "Hire item", exact: true }).click();
+  await page
+    .getByRole("option", { name: "Enter a new hire item", exact: true })
+    .click();
+  await page
+    .getByLabel("New hire item name", { exact: true })
+    .fill("Returned dumper");
+  const supplier = `Plant hire ${randomUUID().slice(0, 8)}`;
+  await newSupplier(page, supplier);
+  await attach(page);
+  let interrupted = false;
+  await page.route("**/api/log-deliveries", async (route) => {
+    if (interrupted || route.request().postDataJSON().intent !== "submit")
+      return route.continue();
+    interrupted = true;
+    return route.fulfill({
+      status: 503,
+      json: { error: "Submission interrupted" },
+    });
+  });
+  await page
+    .getByRole("button", { name: "Save Hire Return", exact: true })
+    .click();
+  await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
+    "Submission interrupted",
+  );
+  const pending = (await bootstrap(page)).deliveries.find(
+    (delivery) => delivery.supplier_name === supplier,
+  )!;
+  expect(pending.submitted_at).toBeNull();
+  expect(pending.evidence).toHaveLength(1);
+
+  let repeatedUploads = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      request.url().endsWith(`/api/deliveries/${pending.id}/evidence`)
+    )
+      repeatedUploads++;
+  });
+  await page.getByRole("link", { name: "Records", exact: true }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Hire return saved." }),
+  ).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Movement views" })
+    .getByRole("button", { name: "Hire", exact: true })
+    .click();
+  const row = records(page).getByRole("row").filter({ hasText: supplier });
+  await expect(row.getByText("OUT", { exact: true })).toBeVisible();
+  expect(repeatedUploads).toBe(0);
+  const saved = (await bootstrap(page)).deliveries.filter(
+    (delivery) => delivery.supplier_name === supplier,
+  );
+  expect(saved).toHaveLength(1);
+  expect(saved[0]).toMatchObject({
+    id: pending.id,
+    direction: "OUT",
+    selected_category: "Hire",
+    evidence: pending.evidence,
+  });
+  expect(saved[0].submitted_at).toBeTruthy();
 });
 
 test("the recorder can retry a replacement and the previous file is removed after success", async ({
