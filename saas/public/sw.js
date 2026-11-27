@@ -1,6 +1,6 @@
 /* Cache only a public help page. Never cache authenticated pages, API responses,
    evidence, session data, or tenant records. Open app tabs retain local draft UI. */
-const CACHE = "site-ledger-public-v2";
+const CACHE = "site-ledger-public-v3";
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches

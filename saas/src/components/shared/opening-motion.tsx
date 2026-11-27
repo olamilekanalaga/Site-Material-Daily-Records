@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./opening-motion.module.css";
 
-const seenOpening = "dj-civils-opening-seen";
+const seenOpening = "dj-civils-opening-seen-v2";
 
 function firstVisitInTab() {
   try {
@@ -27,19 +27,17 @@ export function OpeningMotion() {
 
     setShow(true);
     const dismiss = () => setShow(false);
-    const fallback = window.setTimeout(dismiss, 1100);
+    const fallback = window.setTimeout(dismiss, 2500);
     window.addEventListener("pointerdown", dismiss, {
       once: true,
       passive: true,
     });
     window.addEventListener("keydown", dismiss, { once: true });
-    window.addEventListener("scroll", dismiss, { once: true, passive: true });
     reduced.addEventListener("change", dismiss);
     return () => {
       window.clearTimeout(fallback);
       window.removeEventListener("pointerdown", dismiss);
       window.removeEventListener("keydown", dismiss);
-      window.removeEventListener("scroll", dismiss);
       reduced.removeEventListener("change", dismiss);
     };
   }, []);
@@ -73,21 +71,42 @@ export function OpeningMotion() {
       if (!frame) frame = window.requestAnimationFrame(draw);
     };
 
+    const reveal =
+      typeof IntersectionObserver !== "undefined"
+        ? new IntersectionObserver(
+            (entries, observer) => {
+              for (const { isIntersecting, target } of entries) {
+                if (!isIntersecting || reduced.matches) continue;
+                target.setAttribute("data-scroll-revealed", "");
+                observer.unobserve(target);
+              }
+            },
+            { threshold: 0.15 },
+          )
+        : null;
+    const onLayoutChange = () => {
+      schedule();
+      if (!reveal || reduced.matches) return;
+      document
+        .querySelectorAll("[data-scroll-reveal]:not([data-scroll-revealed])")
+        .forEach((section) => reveal.observe(section));
+    };
     const resize =
       typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(schedule)
+        ? new ResizeObserver(onLayoutChange)
         : null;
     resize?.observe(document.body);
     window.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", schedule);
-    reduced.addEventListener("change", schedule);
-    schedule();
+    window.addEventListener("resize", onLayoutChange);
+    reduced.addEventListener("change", onLayoutChange);
+    onLayoutChange();
     return () => {
       window.cancelAnimationFrame(frame);
       resize?.disconnect();
+      reveal?.disconnect();
       window.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", schedule);
-      reduced.removeEventListener("change", schedule);
+      window.removeEventListener("resize", onLayoutChange);
+      reduced.removeEventListener("change", onLayoutChange);
       masthead?.style.removeProperty("--masthead-shift");
     };
   }, []);

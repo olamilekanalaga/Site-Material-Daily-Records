@@ -16,7 +16,10 @@ async function bootstrap(page: Page) {
   expect(response.status(), await response.text()).toBe(200);
   return (await response.json()) as Bootstrap;
 }
-async function login(page: Page, role: "gate" | "supervisor" = "gate") {
+async function login(
+  page: Page,
+  role: "gate" | "supervisor" | "manager" = "gate",
+) {
   await page.goto(role === "gate" ? "/sign-in/marshal" : "/sign-in/supervisor");
   await page
     .getByLabel("Email address", { exact: true })
@@ -107,12 +110,38 @@ test("the DJ Civils opening plays once per tab and scrolling responds without lo
   const viewport = page.viewportSize();
   if (viewport && viewport.width <= 420)
     await page.setViewportSize({ width: 393, height: viewport.height });
-  await page.goto("/", { waitUntil: "commit" });
   const opening = page.locator("[data-opening-reveal]");
-  await expect(opening).toBeAttached();
-  await expect(opening).toHaveCSS("pointer-events", "none");
-  await expect(opening.locator("img")).toHaveAttribute("src", "/djcu-logo.jpg");
-  await expect(opening).toHaveCount(0);
+  let releaseBootstrap = () => {};
+  const bootstrapping = new Promise<void>((resolve) => {
+    releaseBootstrap = resolve;
+  });
+  await page.route(
+    "**/api/bootstrap",
+    async (route) => {
+      await bootstrapping;
+      await route.continue();
+    },
+    { times: 1 },
+  );
+  try {
+    await page.goto("/", { waitUntil: "commit" });
+    await expect(opening).toBeAttached();
+    await expect(opening).toHaveCSS("pointer-events", "none");
+    await expect(opening).toHaveCSS("animation-delay", "2s");
+    await expect(opening.locator("img").locator("..")).toHaveCSS(
+      "animation-name",
+      "none",
+    );
+    await expect(opening.locator("img")).toHaveAttribute(
+      "src",
+      "/djcu-logo.jpg",
+    );
+    await expect(page.getByText("Opening DJ Civils…")).toHaveCount(0);
+    await expect(opening).toHaveCount(0);
+    await expect(page.getByText("Opening DJ Civils…")).toHaveCount(0);
+  } finally {
+    releaseBootstrap();
+  }
   await expect(
     page.getByRole("img", { name: "DJ Civils Ltd", exact: true }),
   ).toBeVisible();
@@ -121,6 +150,7 @@ test("the DJ Civils opening plays once per tab and scrolling responds without lo
     exact: true,
   });
   await expect(email).toBeEditable();
+  await expect(email).toHaveCSS("background-color", "rgb(21, 20, 18)");
   if (viewport && viewport.width <= 420) {
     await page.setViewportSize({ width: 320, height: viewport.height });
     await noOverflow(page);
@@ -151,6 +181,10 @@ test("the DJ Civils opening plays once per tab and scrolling responds without lo
   await expectOwnMarshalForm(page);
   const masthead = page.locator("[data-scroll-masthead]");
   const progress = page.locator("[data-scroll-progress]");
+  await expect(page.locator(".simple-entry")).toHaveCSS(
+    "background-color",
+    "rgb(29, 26, 23)",
+  );
   await page.evaluate(() => window.scrollTo(0, 160));
   await expect
     .poll(() => page.evaluate(() => window.scrollY))
@@ -164,6 +198,27 @@ test("the DJ Civils opening plays once per tab and scrolling responds without lo
     .toBeGreaterThan(0);
   await expect(progress).not.toHaveCSS("transform", "matrix(0, 0, 0, 1, 0, 0)");
   await noOverflow(page);
+
+  await login(page, "manager");
+  await expect(
+    page.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".simple-records-panel")).toHaveCSS(
+    "background-color",
+    "rgb(29, 26, 23)",
+  );
+  await expect(
+    page.getByRole("button", { name: "Record New Delivery", exact: true }),
+  ).toHaveCount(0);
+  const views = page.getByRole("navigation", { name: "Movement views" });
+  await views.getByRole("button", { name: "Aggregate", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Aggregate records" }),
+  ).toBeVisible();
+  await expect(records(page).getByRole("columnheader").first()).toHaveCSS(
+    "background-color",
+    "rgb(29, 26, 23)",
+  );
 });
 
 test("authorised gate accounts open the delivery form as their bound marshal", async ({

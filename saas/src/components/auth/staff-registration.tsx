@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, UserRound } from "lucide-react";
 import { request } from "@/lib/client/offline";
+import { AccountHeading } from "./account-heading";
 import { PasswordField } from "./password-field";
 import styles from "./credentials.module.css";
 
@@ -39,10 +40,7 @@ export function StaffRegistration() {
   return (
     <main className={styles.screen}>
       <section className={styles.panel} aria-labelledby="registration-title">
-        <header className={styles.header}>
-          <h1 id="registration-title">Create your account</h1>
-          <p>Site Material Daily Records</p>
-        </header>
+        <AccountHeading id="registration-title" title="Create your account" />
         {pending ? (
           <>
             <p role="status">
@@ -179,7 +177,11 @@ export function StaffRegistration() {
                 {error}
               </p>
             )}
-            <button className={styles.submit} disabled={busy}>
+            <button
+              className={styles.submit}
+              disabled={busy}
+              data-scroll-reveal=""
+            >
               {busy ? "Creating account…" : "Create account"}
             </button>
           </form>

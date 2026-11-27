@@ -67,7 +67,7 @@ export function LiveRecords({
   const [viewing, setViewing] = useState<Delivery | null>(null);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
-  const tableHint = useRef<HTMLParagraphElement>(null);
+  const table = useRef<HTMLDivElement>(null);
   const canExport = canReadReports(data.actor.role);
   useEffect(() => {
     const refresh = () => setToday(siteClock(new Date(), timezone).date);
@@ -86,9 +86,9 @@ export function LiveRecords({
   }, [timezone]);
 
   useEffect(() => {
-    const hint = tableHint.current;
+    const scrollRegion = table.current;
     if (
-      !hint ||
+      !scrollRegion ||
       typeof IntersectionObserver === "undefined" ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
     )
@@ -96,12 +96,12 @@ export function LiveRecords({
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry?.isIntersecting) return;
-        hint.dataset.revealed = "true";
+        scrollRegion.dataset.revealed = "true";
         observer.disconnect();
       },
-      { threshold: 0.25 },
+      { rootMargin: "0px 0px -12px" },
     );
-    observer.observe(hint);
+    observer.observe(scrollRegion);
     return () => observer.disconnect();
   }, []);
 
@@ -238,7 +238,10 @@ export function LiveRecords({
             >
               <dl>
                 {metrics.map(([id, { label, count }]) => (
-                  <div key={id}>
+                  <div
+                    key={id}
+                    data-total={overview && id === "total" ? "true" : undefined}
+                  >
                     <dt>{label}</dt>
                     <dd>{count}</dd>
                   </div>
@@ -391,12 +394,13 @@ export function LiveRecords({
           {error}
         </p>
       )}
-      <p className={`simple-table-hint ${styles.tableHint}`} ref={tableHint}>
+      <p className="simple-table-hint">
         <ArrowLeftRight size={16} aria-hidden="true" />
         Swipe sideways to see all columns.
       </p>
       <div
         className={`simple-table-scroll ${styles.tableReveal}`}
+        ref={table}
         role="region"
         aria-label="Scrollable delivery records"
         tabIndex={0}

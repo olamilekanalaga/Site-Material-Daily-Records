@@ -184,7 +184,7 @@ export function MarshalActivity({
               </tfoot>
             </table>
           </div>
-          <div className={styles.activityControls}>
+          <div className={styles.activityControls} data-scroll-reveal="">
             <button
               className="secondary"
               type="button"
