@@ -573,7 +573,7 @@ export function LiveForm({
           </label>
           <ItemSelector
             captureField="material"
-            key={category}
+            key={`material-${category}`}
             items={availableMaterials}
             value={material}
             selectedLabel={selectedMaterial?.name}
@@ -651,7 +651,7 @@ export function LiveForm({
             </>
           )}
           <SupplierSelector
-            key={chosenCategory}
+            key={`supplier-${chosenCategory}`}
             service={service}
             suppliers={availableSuppliers}
             value={selectedSupplier?.id ?? ""}

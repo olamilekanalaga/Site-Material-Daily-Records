@@ -480,7 +480,7 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
     "Overview",
     "Aggregate",
     "Concrete",
-    "Material",
+    "Materials",
     "Service",
     "Hire",
   ]);
@@ -501,7 +501,7 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
     "Total records",
     "Aggregate",
     "Concrete",
-    "Material",
+    "Materials",
     "Service",
     "Hire",
   ]);
@@ -524,7 +524,7 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
     "All categories",
     "Aggregate",
     "Concrete",
-    "Material",
+    "Materials",
     "Service",
     "Hire",
   ]);
@@ -595,6 +595,7 @@ test("Hire movements stay separate from Service and appear in Hire exports", asy
   await expect(
     page.getByRole("option", { name: item, exact: true }),
   ).toBeVisible();
+  await page.getByRole("option", { name: item, exact: true }).click();
   await supplierSelect(page).click();
   await expect(
     page.getByRole("option", { name: "Local plant hire", exact: true }),
