@@ -44,9 +44,7 @@ async function expectOwnMarshalForm(page: Page, data?: Bootstrap) {
 const materialSelect = (page: Page) =>
   page.getByRole("combobox", { name: "Material", exact: true });
 const supplierSelect = (page: Page) =>
-  page.getByRole("combobox", {
-    name: /^Supplier \/ Company name(?: \(if known\))?$/,
-  });
+  page.getByRole("combobox", { name: "Supplier / Driver", exact: true });
 const companySelect = (page: Page) =>
   page.getByRole("combobox", { name: "Company", exact: true });
 async function chooseMaterial(page: Page, name: string) {
@@ -69,12 +67,20 @@ async function newMaterial(page: Page, name: string) {
 async function newSupplier(page: Page, name: string) {
   await supplierSelect(page).click();
   await page
-    .getByRole("searchbox", { name: "Search suppliers", exact: true })
+    .getByRole("searchbox", {
+      name: "Search suppliers or drivers",
+      exact: true,
+    })
     .fill(name);
   await page
-    .getByRole("option", { name: "Other — Enter new supplier", exact: true })
+    .getByRole("option", {
+      name: "Other — Enter new supplier or driver",
+      exact: true,
+    })
     .click();
-  await page.getByLabel("New supplier name", { exact: true }).fill(name);
+  await page
+    .getByLabel("New supplier or driver name", { exact: true })
+    .fill(name);
 }
 async function attach(page: Page) {
   await page.getByLabel("Delivery image", { exact: true }).setInputFiles({
@@ -213,7 +219,7 @@ test("material and supplier choices stay open while scrolling or dismissing the 
   const supplier = supplierSelect(page);
   await supplier.tap();
   const supplierSearch = page.getByRole("searchbox", {
-    name: "Search suppliers",
+    name: "Search suppliers or drivers",
     exact: true,
   });
   await expect(supplierSearch).not.toBeFocused();
@@ -233,7 +239,7 @@ test("material and supplier choices stay open while scrolling or dismissing the 
     .toBeGreaterThan(scrollBefore);
   await expect(supplier).toHaveAttribute("aria-expanded", "true");
   const supplierList = page.getByRole("listbox", {
-    name: "Supplier / Company name",
+    name: "Supplier / Driver",
     exact: true,
   });
   await supplierList
@@ -425,14 +431,17 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
   await saveButton.click();
   await expect(supplierSelect(page)).toBeFocused();
   await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
-    "Choose a supplier",
+    "Choose a supplier or driver",
   );
   const supplier = boot.suppliers.find(
     (item) => item.name === "Fictional Aggregate Co",
   )!;
   await supplierSelect(page).click();
   await page
-    .getByRole("searchbox", { name: "Search suppliers", exact: true })
+    .getByRole("searchbox", {
+      name: "Search suppliers or drivers",
+      exact: true,
+    })
     .fill(supplier.name);
   await page.getByRole("option", { name: supplier.name, exact: true }).click();
   await saveButton.click();
@@ -609,7 +618,7 @@ test("Hire movements stay separate from Service and appear in Hire exports", asy
   await page
     .getByRole("combobox", { name: "Category", exact: true })
     .selectOption("Aggregates / Sands");
-  await expect(supplierSelect(page)).toHaveText("Choose a supplier");
+  await expect(supplierSelect(page)).toHaveText("Choose a supplier or driver");
   await supplierSelect(page).click();
   await expect(
     page.getByRole("option", { name: "Fictional Aggregate Co", exact: true }),
@@ -755,7 +764,7 @@ test("a failed upload resumes one server record and a separate supervisor can re
   await page.reload();
   await expectOwnMarshalForm(page);
   await expect(
-    page.getByLabel("New supplier name", { exact: true }),
+    page.getByLabel("New supplier or driver name", { exact: true }),
   ).toHaveValue(supplier);
   await save(page);
   expect(new Set(submittedIds).size).toBe(1);
@@ -1057,7 +1066,10 @@ test("new material and supplier names are approved, survive refresh and filter t
   await page.getByRole("option").filter({ hasText: material }).click();
   await supplierSelect(page).click();
   await page
-    .getByRole("searchbox", { name: "Search suppliers", exact: true })
+    .getByRole("searchbox", {
+      name: "Search suppliers or drivers",
+      exact: true,
+    })
     .fill(supplier);
   await page.getByRole("option", { name: supplier, exact: true }).click();
   await attach(page);

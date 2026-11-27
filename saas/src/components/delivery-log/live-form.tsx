@@ -308,7 +308,7 @@ export function LiveForm({
       field: customSupplier ? "supplier-name" : "supplier",
       message: service
         ? "Choose a service provider or enter their name."
-        : "Choose a supplier or enter a new supplier name.",
+        : "Choose a supplier or driver, or enter a new name.",
     },
     { valid: photo, field: "photo", message: "Add a delivery image." },
   ].find((field) => !field.valid);
