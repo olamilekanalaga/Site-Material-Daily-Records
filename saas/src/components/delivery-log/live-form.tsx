@@ -6,6 +6,7 @@ import {
   defaultReceivingCompany,
   receivingCompanies,
   type Bootstrap,
+  type Delivery,
   type Marshal,
   type ReceivingCompany,
   type Site,
@@ -23,10 +24,10 @@ import {
   recordedSuppliers,
 } from "@/lib/delivery-records";
 import {
+  captureDraftKey,
+  completeCapture,
   readCapture,
-  removeCapture,
   storeCapture,
-  submitCapture,
   type CaptureDraft,
 } from "@/lib/client/simple-drafts";
 import { ItemSelector } from "./item-selector";
@@ -44,7 +45,7 @@ export function LiveForm({
   data: Bootstrap;
   site: Site;
   marshal: Marshal;
-  onSaved: () => Promise<void>;
+  onSaved: (delivery: Delivery) => void;
 }) {
   const [direction, setDirection] = useState<"" | "IN" | "OUT">("");
   const [receivingCompany, setReceivingCompany] = useState<
@@ -71,7 +72,7 @@ export function LiveForm({
   const saving = useRef(false);
   const upload = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
-  const key = `${data.actor.company_id}:${data.actor.id}:${site.id}:${marshal.id}`;
+  const key = captureDraftKey(data.actor, site.id, marshal.id);
 
   useEffect(() => {
     let active = true;
@@ -107,9 +108,7 @@ export function LiveForm({
           setManualDate(actual.date);
           setManualTime(actual.time);
         }
-        setNotice(
-          "An unfinished delivery is ready to retry. Its original details and image have been kept.",
-        );
+        setNotice("A save is unfinished. Tap Retry save to finish it.");
       })
       .catch(() => {
         if (active)
@@ -191,6 +190,7 @@ export function LiveForm({
   const concrete = chosenCategory === "Concrete";
   const service = chosenCategory === "Services";
   const hire = chosenCategory === "Hire";
+  const hireReturn = hire && direction === "OUT";
   const itemLabel = hire ? "Hire item" : service ? "Service" : "Material";
   const itemName = itemLabel.toLowerCase();
   const availableMaterials = data.materials.filter(
@@ -344,16 +344,7 @@ export function LiveForm({
       await storeCapture(draft);
       setPending(draft);
       setPhoto(draft.photo);
-      if (!navigator.onLine)
-        throw new Error(
-          "You’re offline. This delivery is kept on this device and has not been saved to the database. Reconnect and retry.",
-        );
-      const saved = await submitCapture(draft);
-      if (!saved.submitted_at)
-        throw new Error(
-          "The delivery is not yet submitted. Retry to finish saving it.",
-        );
-      await removeCapture(key);
+      const saved = await completeCapture(draft);
       setPending(null);
       setDirection("");
       setReceivingCompany("");
@@ -368,8 +359,12 @@ export function LiveForm({
       setManualTime("");
       if (upload.current) upload.current.value = "";
       if (camera.current) camera.current.value = "";
-      setNotice("Delivery saved to the database. Ready for the next delivery.");
-      await onSaved();
+      setNotice(
+        hireReturn
+          ? "Hire return saved."
+          : "Delivery saved to the database. Ready for the next delivery.",
+      );
+      onSaved(saved);
     } catch (problem) {
       setError(
         `${problem instanceof Error ? problem.message : "The delivery could not be saved."} Your entries are kept here; retry when ready.`,
@@ -660,8 +655,8 @@ export function LiveForm({
         </fieldset>
         {pending && !busy && (
           <p className="simple-help">
-            Upload pending. This copy is kept on this device for retry; its
-            original details stay fixed.
+            This record is waiting to be saved. Retry here or open Records to
+            resume it from this device.
           </p>
         )}
         {error && (
@@ -681,7 +676,13 @@ export function LiveForm({
           data-ready={readyToSave}
           disabled={busy || restoring}
         >
-          {busy ? "Saving delivery…" : "Save Delivery"}
+          {busy
+            ? "Saving…"
+            : pending
+              ? "Retry save"
+              : hireReturn
+                ? "Save Hire Return"
+                : "Save Delivery"}
         </button>
       </form>
     </section>
