@@ -152,6 +152,7 @@ before(async () => {
   await migration(
     "20261127131602_track_receiving_company_and_approve_items.sql",
   );
+  await migration("20261127150155_replace_delivery_photo.sql");
   await as(gate);
   const boot = await rpc("app_bootstrap");
   ownMarshal = boot.marshals.find(
@@ -684,6 +685,74 @@ test("a marshal can submit a Hire movement with evidence and a supervisor can re
     "GTC",
   );
   await refused(rpc("log_delivery", fields({ selected_category: "Hire" })));
+});
+
+test("only the recorder can replace a submitted photo and each replacement retains its predecessor", async () => {
+  await as(gate);
+  const { delivery, evidenceId } = await finish(fields());
+  const replacement = {
+    id: crypto.randomUUID(),
+    replaces_id: evidenceId,
+    kind: "ticket",
+    name: "replacement.png",
+    mime: "image/png",
+    size: 68,
+    sha256: "d".repeat(64),
+  };
+  const path = (id: string) => `${company}/${site}/${delivery.id}/${id}`;
+  const upload = (id: string, size = replacement.size) =>
+    db.query(
+      "insert into storage.objects(bucket_id,name,metadata) values('delivery-evidence',$1,$2::jsonb)",
+      [path(id), JSON.stringify({ size })],
+    );
+  async function register(input = replacement) {
+    const result = await db.query<{
+      result: { delivery: Record<string, any> };
+    }>("select register_evidence($1,$2::jsonb) result", [
+      delivery.id,
+      JSON.stringify({ ...input, storage_path: path(input.id) }),
+    ]);
+    return result.rows[0].result.delivery;
+  }
+
+  for (const user of [colleague, supervisor, outsider]) {
+    await as(user);
+    await refused(upload(replacement.id));
+    await refused(register());
+  }
+  await as(gate);
+  await refused(register());
+  const oversized = { ...replacement, id: crypto.randomUUID(), size: 500001 };
+  await upload(oversized.id, oversized.size);
+  await refused(register(oversized));
+  await upload(replacement.id);
+  const updated = await register();
+  assert.equal(updated.version, delivery.version + 1);
+  assert.deepEqual(
+    updated.evidence.map((photo: { id: string }) => photo.id),
+    [replacement.id],
+  );
+  assert.equal((await register()).version, updated.version);
+  await refused(register({ ...replacement, id: crypto.randomUUID() }));
+
+  await as(supervisor);
+  const boot = await rpc("app_bootstrap");
+  assert.deepEqual(
+    boot.deliveries
+      .find((record: { id: string }) => record.id === delivery.id)
+      .evidence.map((photo: { id: string }) => photo.id),
+    [replacement.id],
+  );
+  const originals = await db.query(
+    "select id from delivery_evidence where id=$1",
+    [evidenceId],
+  );
+  assert.equal(originals.rows.length, 1);
+  const retained = await db.query(
+    "select name from storage.objects where name=$1",
+    [path(evidenceId)],
+  );
+  assert.equal(retained.rows.length, 1);
 });
 
 test("new arrivals require a supplier without inventing a supplier catalogue row", async () => {

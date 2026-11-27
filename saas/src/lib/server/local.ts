@@ -1,4 +1,4 @@
-import { rememberSeconds } from "../access";
+import { canReplaceDeliveryPhoto, rememberSeconds } from "../access";
 import { defaultReceivingCompany } from "../types";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
@@ -58,6 +58,7 @@ type StoredEvidence = Evidence & {
   company_id: string;
   site_id: string;
   sha256: string;
+  replaces_id?: string;
 };
 function hash(s: string) {
   return createHash("sha256").update(s).digest("hex");
@@ -442,12 +443,24 @@ function hydrate(d: Delivery): Delivery {
   const marshal = d.marshal_id
     ? get<Marshal>("marshal", d.marshal_id)
     : undefined;
+  const photos = all<StoredEvidence>("evidence", d.company_id).filter(
+    (photo) => photo.delivery_id === d.id,
+  );
+  const superseded = new Set(photos.map((photo) => photo.replaces_id));
   return {
     ...d,
     marshal_name:
       marshal?.company_id === d.company_id ? marshal.name : d.marshal_name,
-    evidence: all<StoredEvidence>("evidence", d.company_id)
-      .filter((x) => x.delivery_id === d.id)
+    evidence: photos
+      .filter((photo) => !superseded.has(photo.id))
+      .sort(
+        (a, b) =>
+          Number(Boolean(b.replaces_id)) - Number(Boolean(a.replaces_id)) ||
+          (a.replaces_id
+            ? b.created_at.localeCompare(a.created_at)
+            : a.created_at.localeCompare(b.created_at)) ||
+          a.id.localeCompare(b.id),
+      )
       .map(({ id, delivery_id, kind, name, mime, size, created_at }) => ({
         id,
         delivery_id,
@@ -1173,12 +1186,15 @@ export const local = {
     name: string,
     mime: string,
     bytes: Uint8Array,
+    replacesId?: string,
   ) {
     return transaction(() => {
       const d = record(actor, deliveryId);
       assert(
-        canEdit(actor, d),
-        "Evidence may only be added by the recorder before submission or during correction",
+        replacesId ? canReplaceDeliveryPhoto(actor, d) : canEdit(actor, d),
+        replacesId
+          ? "You can only change photos on your own deliveries"
+          : "Evidence may only be added by the recorder before submission or during correction",
         403,
       );
       const sha256 = createHash("sha256").update(bytes).digest("hex");
@@ -1188,12 +1204,26 @@ export const local = {
           existing.company_id === actor.company_id &&
             existing.delivery_id === deliveryId &&
             existing.sha256 === sha256 &&
-            existing.kind === kind,
+            existing.kind === kind &&
+            existing.replaces_id === replacesId,
           "Evidence ID already used",
           409,
         );
+        if (replacesId) return { delivery: hydrate(d) };
         const { company_id: _, site_id: __, sha256: ___, ...e } = existing;
         return e;
+      }
+      if (replacesId) {
+        const previous = get<StoredEvidence>("evidence", replacesId);
+        assert(
+          previous?.delivery_id === deliveryId && previous.kind === kind,
+          "Photo does not belong to this delivery",
+        );
+        assert(
+          hydrate(d).evidence.some((photo) => photo.id === replacesId),
+          "This photo has already been replaced. Open the latest photo and try again.",
+          409,
+        );
       }
       const evidence: StoredEvidence = {
         id,
@@ -1206,17 +1236,30 @@ export const local = {
         size: bytes.length,
         created_at: now(),
         sha256,
+        ...(replacesId ? { replaces_id: replacesId } : {}),
       };
       db().prepare("INSERT INTO files VALUES(?,?)").run(id, bytes);
       put("evidence", evidence);
-      audit(actor, "evidence.attached", id, d.site_id, null, {
-        delivery_id: deliveryId,
-        kind,
-        name,
-        mime,
-        size: bytes.length,
-        sha256,
-      });
+      audit(
+        actor,
+        replacesId ? "evidence.replaced" : "evidence.attached",
+        id,
+        d.site_id,
+        replacesId ? { id: replacesId } : null,
+        {
+          delivery_id: deliveryId,
+          kind,
+          name,
+          mime,
+          size: bytes.length,
+          sha256,
+        },
+      );
+      if (replacesId) {
+        const delivery = { ...d, updated_at: now(), version: d.version + 1 };
+        put("delivery", delivery);
+        return { delivery: hydrate(delivery) };
+      }
       const { company_id: _, site_id: __, sha256: ___, ...e } = evidence;
       return e;
     });

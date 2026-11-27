@@ -70,12 +70,14 @@ export function SimpleApp({
     }
     if (refreshing.current || signingOut.current) return null;
     refreshing.current = true;
+    const startingWorkspace = lastWorkspace.current;
     let redirecting = false;
     try {
       const next = await request<Bootstrap>(
         portal ? `/api/bootstrap?portal=${portal}` : "/api/bootstrap",
       );
-      if (signingOut.current) return null;
+      if (signingOut.current || lastWorkspace.current !== startingWorkspace)
+        return null;
       const pathname = window.location.pathname;
       const destination = staffDashboard(next.actor.role);
       if (
@@ -147,6 +149,28 @@ export function SimpleApp({
       if (!redirecting) setLoaded(true);
     }
   }, [workspaceEnabled, portal]);
+
+  function onPhotoReplaced(delivery: Delivery) {
+    const workspace = lastWorkspace.current;
+    if (
+      !workspace ||
+      signingOut.current ||
+      delivery.created_by !== workspace.actor.id
+    )
+      return;
+    const previous = workspace.deliveries.find(
+      (record) => record.id === delivery.id,
+    );
+    if (!previous || previous.version >= delivery.version) return;
+    const next = {
+      ...workspace,
+      deliveries: workspace.deliveries.map((record) =>
+        record.id === delivery.id ? delivery : record,
+      ),
+    };
+    lastWorkspace.current = next;
+    setData(next);
+  }
 
   useEffect(() => {
     void load();
@@ -338,7 +362,12 @@ export function SimpleApp({
                 <p>{data.actor.email}</p>
               </section>
               {site && (
-                <MarshalActivity key={site.id} data={data} site={site} />
+                <MarshalActivity
+                  key={site.id}
+                  data={data}
+                  site={site}
+                  onPhotoReplaced={onPhotoReplaced}
+                />
               )}
             </>
           ) : (
@@ -448,6 +477,7 @@ export function SimpleApp({
                   data={data}
                   siteId={site.id}
                   view={movementView}
+                  onPhotoReplaced={onPhotoReplaced}
                 />
               ) : ownMarshal ? (
                 <LiveForm

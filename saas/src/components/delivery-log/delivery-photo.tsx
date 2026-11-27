@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Upload, X } from "lucide-react";
 import type { Delivery, Evidence } from "@/lib/types";
+import { prepareDeliveryPhoto } from "@/lib/delivery-photo";
+import { request } from "@/lib/client/offline";
+
+type PhotoReplacement = { id: string; previous: Evidence; file: File };
 
 export function Photo({
   evidence,
@@ -33,16 +37,60 @@ export function Photo({
 export function PhotoDialog({
   delivery,
   onClose,
+  onReplaced,
 }: {
   delivery: Delivery;
   onClose: () => void;
+  onReplaced?: (delivery: Delivery) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const target = useRef<Evidence | null>(null);
+  const saving = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [retry, setRetry] = useState<PhotoReplacement | null>(null);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
   useEffect(() => {
     dialog.current?.showModal();
     const element = dialog.current;
     return () => element?.close();
   }, []);
+
+  async function replace(attempt: PhotoReplacement) {
+    if (!onReplaced || saving.current) return;
+    saving.current = true;
+    setBusy(true);
+    setRetry(null);
+    setStatus("");
+    setError("");
+    try {
+      const file = await prepareDeliveryPhoto(attempt.file);
+      setRetry({ ...attempt, file });
+      const form = new FormData();
+      form.set("id", attempt.id);
+      form.set("replaces_id", attempt.previous.id);
+      form.set("kind", attempt.previous.kind);
+      form.set("file", file);
+      const { delivery: updated } = await request<{ delivery: Delivery }>(
+        `/api/deliveries/${encodeURIComponent(delivery.id)}/evidence`,
+        { method: "POST", body: form },
+      );
+      onReplaced(updated);
+      setRetry(null);
+      setStatus("Photo replaced.");
+    } catch (problem) {
+      setError(
+        problem instanceof Error
+          ? problem.message
+          : "Could not replace the photo. Try again.",
+      );
+    } finally {
+      saving.current = false;
+      setBusy(false);
+    }
+  }
+
   return (
     <dialog
       ref={dialog}
@@ -60,8 +108,59 @@ export function PhotoDialog({
           <X />
         </button>
       </div>
-      {delivery.evidence.map((e) => (
-        <Photo key={e.id} evidence={e} />
+      {onReplaced && (
+        <input
+          ref={input}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          aria-label="Choose replacement photo"
+          hidden
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            const previous = target.current;
+            event.currentTarget.value = "";
+            if (file && previous)
+              void replace({ id: crypto.randomUUID(), previous, file });
+          }}
+        />
+      )}
+      <div aria-live="polite" role="status">
+        {busy ? "Saving replacement…" : status}
+      </div>
+      {error && (
+        <p role="alert" className="simple-help">
+          {error}
+        </p>
+      )}
+      {onReplaced &&
+        !busy &&
+        retry &&
+        delivery.evidence.some((photo) => photo.id === retry.previous.id) && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => void replace(retry)}
+          >
+            Retry replacement
+          </button>
+        )}
+      {delivery.evidence.map((photo) => (
+        <div key={photo.id}>
+          {onReplaced && (
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() => {
+                target.current = photo;
+                input.current?.click();
+              }}
+            >
+              <Upload size={18} aria-hidden="true" /> Replace photo
+            </button>
+          )}
+          <Photo evidence={photo} />
+        </div>
       ))}
       <p className="simple-help">
         Supporting image only. Physical receipt has not been established by this

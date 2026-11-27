@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { canReplaceDeliveryPhoto } from "@/lib/access";
 import { captureCategoryLabel } from "@/lib/catalogue";
 import {
   movementCategory,
@@ -35,9 +36,11 @@ const displayDate = (date: string) =>
 export function MarshalActivity({
   data,
   site,
+  onPhotoReplaced,
 }: {
   data: Bootstrap;
   site: Site;
+  onPhotoReplaced: (delivery: Delivery) => void;
 }) {
   const [today, setToday] = useState(
     () => siteClock(new Date(), site.timezone).date,
@@ -46,7 +49,8 @@ export function MarshalActivity({
   const [company, setCompany] = useState("");
   const [custom, setCustom] = useState<DateRange>({ from: today, to: today });
   const [detail, setDetail] = useState<MovementView | "All" | null>(null);
-  const [viewing, setViewing] = useState<Delivery | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const viewing = data.deliveries.find((delivery) => delivery.id === viewingId);
 
   useEffect(() => {
     const update = () => setToday(siteClock(new Date(), site.timezone).date);
@@ -292,7 +296,7 @@ export function MarshalActivity({
                               <button
                                 className={styles.activityLink}
                                 type="button"
-                                onClick={() => setViewing(delivery)}
+                                onClick={() => setViewingId(delivery.id)}
                               >
                                 View photo
                               </button>
@@ -317,7 +321,15 @@ export function MarshalActivity({
         </p>
       )}
       {viewing && (
-        <PhotoDialog delivery={viewing} onClose={() => setViewing(null)} />
+        <PhotoDialog
+          delivery={viewing}
+          onClose={() => setViewingId(null)}
+          onReplaced={
+            canReplaceDeliveryPhoto(data.actor, viewing)
+              ? onPhotoReplaced
+              : undefined
+          }
+        />
       )}
     </section>
   );

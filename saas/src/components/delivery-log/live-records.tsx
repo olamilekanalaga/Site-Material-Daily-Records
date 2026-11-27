@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { ArrowLeftRight, ChevronDown, ImageIcon } from "lucide-react";
-import { canReadReports } from "@/lib/access";
+import { canReadReports, canReplaceDeliveryPhoto } from "@/lib/access";
 import {
   defaultReceivingCompany,
   receivingCompanies,
@@ -54,10 +54,12 @@ export function LiveRecords({
   data,
   siteId,
   view = "Overview",
+  onPhotoReplaced,
 }: {
   data: Bootstrap;
   siteId: string;
   view?: RecordsView;
+  onPhotoReplaced: (delivery: Delivery) => void;
 }) {
   const timezone =
     data.sites.find((site) => site.id === siteId)?.timezone || "Europe/London";
@@ -74,7 +76,8 @@ export function LiveRecords({
   const [supplierFilters, setSupplierFilters] = useState<
     Partial<Record<RecordsView, string>>
   >({});
-  const [viewing, setViewing] = useState<Delivery | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const viewing = data.deliveries.find((delivery) => delivery.id === viewingId);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const table = useRef<HTMLDivElement>(null);
@@ -546,9 +549,13 @@ export function LiveRecords({
                     {record.evidence.length ? (
                       <button
                         className={`simple-photo-button ${styles.photoButton}`}
-                        onClick={() => setViewing(record)}
+                        onClick={() => setViewingId(record.id)}
                       >
-                        <Photo evidence={record.evidence[0]} thumbnail />
+                        <Photo
+                          key={record.evidence[0].id}
+                          evidence={record.evidence[0]}
+                          thumbnail
+                        />
                         <span>
                           <ImageIcon size={16} />
                           View photo
@@ -568,7 +575,15 @@ export function LiveRecords({
         <p className="simple-empty">No saved deliveries match these filters.</p>
       )}
       {viewing && (
-        <PhotoDialog delivery={viewing} onClose={() => setViewing(null)} />
+        <PhotoDialog
+          delivery={viewing}
+          onClose={() => setViewingId(null)}
+          onReplaced={
+            canReplaceDeliveryPhoto(data.actor, viewing)
+              ? onPhotoReplaced
+              : undefined
+          }
+        />
       )}
     </section>
   );
