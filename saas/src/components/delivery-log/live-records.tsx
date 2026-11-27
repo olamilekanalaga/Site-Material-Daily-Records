@@ -109,16 +109,33 @@ export function LiveRecords({
   const activeCategory = overview ? category : "";
   const filteredView = activeCategory || view;
   const material = overview ? "" : (itemFilters[view] ?? "");
-  const supplier = overview ? "" : supplierFilter;
+  const usedSuppliers = new Set(
+    data.deliveries
+      .filter((record) => record.site_id === siteId && record.submitted_at)
+      .map(
+        (record) =>
+          record.supplier_id || normaliseItemName(record.supplier_name || ""),
+      ),
+  );
+  const viewSuppliers = data.suppliers.filter(
+    (item) =>
+      item.active ||
+      usedSuppliers.has(item.id) ||
+      usedSuppliers.has(normaliseItemName(item.name)),
+  );
   const service = view === "Service";
-  const itemLabel = service ? "Service" : "Material";
-  const itemPlural = service ? "services" : "materials";
+  const itemLabel =
+    view === "Hire" ? "Hire item" : service ? "Service" : "Material";
+  const itemPlural = `${itemLabel.toLowerCase()}s`;
   const supplierLabel = service ? "Provider" : "Supplier";
   const defaultDate = overview ? "" : today;
   const range = customRange ?? { from: defaultDate, to: defaultDate };
   const hasDates = Boolean(range.from || range.to);
   const invalid = Boolean(range.from && range.to && range.from > range.to);
-  const selectedSupplier = data.suppliers.find((item) => item.id === supplier);
+  const selectedSupplier = overview
+    ? undefined
+    : viewSuppliers.find((item) => item.id === supplierFilter);
+  const supplier = selectedSupplier?.id ?? "";
   const materialNames = new Map(
     data.materials.map(({ id, name }) => [id, name]),
   );
@@ -323,7 +340,7 @@ export function LiveRecords({
                 }
               />
               <ItemSelector
-                items={data.suppliers}
+                items={viewSuppliers}
                 value={supplier}
                 label={supplierLabel}
                 searchLabel={service ? "Search providers" : "Search suppliers"}
