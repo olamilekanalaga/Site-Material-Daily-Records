@@ -111,8 +111,9 @@ export function LiveRecords({
   const material = overview ? "" : (itemFilters[view] ?? "");
   const supplier = overview ? "" : supplierFilter;
   const service = view === "Service";
-  const itemLabel = service ? "Service" : "Material";
-  const itemPlural = service ? "services" : "materials";
+  const itemLabel =
+    view === "Hire" ? "Hire item" : service ? "Service" : "Material";
+  const itemPlural = `${itemLabel.toLowerCase()}s`;
   const supplierLabel = service ? "Provider" : "Supplier";
   const defaultDate = overview ? "" : today;
   const range = customRange ?? { from: defaultDate, to: defaultDate };

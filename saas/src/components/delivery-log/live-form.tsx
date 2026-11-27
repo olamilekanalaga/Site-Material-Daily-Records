@@ -188,13 +188,17 @@ export function LiveForm({
     return () => URL.revokeObjectURL(url);
   }, [photo]);
 
-  const usage = useMemo(() => {
+  const { usage, hireMaterials } = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const delivery of data.deliveries)
-      if (delivery.submitted_at)
-        counts[delivery.material_id] = (counts[delivery.material_id] || 0) + 1;
-    return counts;
-  }, [data.deliveries]);
+    const hireMaterials = new Set<string>();
+    for (const delivery of data.deliveries) {
+      if (!delivery.submitted_at) continue;
+      counts[delivery.material_id] = (counts[delivery.material_id] || 0) + 1;
+      if (delivery.site_id === site.id && delivery.selected_category === "Hire")
+        hireMaterials.add(delivery.material_id);
+    }
+    return { usage: counts, hireMaterials };
+  }, [data.deliveries, site.id]);
   const selectedMaterial = customMaterial
     ? findExactCatalogueItem(data.materials, materialName)
     : data.materials.find((item) => item.id === material);
@@ -209,13 +213,18 @@ export function LiveForm({
     "";
   const concrete = chosenCategory === "Concrete";
   const service = chosenCategory === "Services";
+  const hire = chosenCategory === "Hire";
+  const itemLabel = hire ? "Hire item" : service ? "Service" : "Material";
+  const itemName = itemLabel.toLowerCase();
   const availableMaterials = data.materials.filter(
     (item) =>
       item.active &&
-      (!item.capture_hidden || concrete) &&
-      (!chosenCategory ||
-        captureCategory(item.category, item.name) === chosenCategory ||
-        item.approval_status === "Pending"),
+      (!item.capture_hidden || concrete || hire) &&
+      (hire
+        ? hireMaterials.has(item.id)
+        : !chosenCategory ||
+          captureCategory(item.category, item.name) === chosenCategory ||
+          item.approval_status === "Pending"),
   );
   const locked = busy || Boolean(pending) || restoring;
   const weight = Number(tonnage);
@@ -230,9 +239,7 @@ export function LiveForm({
     {
       valid: customMaterial ? normaliseItemName(materialName) : material,
       field: customMaterial ? "material-name" : "material",
-      message: service
-        ? "Choose a service or enter its name."
-        : "Choose a material or enter its name.",
+      message: `Choose a ${itemName} or enter its name.`,
     },
     {
       valid: !concrete || mix.trim(),
@@ -500,16 +507,16 @@ export function LiveForm({
             customName={materialName}
             usage={usage}
             disabled={locked}
-            label={service ? "Service" : "Material"}
-            searchLabel={service ? "Search services" : "Search materials"}
-            placeholder={service ? "Choose a service" : "Choose a material"}
+            label={itemLabel}
+            searchLabel={`Search ${itemName}s`}
+            placeholder={`Choose a ${itemName}`}
             otherLabel={
-              service
-                ? "Other — Enter new service"
+              hire || service
+                ? `Enter a new ${itemName}`
                 : "Other — Enter new material"
             }
-            customLabel={service ? "New service name" : "New material name"}
-            customPlaceholder="Enter the material or activity name"
+            customLabel={`New ${itemName} name`}
+            customPlaceholder={`Enter the ${itemName} name`}
             includePending
             onSelect={setMaterial}
             onCustom={(next) => {
@@ -526,9 +533,11 @@ export function LiveForm({
               className={`${styles.classification} ${known ? "" : styles.pending}`}
               aria-label="Automatic classification"
             >
-              {known
-                ? `${captureCategoryLabel(chosenCategory || PENDING_CATEGORY)} · ${selectedMaterial.entry_type || PENDING_ENTRY_TYPE}`
-                : "Pending classification · Pending review. You can save this delivery now."}
+              {hire
+                ? "Hire"
+                : known
+                  ? `${captureCategoryLabel(chosenCategory || PENDING_CATEGORY)} · ${selectedMaterial.entry_type || PENDING_ENTRY_TYPE}`
+                  : "Pending classification · Pending review. You can save this delivery now."}
             </p>
           )}
           {concrete && (

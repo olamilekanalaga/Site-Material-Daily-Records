@@ -156,7 +156,9 @@ export async function GET(request: Request) {
           site?.name,
           delivery.recorded_at || "",
           delivery.arrival_at,
-          delivery.category || "",
+          (delivery.selected_category === "Hire"
+            ? "Hire"
+            : delivery.category) || "",
           delivery.entry_type || "",
           delivery.correction_reason || "",
           delivery.created_by,

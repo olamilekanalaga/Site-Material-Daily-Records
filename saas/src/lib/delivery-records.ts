@@ -8,6 +8,7 @@ export const movementViews = [
   "Concrete",
   "Material",
   "Service",
+  "Hire",
 ] as const;
 export type MovementView = (typeof movementViews)[number];
 export const recordsViews = ["Overview", ...movementViews] as const;
@@ -33,6 +34,7 @@ export function movementCategory(
     item.selected_category || item.category,
     name,
   );
+  if (category === "Hire") return "Hire";
   if (
     item.entry_type === "Service visit" ||
     (item.entry_type !== "Delivery" && category === "Services")
