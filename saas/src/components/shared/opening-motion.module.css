@@ -7,9 +7,7 @@
   overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 44%, #322b21 0, transparent 60%),
-    var(--daily-canvas);
-  animation: openingFade 220ms 2s ease-out both;
+    radial-gradient(ellipse at 50% 44%, #322b21 0, transparent 60%), #111110;
 }
 
 .opening::before,
@@ -57,15 +55,6 @@
   height: auto;
 }
 
-@keyframes openingFade {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
 .progress {
   position: fixed;
   z-index: 100;
@@ -79,7 +68,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .opening,
   .progress {
     display: none;
   }

@@ -238,10 +238,7 @@ export function LiveRecords({
             >
               <dl>
                 {metrics.map(([id, { label, count }]) => (
-                  <div
-                    key={id}
-                    data-total={overview && id === "total" ? "true" : undefined}
-                  >
+                  <div key={id}>
                     <dt>{label}</dt>
                     <dd>{count}</dd>
                   </div>

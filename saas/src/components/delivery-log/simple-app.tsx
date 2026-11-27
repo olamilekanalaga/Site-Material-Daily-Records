@@ -14,6 +14,7 @@ import type { Bootstrap, Delivery } from "@/lib/types";
 import { recordsViews, type RecordsView } from "@/lib/delivery-records";
 import { request } from "@/lib/client/offline";
 import { Brand } from "../shared/brand";
+import { OpeningSplash } from "../shared/opening-motion";
 import { Login } from "../auth/login";
 import { LiveForm } from "./live-form";
 import { LiveRecords, onMarshalPhotoError } from "./live-records";
@@ -68,6 +69,7 @@ export function SimpleApp({
     }
     if (refreshing.current || signingOut.current) return null;
     refreshing.current = true;
+    let redirecting = false;
     try {
       const next = await request<Bootstrap>(
         portal ? `/api/bootstrap?portal=${portal}` : "/api/bootstrap",
@@ -81,6 +83,7 @@ export function SimpleApp({
         (pathname === "/gate" && destination === "/records")
       ) {
         window.location.replace(destination);
+        redirecting = true;
         return next;
       }
       const previous = lastWorkspace.current;
@@ -140,7 +143,7 @@ export function SimpleApp({
       return null;
     } finally {
       refreshing.current = false;
-      setLoaded(true);
+      if (!redirecting) setLoaded(true);
     }
   }, [workspaceEnabled, portal]);
 
@@ -192,7 +195,7 @@ export function SimpleApp({
     }
   }
 
-  if (!loaded) return null;
+  if (!loaded) return <OpeningSplash />;
   if (!data) {
     return (
       <Login

@@ -24,7 +24,7 @@ export function Login({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   return (
-    <main className={styles.screen}>
+    <main className={`${styles.screen} ${styles.loginScreen}`}>
       <section
         className={`${styles.panel} ${styles.loginPanel}`}
         aria-labelledby="sign-in-title"
