@@ -1034,7 +1034,9 @@ test("Records resumes a pending OUT Hire return without uploading its photo twic
   await page
     .getByRole("button", { name: "Save Hire Return", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toContainText("Submission interrupted");
+  await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
+    "Submission interrupted",
+  );
   const pending = (await bootstrap(page)).deliveries.find(
     (delivery) => delivery.supplier_name === supplier,
   )!;
