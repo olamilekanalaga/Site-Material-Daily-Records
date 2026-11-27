@@ -1,4 +1,5 @@
 import type { Evidence } from "@/lib/types";
+import { deliveryPhotoLimit } from "@/lib/delivery-photo";
 import { assert, sniffImage, text, uuid } from "@/lib/server/core";
 import { readBytes, captureRoute } from "@/lib/server/http";
 import { local } from "@/lib/server/local";
@@ -22,9 +23,18 @@ export async function POST(
       body: bytes,
     });
     const form = await bounded.formData();
+    const replacesId = form.has("replaces_id")
+      ? uuid(form.get("replaces_id"))
+      : undefined;
     const file = form.get("file");
     assert(file instanceof File && file.size > 0, "Choose a photograph");
     assert(file.size <= 3 * 1024 * 1024, "Photograph exceeds 3 MiB", 413);
+    if (replacesId)
+      assert(
+        file.size <= deliveryPhotoLimit,
+        "Replacement photos must be 500 KB or less",
+        413,
+      );
     const image = new Uint8Array(await file.arrayBuffer());
     const mime = sniffImage(image);
     assert(file.type === mime, "Photograph content does not match file type");
@@ -44,6 +54,7 @@ export async function POST(
           name,
           mime,
           image,
+          replacesId,
         )
       : local.evidence(
           c.actor,
@@ -53,6 +64,7 @@ export async function POST(
           name,
           mime,
           image,
+          replacesId,
         );
   });
 }

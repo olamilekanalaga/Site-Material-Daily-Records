@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
   Bootstrap,
+  Delivery,
   DeliveryInput,
   Evidence,
   ReviewInput,
@@ -208,11 +209,12 @@ export const remote = {
     name: string,
     mime: string,
     bytes: Uint8Array,
+    replacesId?: string,
   ) {
     const [deliveryResult, evidenceResult] = await Promise.all([
       client
         .from("delivery_records")
-        .select("company_id,site_id")
+        .select("company_id,site_id,submitted_at")
         .eq("id", deliveryId)
         .maybeSingle(),
       client.from("delivery_evidence").select("*").eq("id", id).maybeSingle(),
@@ -224,14 +226,34 @@ export const remote = {
     const existing = evidenceResult.data;
     const path = `${delivery.company_id}/${delivery.site_id}/${deliveryId}/${id}`;
     const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const registration = {
+      p_delivery_id: deliveryId,
+      p_input: {
+        id,
+        kind,
+        name,
+        mime,
+        size: bytes.length,
+        storage_path: path,
+        sha256,
+        ...(replacesId ? { replaces_id: replacesId } : {}),
+      },
+    };
     if (existing) {
       assert(
         existing.delivery_id === deliveryId &&
           existing.sha256 === sha256 &&
-          existing.kind === kind,
+          existing.kind === kind &&
+          (existing.replaces_id ?? undefined) === replacesId,
         "Evidence ID already used",
         409,
       );
+      if (replacesId)
+        return rpc<{ delivery: Delivery }>(
+          client,
+          "register_evidence",
+          registration,
+        );
       return {
         id: existing.id,
         delivery_id: existing.delivery_id,
@@ -241,6 +263,36 @@ export const remote = {
         size: existing.size,
         created_at: existing.created_at,
       } as Evidence;
+    }
+    if (replacesId) {
+      const [permitted, previous, superseded] = await Promise.all([
+        rpc<boolean>(client, "app_storage_insert", { p_name: path }),
+        client
+          .from("delivery_evidence")
+          .select("id")
+          .eq("delivery_id", deliveryId)
+          .eq("id", replacesId)
+          .eq("kind", kind)
+          .maybeSingle(),
+        client
+          .from("delivery_evidence")
+          .select("id")
+          .eq("replaces_id", replacesId)
+          .maybeSingle(),
+      ]);
+      assert(
+        delivery.submitted_at && permitted,
+        "You can only change photos on your own deliveries",
+        403,
+      );
+      dbError(previous.error);
+      dbError(superseded.error);
+      assert(previous.data, "Photo does not belong to this delivery");
+      assert(
+        !superseded.data,
+        "This photo has already been replaced. Open the latest photo and try again.",
+        409,
+      );
     }
     const { error } = await client.storage
       .from("delivery-evidence")
@@ -270,18 +322,11 @@ export const remote = {
         409,
       );
     }
-    return rpc<Evidence>(client, "register_evidence", {
-      p_delivery_id: deliveryId,
-      p_input: {
-        id,
-        kind,
-        name,
-        mime,
-        size: bytes.length,
-        storage_path: path,
-        sha256,
-      },
-    });
+    return rpc<Evidence | { delivery: Delivery }>(
+      client,
+      "register_evidence",
+      registration,
+    );
   },
   async file(client: SupabaseClient, id: string) {
     const { data: e, error } = await client

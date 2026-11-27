@@ -1,4 +1,4 @@
-import type { Role } from "./types";
+import type { Actor, Delivery, Role } from "./types";
 
 export type SignInPortal = "marshal" | "supervisor";
 
@@ -21,6 +21,17 @@ const companyRoles: Role[] = [
 
 export function canReadReports(role: Role): boolean {
   return companyRoles.includes(role) && role !== "gate";
+}
+
+export function canReplaceDeliveryPhoto(actor: Actor, delivery: Delivery) {
+  return (
+    (actor.role === "gate" || actor.role === "company_admin") &&
+    actor.id === delivery.created_by &&
+    actor.company_id === delivery.company_id &&
+    (actor.role === "company_admin" ||
+      actor.site_ids.includes(delivery.site_id)) &&
+    Boolean(delivery.submitted_at)
+  );
 }
 
 export function canUsePortal(role: Role, portal: SignInPortal | null): boolean {

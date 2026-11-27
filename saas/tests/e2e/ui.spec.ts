@@ -996,6 +996,100 @@ test("a failed upload resumes one server record and a separate supervisor can re
   }
 });
 
+test("the recorder can replace a photo from the table and retry without losing the original", async ({
+  page,
+  browser,
+}) => {
+  await login(page);
+  const supplier = `Photo correction ${randomUUID().slice(0, 8)}`;
+  await chooseMaterial(page, "6F5");
+  await newSupplier(page, supplier);
+  await attach(page);
+  await save(page);
+  const original = (await bootstrap(page)).deliveries.find(
+    (delivery) => delivery.supplier_name === supplier,
+  )!;
+  const originalPhoto = original.evidence[0];
+  await page.getByRole("link", { name: "Records", exact: true }).click();
+  const row = records(page).getByRole("row").filter({ hasText: supplier });
+  await row.getByRole("button", { name: "View photo", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Delivery photo" });
+  const enlarged = dialog.getByRole("img", { name: "Delivery image" });
+  await expect(enlarged).toHaveAttribute(
+    "src",
+    `/api/evidence/${originalPhoto.id}`,
+  );
+
+  await page.route(
+    `**/api/deliveries/${original.id}/evidence`,
+    (route) =>
+      route.fulfill({ status: 503, json: { error: "Upload interrupted" } }),
+    { times: 1 },
+  );
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    dialog.getByRole("button", { name: "Replace photo", exact: true }).click(),
+  ]);
+  await chooser.setFiles({
+    name: "replacement.png",
+    mimeType: "image/png",
+    buffer: png,
+  });
+  await expect(dialog.getByRole("alert")).toHaveText("Upload interrupted");
+  await expect(enlarged).toHaveAttribute(
+    "src",
+    `/api/evidence/${originalPhoto.id}`,
+  );
+  await dialog
+    .getByRole("button", { name: "Retry replacement", exact: true })
+    .click();
+  await expect(dialog.getByRole("status")).toHaveText("Photo replaced.");
+
+  const updated = (await bootstrap(page)).deliveries.find(
+    (delivery) => delivery.id === original.id,
+  )!;
+  expect(updated.version).toBe(original.version + 1);
+  expect(updated.evidence).toHaveLength(1);
+  const replacement = updated.evidence[0];
+  expect(replacement.id).not.toBe(originalPhoto.id);
+  expect(replacement.name).toBe("replacement.png");
+  expect(replacement.size).toBeLessThanOrEqual(500_000);
+  await expect(enlarged).toHaveAttribute(
+    "src",
+    `/api/evidence/${replacement.id}`,
+  );
+  await dialog
+    .getByRole("button", { name: "Close photo", exact: true })
+    .click();
+  await expect(row.locator(".simple-thumbnail")).toHaveAttribute(
+    "src",
+    `/api/evidence/${replacement.id}`,
+  );
+  expect(
+    (await page.request.get(`/api/evidence/${originalPhoto.id}`)).ok(),
+  ).toBe(true);
+
+  const supervisorContext = await browser.newContext();
+  try {
+    const supervisor = await supervisorContext.newPage();
+    await login(supervisor, "supervisor");
+    await records(supervisor)
+      .getByRole("row")
+      .filter({ hasText: supplier })
+      .getByRole("button", { name: "View photo", exact: true })
+      .click();
+    const viewer = supervisor.getByRole("dialog", { name: "Delivery photo" });
+    await expect(
+      viewer.getByRole("img", { name: "Delivery image" }),
+    ).toHaveAttribute("src", `/api/evidence/${replacement.id}`);
+    await expect(
+      viewer.getByRole("button", { name: "Replace photo", exact: true }),
+    ).toHaveCount(0);
+  } finally {
+    await supervisorContext.close();
+  }
+});
+
 test("new material and supplier names are approved, survive refresh and filter the CSV", async ({
   page,
   browser,
