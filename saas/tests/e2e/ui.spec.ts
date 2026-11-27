@@ -198,6 +198,52 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
   expect(Date.parse(delivery.recorded_at)).toBeGreaterThan(
     Date.parse(delivery.arrival_at),
   );
+  await page.getByRole("link", { name: "Records", exact: true }).click();
+  const views = page.getByRole("navigation", { name: "Movement views" });
+  await expect(views.getByRole("button")).toHaveText([
+    "Overview",
+    "Aggregate",
+    "Concrete",
+    "Material",
+    "Service",
+  ]);
+  await expect(views.getByRole("button", { name: "Overview" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  if ((page.viewportSize()?.width ?? 0) <= 420) {
+    await expect(views).toHaveCSS("overflow-x", "auto");
+    await views.evaluate((nav) => nav.scrollTo({ left: nav.scrollWidth }));
+    await expect
+      .poll(() => views.evaluate((nav) => nav.scrollLeft))
+      .toBeGreaterThan(0);
+    await views.evaluate((nav) => nav.scrollTo({ left: 0 }));
+  }
+  const summary = page.getByRole("region", { name: "Overview counts" });
+  await expect(summary.locator("dt")).toHaveText([
+    "Total records",
+    "Aggregate",
+    "Concrete",
+    "Material",
+    "Service",
+  ]);
+  const total = summary.locator("dd").first();
+  await expect(total).not.toHaveText("0");
+  await expect(page.getByText(/^All time ·/)).toBeVisible();
+  const historical = records(page)
+    .getByText("5 Nov 2025 · 07:00", { exact: true })
+    .first();
+  await expect(historical).toBeVisible();
+  await page.locator("summary").getByText("Filters", { exact: true }).click();
+  await page.getByLabel("From date", { exact: true }).fill("2000-01-01");
+  await page.getByLabel("To date", { exact: true }).fill("2000-01-01");
+  await expect(historical).toHaveCount(0);
+  await expect(total).toHaveText("0");
+  await page
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
+  await expect(historical).toBeVisible();
+  await expect(total).not.toHaveText("0");
   await noOverflow(page);
 });
 
@@ -354,14 +400,14 @@ test("a failed upload resumes one server record and a separate supervisor can re
   await expect(page).toHaveURL(/\/records$/);
   await expect(navigation).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "Aggregate records" }),
+    page.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();
   const marshalFilters = page
     .locator("summary")
     .getByText("Filters", { exact: true });
   const marshalViews = page.getByRole("navigation", { name: "Movement views" });
   await expect(
-    marshalViews.getByRole("button", { name: "Aggregate" }),
+    marshalViews.getByRole("button", { name: "Overview" }),
   ).toHaveAttribute("aria-pressed", "true");
   await marshalViews.getByRole("button", { name: "Service" }).click();
   await expect(
@@ -420,9 +466,9 @@ test("a failed upload resumes one server record and a separate supervisor can re
     await expect(records(supervisorPage).getByRole("columnheader")).toHaveText([
       "Marshal",
       "Direction",
-      "Material",
-      "Supplier",
-      "Time",
+      "Item",
+      "Supplier / provider",
+      "Date & time",
       "Photo",
     ]);
     const row = records(supervisorPage)
@@ -433,8 +479,8 @@ test("a failed upload resumes one server record and a separate supervisor can re
       name: "Movement views",
     });
     const fromDate = supervisorPage.getByLabel("From date", { exact: true });
-    const initialDate = await fromDate.inputValue();
     await movementViews.getByRole("button", { name: "Concrete" }).click();
+    const initialDate = await fromDate.inputValue();
     await expect(row).toHaveCount(0);
     await expect(
       records(supervisorPage).getByRole("columnheader", { name: "Mix" }),

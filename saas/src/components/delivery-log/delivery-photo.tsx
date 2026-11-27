@@ -25,6 +25,7 @@ export function Photo({
       className={thumbnail ? "simple-thumbnail" : "simple-photo-full"}
       src={`/api/evidence/${evidence.id}`}
       alt={thumbnail ? "" : "Delivery image"}
+      loading={thumbnail ? "lazy" : undefined}
       onError={() => setError(true)}
     />
   );

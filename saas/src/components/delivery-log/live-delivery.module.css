@@ -31,7 +31,17 @@
 }
 
 .categoryNav {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  max-width: 510px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+
+.categoryNav button {
+  flex: 1 0 auto;
+  padding-inline: 18px;
+  white-space: nowrap;
 }
 
 .profilePanel {
