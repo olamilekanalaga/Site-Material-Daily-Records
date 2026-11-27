@@ -996,7 +996,7 @@ test("a failed upload resumes one server record and a separate supervisor can re
   }
 });
 
-test("the recorder can replace a photo from the table and retry without losing the original", async ({
+test("the recorder can retry a replacement and the previous file is removed after success", async ({
   page,
   browser,
 }) => {
@@ -1066,8 +1066,8 @@ test("the recorder can replace a photo from the table and retry without losing t
     `/api/evidence/${replacement.id}`,
   );
   expect(
-    (await page.request.get(`/api/evidence/${originalPhoto.id}`)).ok(),
-  ).toBe(true);
+    (await page.request.get(`/api/evidence/${originalPhoto.id}`)).status(),
+  ).toBe(404);
 
   const supervisorContext = await browser.newContext();
   try {

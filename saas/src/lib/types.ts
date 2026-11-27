@@ -121,6 +121,7 @@ export type Delivery = {
   accepted_unit: Unit | null;
   version: number;
   evidence: Evidence[];
+  pending_photo_cleanup?: string[];
   reviews: Review[];
 };
 export type SimpleDeliveryInput = {
