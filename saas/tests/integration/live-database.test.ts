@@ -149,6 +149,9 @@ before(async () => {
   await migration("202611260002_require_delivery_supplier.sql");
   await migration("202611260003_concrete_delivery_fields.sql");
   await migration("20261127124132_accept_hire_category.sql");
+  await migration(
+    "20261127131602_track_receiving_company_and_approve_items.sql",
+  );
   await as(gate);
   const boot = await rpc("app_bootstrap");
   ownMarshal = boot.marshals.find(
@@ -458,7 +461,7 @@ test("arrival uses the phone time unless an actual time was entered", async () =
   assert(Date.parse(manual.recorded_at) > Date.parse(manualTime));
 });
 
-test("live manual material and supplier names deduplicate across case/spacing and remain selectable while pending", async () => {
+test("live manual names are approved on submission and deduplicate across case and spacing", async () => {
   await as(gate);
   const first = await finish(
     fields({
@@ -486,11 +489,12 @@ test("live manual material and supplier names deduplicate across case/spacing an
   const item = boot.materials.find(
     (m: any) => m.id === first.delivery.material_id,
   );
-  assert.equal(item.approval_status, "Pending");
-  assert.equal(item.entry_type, "Pending review");
-  assert.equal(item.category, "Pending classification");
-  assert.equal(first.delivery.category, "Pending classification");
-  assert.equal(first.delivery.entry_type, "Pending review");
+  assert.equal(item.approval_status, "Approved");
+  assert.equal(item.entry_type, "Delivery");
+  assert.equal(item.category, "Other Materials");
+  assert.equal(first.delivery.category, "Other Materials");
+  assert.equal(first.delivery.entry_type, "Delivery");
+  assert.equal(first.delivery.receiving_company, "DJ Civils Ltd.");
   assert.equal(first.delivery.selected_category, "Other Materials");
   assert.equal(second.delivery.selected_category, "Services");
   assert.equal(
@@ -504,7 +508,7 @@ test("live manual material and supplier names deduplicate across case/spacing an
     fields({ material_id: item.id, supplier_id: first.delivery.supplier_id }),
   );
   assert.equal(reused.delivery.material_id, item.id);
-  assert.equal(reused.delivery.entry_type, "Pending review");
+  assert.equal(reused.delivery.entry_type, "Delivery");
 });
 
 test("live retries retain one arrival, catalogue rows and immutable correction history", async () => {
@@ -652,13 +656,20 @@ test("concrete requires a mix and preserves ticket tonnage", async () => {
 
 test("a marshal can submit a Hire movement with evidence and a supervisor can read it", async () => {
   await as(gate);
-  const { delivery, evidenceId } = await finish(
-    fields({
-      selected_category: "Hire",
-      material_id: "",
-      custom_item_name: "Mini excavator rental",
-      direction: "OUT",
-    }),
+  const input = fields({
+    selected_category: "Hire",
+    material_id: "",
+    custom_item_name: "Mini excavator rental",
+    direction: "OUT",
+    receiving_company: "GTC",
+  });
+  const draft = (await rpc("log_delivery", input)).delivery;
+  assert.equal(draft.catalogue_status, "Pending");
+  const { delivery, evidenceId } = await finish(input);
+  assert.equal(delivery.receiving_company, "GTC");
+  assert.equal(delivery.catalogue_status, "Approved");
+  await refused(
+    rpc("log_delivery", { ...input, receiving_company: "DJ Civils Ltd." }),
   );
   assert.equal(delivery.selected_category, "Hire");
   assert.equal(delivery.direction, "OUT");
@@ -669,8 +680,8 @@ test("a marshal can submit a Hire movement with evidence and a supervisor can re
   const boot = await rpc("app_bootstrap");
   assert.equal(
     boot.deliveries.find((record: { id: string }) => record.id === delivery.id)
-      .selected_category,
-    "Hire",
+      .receiving_company,
+    "GTC",
   );
   await refused(rpc("log_delivery", fields({ selected_category: "Hire" })));
 });
@@ -701,6 +712,8 @@ test("live validation rejects unknown/blank input and invalid correction pairs w
     { material_id: "", custom_item_name: "a".repeat(161) },
     { supplier_id: null, custom_supplier_name: "   " },
     { selected_category: "Invented category" },
+    { receiving_company: "Unknown company" },
+    { receiving_company: null },
     { corrected_arrival_at: new Date(Date.now() - 1000).toISOString() },
     { correction_reason: "No corrected timestamp" },
     {

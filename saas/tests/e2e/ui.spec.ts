@@ -47,6 +47,8 @@ const supplierSelect = (page: Page) =>
   page.getByRole("combobox", {
     name: /^Supplier \/ Company name(?: \(if known\))?$/,
   });
+const companySelect = (page: Page) =>
+  page.getByRole("combobox", { name: "Company", exact: true });
 async function chooseMaterial(page: Page, name: string) {
   await materialSelect(page).click();
   await page
@@ -87,6 +89,8 @@ async function save(page: Page) {
     exact: true,
   });
   if (!(await direction.inputValue())) await direction.selectOption("IN");
+  if (!(await companySelect(page).inputValue()))
+    await companySelect(page).selectOption("DJ Civils Ltd.");
   await page
     .getByRole("button", { name: "Save Delivery", exact: true })
     .click();
@@ -124,8 +128,23 @@ test("material and supplier choices stay open while scrolling or dismissing the 
         category: "Other Materials",
         entry_type: "Delivery" as const,
       }));
-    data.materials.push(...choices("material"));
-    data.suppliers.push(...choices("supplier"));
+    const materials = choices("material");
+    const suppliers = choices("supplier");
+    data.materials.push(...materials);
+    data.suppliers.push(...suppliers);
+    data.deliveries.push(
+      ...suppliers.map((supplier, index) => ({
+        ...data.deliveries[0],
+        id: randomUUID(),
+        site_id: data.sites[0].id,
+        material_id: materials[index].id,
+        supplier_id: supplier.id,
+        selected_category: "Other Materials",
+        submitted_at: new Date().toISOString(),
+        status: "Submitted" as const,
+        evidence: [],
+      })),
+    );
     await route.fulfill({ response, json: data });
   });
   await login(page);
@@ -397,11 +416,20 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
     (button) => getComputedStyle(button).backgroundColor,
   );
   await saveButton.click();
+  await expect(companySelect(page)).toBeFocused();
+  await expect(companySelect(page).getByRole("option")).toHaveText([
+    "DJ Civils Ltd.",
+    "GTC",
+  ]);
+  await companySelect(page).selectOption("DJ Civils Ltd.");
+  await saveButton.click();
   await expect(supplierSelect(page)).toBeFocused();
   await expect(page.locator(".simple-entry").getByRole("alert")).toContainText(
     "Choose a supplier",
   );
-  const supplier = boot.suppliers.find((item) => item.active)!;
+  const supplier = boot.suppliers.find(
+    (item) => item.name === "Fictional Aggregate Co",
+  )!;
   await supplierSelect(page).click();
   await page
     .getByRole("searchbox", { name: "Search suppliers", exact: true })
@@ -545,6 +573,7 @@ test("Hire movements stay separate from Service and appear in Hire exports", asy
   await page
     .getByRole("combobox", { name: "Direction", exact: true })
     .selectOption("OUT");
+  await companySelect(page).selectOption("GTC");
   const hireItems = page.getByRole("combobox", {
     name: "Hire item",
     exact: true,
@@ -566,6 +595,27 @@ test("Hire movements stay separate from Service and appear in Hire exports", asy
   await expect(
     page.getByRole("option", { name: item, exact: true }),
   ).toBeVisible();
+  await supplierSelect(page).click();
+  await expect(
+    page.getByRole("option", { name: "Local plant hire", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("option", { name: "Fictional Aggregate Co", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("option", { name: "Local plant hire", exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "Category", exact: true })
+    .selectOption("Aggregates / Sands");
+  await expect(supplierSelect(page)).toHaveText("Choose a supplier");
+  await supplierSelect(page).click();
+  await expect(
+    page.getByRole("option", { name: "Fictional Aggregate Co", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("option", { name: "Local plant hire", exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("link", { name: "Records", exact: true }).click();
   const views = page.getByRole("navigation", { name: "Movement views" });
   const row = records(page).getByRole("row").filter({ hasText: item });
@@ -579,6 +629,25 @@ test("Hire movements stay separate from Service and appear in Hire exports", asy
   await views.getByRole("button", { name: "Hire", exact: true }).click();
   await expect(row).toContainText("OUT");
   await expect(
+    row.getByRole("cell", { name: "GTC", exact: true }),
+  ).toBeVisible();
+  const supplierFilter = page.getByRole("combobox", {
+    name: "Supplier",
+    exact: true,
+  });
+  await supplierFilter.click();
+  await expect(
+    page.getByRole("option", { name: "Fictional Aggregate Co", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("option", { name: "Local plant hire", exact: true })
+    .click();
+  await expect(row).toHaveCount(1);
+  await companySelect(page).selectOption("DJ Civils Ltd.");
+  await expect(row).toHaveCount(0);
+  await companySelect(page).selectOption("GTC");
+  await expect(row).toHaveCount(1);
+  await expect(
     records(page).getByRole("columnheader", { name: "Hire item" }),
   ).toBeVisible();
 
@@ -587,12 +656,15 @@ test("Hire movements stay separate from Service and appear in Hire exports", asy
     const supervisor = await context.newPage();
     await login(supervisor, "supervisor");
     const exportResponse = await supervisor.request.get(
-      "/api/reports?view=arrivals&format=csv&movement_view=Hire",
+      "/api/reports?view=arrivals&format=csv&movement_view=Hire&receiving_company=GTC",
     );
     expect(exportResponse.ok()).toBe(true);
     const csv = await exportResponse.text();
     expect(csv.split(/\r?\n/).find((line) => line.includes(item))).toContain(
       ',"Hire",',
+    );
+    expect(csv.split(/\r?\n/).find((line) => line.includes(item))).toContain(
+      ',"GTC"',
     );
   } finally {
     await context.close();
@@ -664,6 +736,7 @@ test("a failed upload resumes one server record and a separate supervisor can re
       }),
     { times: 1 },
   );
+  await companySelect(page).selectOption("DJ Civils Ltd.");
   await page
     .getByRole("button", { name: "Save Delivery", exact: true })
     .click();
@@ -818,6 +891,7 @@ test("a failed upload resumes one server record and a separate supervisor can re
     await expect(records(supervisorPage).getByRole("columnheader")).toHaveText([
       "Marshal",
       "Direction",
+      "Company",
       "Item",
       "Supplier / provider",
       "Date & time",
@@ -862,7 +936,7 @@ test("a failed upload resumes one server record and a separate supervisor can re
     await expect(row).toHaveCount(0);
     await expect(fromDate).toHaveValue(initialDate);
     await expect(records(supervisorPage).getByRole("columnheader")).toHaveCount(
-      6,
+      7,
     );
     await movementViews.getByRole("button", { name: "Aggregate" }).click();
     await expect(row).toHaveCount(1);
@@ -912,7 +986,7 @@ test("a failed upload resumes one server record and a separate supervisor can re
   }
 });
 
-test("new material and supplier names survive refresh, remain reusable while pending and filter the CSV", async ({
+test("new material and supplier names are approved, survive refresh and filter the CSV", async ({
   page,
   browser,
 }, info) => {
@@ -923,11 +997,11 @@ test("new material and supplier names survive refresh, remain reusable while pen
   const supplier = `Logistics ${suffix}`;
   await page
     .getByRole("combobox", { name: "Category", exact: true })
-    .selectOption({ label: "Other Materials" });
+    .selectOption({ label: "Materials" });
   await newMaterial(page, material);
   await expect(
     page.locator('[aria-label="Automatic classification"]'),
-  ).toContainText("Pending classification");
+  ).toHaveText("Materials");
   await newSupplier(page, supplier);
   await expect(
     page.locator('input[type="date"]:visible, input[type="time"]:visible'),
@@ -940,11 +1014,11 @@ test("new material and supplier names survive refresh, remain reusable while pen
     (record) => record.item_name === material,
   )!;
   expect(first).toBeTruthy();
-  expect(first.entry_type).toBe("Pending review");
+  expect(first.entry_type).toBe("Delivery");
   expect(
     firstState.materials.find((item) => item.id === first.material_id)
       ?.approval_status,
-  ).toBe("Pending");
+  ).toBe("Approved");
   expect(Date.parse(first.arrival_at)).toBeLessThanOrEqual(
     Date.parse(first.recorded_at ?? ""),
   );
@@ -960,7 +1034,7 @@ test("new material and supplier names survive refresh, remain reusable while pen
   await expectOwnMarshalForm(page);
   await page
     .getByRole("combobox", { name: "Category", exact: true })
-    .selectOption({ label: "Other Materials" });
+    .selectOption({ label: "Materials" });
   await materialSelect(page).click();
   const materialSearch = page.getByRole("searchbox", {
     name: "Search materials",
@@ -1009,7 +1083,7 @@ test("new material and supplier names survive refresh, remain reusable while pen
     await login(supervisorPage, "supervisor");
     await supervisorPage
       .getByRole("navigation", { name: "Movement views" })
-      .getByRole("button", { name: "Material", exact: true })
+      .getByRole("button", { name: "Materials", exact: true })
       .click();
     await supervisorPage
       .locator("summary")

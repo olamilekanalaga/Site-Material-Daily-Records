@@ -165,10 +165,6 @@
   text-transform: capitalize;
 }
 
-.pending {
-  color: var(--daily-muted);
-}
-
 .clock {
   color: var(--daily-muted);
   font-size: 12px;

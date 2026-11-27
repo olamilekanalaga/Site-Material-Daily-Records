@@ -3,13 +3,20 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { ArrowLeftRight, ChevronDown, ImageIcon } from "lucide-react";
 import { canReadReports } from "@/lib/access";
-import type { Bootstrap, Delivery, Marshal } from "@/lib/types";
-import { normaliseItemName } from "@/lib/catalogue";
+import {
+  defaultReceivingCompany,
+  receivingCompanies,
+  type Bootstrap,
+  type Delivery,
+  type Marshal,
+} from "@/lib/types";
+import { captureCategoryLabel, normaliseItemName } from "@/lib/catalogue";
 import {
   matchesMovementView,
   movementCategory,
   movementViews,
   periodDeliveries,
+  recordedSuppliers,
   type DateRange,
   type MovementView,
   type RecordsView,
@@ -63,7 +70,10 @@ export function LiveRecords({
   >({});
   const [category, setCategory] = useState<MovementView | "">("");
   const [direction, setDirection] = useState("");
-  const [supplierFilter, setSupplierFilter] = useState("");
+  const [company, setCompany] = useState("");
+  const [supplierFilters, setSupplierFilters] = useState<
+    Partial<Record<RecordsView, string>>
+  >({});
   const [viewing, setViewing] = useState<Delivery | null>(null);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
@@ -106,23 +116,10 @@ export function LiveRecords({
   }, []);
 
   const overview = view === "Overview";
+  const viewLabel = captureCategoryLabel(view);
   const activeCategory = overview ? category : "";
   const filteredView = activeCategory || view;
   const material = overview ? "" : (itemFilters[view] ?? "");
-  const usedSuppliers = new Set(
-    data.deliveries
-      .filter((record) => record.site_id === siteId && record.submitted_at)
-      .map(
-        (record) =>
-          record.supplier_id || normaliseItemName(record.supplier_name || ""),
-      ),
-  );
-  const viewSuppliers = data.suppliers.filter(
-    (item) =>
-      item.active ||
-      usedSuppliers.has(item.id) ||
-      usedSuppliers.has(normaliseItemName(item.name)),
-  );
   const service = view === "Service";
   const itemLabel =
     view === "Hire" ? "Hire item" : service ? "Service" : "Material";
@@ -132,28 +129,38 @@ export function LiveRecords({
   const range = customRange ?? { from: defaultDate, to: defaultDate };
   const hasDates = Boolean(range.from || range.to);
   const invalid = Boolean(range.from && range.to && range.from > range.to);
-  const selectedSupplier = overview
-    ? undefined
-    : viewSuppliers.find((item) => item.id === supplierFilter);
-  const supplier = selectedSupplier?.id ?? "";
-  const materialNames = new Map(
-    data.materials.map(({ id, name }) => [id, name]),
-  );
+  const materials = new Map(data.materials.map((item) => [item.id, item]));
   const siteRecords = data.deliveries.filter(
     (record) =>
       record.site_id === siteId &&
-      matchesMovementView(record, filteredView, itemName(record)),
+      record.submitted_at &&
+      record.status !== "Draft" &&
+      matchesMovementView(
+        record,
+        filteredView,
+        itemName(record),
+        materials.get(record.material_id)?.category,
+      ),
   );
+  const viewSuppliers = overview
+    ? []
+    : recordedSuppliers(data.suppliers, siteRecords);
+  const selectedSupplier = viewSuppliers.find(
+    (item) => item.id === supplierFilters[view],
+  );
+  const supplier = selectedSupplier?.id ?? "";
   const recordedItems = new Set(
     siteRecords.map((record) => record.material_id),
   );
-  const viewItems = data.materials.filter(
-    (item) =>
-      matchesMovementView(item, view, item.name) || recordedItems.has(item.id),
-  );
+  const viewItems = data.materials.filter((item) => recordedItems.has(item.id));
   const records = periodDeliveries(siteRecords, siteId, timezone, range)
     .filter((record) => !material || record.material_id === material)
     .filter((record) => !direction || (record.direction ?? "IN") === direction)
+    .filter(
+      (record) =>
+        !company ||
+        (record.receiving_company ?? defaultReceivingCompany) === company,
+    )
     .filter(
       (record) =>
         !supplier ||
@@ -174,17 +181,28 @@ export function LiveRecords({
   function itemName(record: Delivery) {
     return (
       record.item_name ||
-      materialNames.get(record.material_id) ||
+      materials.get(record.material_id)?.name ||
       "Historical material"
     );
   }
 
   const totals = new Map<string, { label: string; count: number }>(
-    overview ? movementViews.map((label) => [label, { label, count: 0 }]) : [],
+    overview
+      ? movementViews.map((view) => [
+          view,
+          { label: captureCategoryLabel(view), count: 0 },
+        ])
+      : [],
   );
   for (const record of records) {
     const name = itemName(record);
-    const key = overview ? movementCategory(record, name) : record.material_id;
+    const key = overview
+      ? movementCategory(
+          record,
+          name,
+          materials.get(record.material_id)?.category,
+        )
+      : record.material_id;
     const existing = totals.get(key);
     if (existing) existing.count++;
     else totals.set(key, { label: name, count: 1 });
@@ -218,6 +236,7 @@ export function LiveRecords({
       to: range.to,
       material_id: material,
       supplier_id: supplier,
+      receiving_company: company,
     }))
       if (value) parameters.set(key, value);
     try {
@@ -243,14 +262,14 @@ export function LiveRecords({
           aria-labelledby="movement-analytics"
         >
           <h2 id="movement-analytics">
-            {overview ? "Overview" : `${view} records`}
+            {overview ? viewLabel : `${viewLabel} records`}
           </h2>
           {metrics.length > 0 ? (
             <div
               key={view}
               className={styles.cardScroll}
               role="region"
-              aria-label={`${view} counts`}
+              aria-label={`${viewLabel} counts`}
               tabIndex={0}
             >
               <dl>
@@ -264,7 +283,7 @@ export function LiveRecords({
             </div>
           ) : (
             <p className={styles.classificationNote}>
-              No {view.toLowerCase()} records match these filters.
+              No {viewLabel.toLowerCase()} records match these filters.
             </p>
           )}
         </section>
@@ -321,7 +340,9 @@ export function LiveRecords({
               >
                 <option value="">All categories</option>
                 {movementViews.map((category) => (
-                  <option key={category}>{category}</option>
+                  <option key={category} value={category}>
+                    {captureCategoryLabel(category)}
+                  </option>
                 ))}
               </select>
             </label>
@@ -340,6 +361,7 @@ export function LiveRecords({
                 }
               />
               <ItemSelector
+                key={view}
                 items={viewSuppliers}
                 value={supplier}
                 label={supplierLabel}
@@ -347,7 +369,9 @@ export function LiveRecords({
                 placeholder={service ? "All providers" : "All suppliers"}
                 clearLabel={service ? "All providers" : "All suppliers"}
                 plainNames
-                onSelect={setSupplierFilter}
+                onSelect={(id) =>
+                  setSupplierFilters((filters) => ({ ...filters, [view]: id }))
+                }
               />
             </>
           )}
@@ -362,11 +386,24 @@ export function LiveRecords({
               <option value="OUT">OUT</option>
             </select>
           </label>
+          <label>
+            Company
+            <select
+              value={company}
+              onChange={(event) => setCompany(event.target.value)}
+            >
+              <option value="">All companies</option>
+              {receivingCompanies.map((name) => (
+                <option key={name}>{name}</option>
+              ))}
+            </select>
+          </label>
         </div>
       </details>
       <div className={styles.actions}>
         <span>
-          {periodLabel} · {activeCategory && `${activeCategory} · `}
+          {periodLabel} ·{" "}
+          {activeCategory && `${captureCategoryLabel(activeCategory)} · `}
           {timezone} · {records.length}{" "}
           {records.length === 1 ? "record" : "records"}
         </span>
@@ -379,8 +416,9 @@ export function LiveRecords({
               setCustomRange(null);
               setItemFilters({});
               setCategory("");
-              setSupplierFilter("");
+              setSupplierFilters({});
               setDirection("");
+              setCompany("");
               setError("");
             }}
           >
@@ -428,6 +466,7 @@ export function LiveRecords({
               {[
                 "Marshal",
                 "Direction",
+                "Company",
                 overview ? "Item" : itemLabel,
                 ...(view === "Concrete" ? ["Mix"] : []),
                 overview ? "Supplier / provider" : supplierLabel,
@@ -473,6 +512,7 @@ export function LiveRecords({
                       {movementDirection}
                     </span>
                   </td>
+                  <td>{record.receiving_company ?? defaultReceivingCompany}</td>
                   <td>{itemName(record)}</td>
                   {view === "Concrete" && <td>{record.mix || "—"}</td>}
                   <td>

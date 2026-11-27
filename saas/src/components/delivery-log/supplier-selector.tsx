@@ -6,6 +6,7 @@ import { ItemSelector } from "./item-selector";
 export function SupplierSelector({
   suppliers,
   value,
+  selectedLabel,
   custom,
   name,
   disabled,
@@ -16,6 +17,7 @@ export function SupplierSelector({
 }: {
   suppliers: CatalogueItem[];
   value: string;
+  selectedLabel?: string;
   custom: boolean;
   name: string;
   disabled: boolean;
@@ -29,6 +31,7 @@ export function SupplierSelector({
       captureField="supplier"
       items={suppliers}
       value={value}
+      selectedLabel={selectedLabel}
       custom={custom}
       customName={name}
       usage={{}}

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { CAPTURE_CATEGORIES, normaliseItemName } from "../catalogue";
+import { receivingCompanies, type ReceivingCompany } from "../types";
 import type {
   Actor,
   Delivery,
@@ -109,6 +110,13 @@ export function parseSimpleDelivery(raw: unknown): SimpleDeliveryInput {
       (smart && (x.direction === "IN" || x.direction === "OUT")),
     "Choose IN or OUT",
   );
+  const receivingCompany = x.receiving_company;
+  assert(
+    receivingCompany === undefined ||
+      (smart &&
+        receivingCompanies.some((company) => company === receivingCompany)),
+    "Choose a valid company",
+  );
   if (!smart) {
     assert(
       typeof x.arrival_at === "string" &&
@@ -196,6 +204,9 @@ export function parseSimpleDelivery(raw: unknown): SimpleDeliveryInput {
       ? { device_arrival_at: new Date(deviceArrival as string).toISOString() }
       : {}),
     ...(x.direction !== undefined ? { direction: x.direction } : {}),
+    ...(receivingCompany !== undefined
+      ? { receiving_company: receivingCompany as ReceivingCompany }
+      : {}),
     ...(customItem !== undefined
       ? { custom_item_name: customItem as string }
       : {}),

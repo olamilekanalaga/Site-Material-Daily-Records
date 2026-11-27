@@ -1,4 +1,5 @@
 import { rememberSeconds } from "../access";
+import { defaultReceivingCompany } from "../types";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -494,6 +495,9 @@ function liveCaptureInput(input: SimpleDeliveryInput) {
     correction_reason: input.correction_reason ?? "",
     ...(input.mix !== undefined ? { mix: input.mix } : {}),
     ...(input.tonnage !== undefined ? { tonnage: input.tonnage } : {}),
+    ...(input.receiving_company !== undefined
+      ? { receiving_company: input.receiving_company }
+      : {}),
     ...(input.device_arrival_at
       ? { device_arrival_at: input.device_arrival_at }
       : {}),
@@ -539,8 +543,30 @@ function logArrival(
       hydrate(previous).evidence.length > 0,
       "Upload a delivery image before saving",
     );
+    const material = get<CatalogueItem>("material", previous.material_id);
+    const category = previous.selected_category;
+    const approved =
+      material?.approval_status === "Pending" && category
+        ? {
+            ...material,
+            category,
+            entry_type:
+              category === "Services"
+                ? ("Service visit" as const)
+                : ("Delivery" as const),
+            approval_status: "Approved" as const,
+          }
+        : undefined;
+    if (approved) put("material", approved);
     const saved: Delivery = {
       ...previous,
+      ...(approved
+        ? {
+            category: approved.category,
+            entry_type: approved.entry_type,
+            catalogue_status: approved.approval_status,
+          }
+        : {}),
       status: "Submitted",
       submitted_at: now(),
       updated_at: now(),
@@ -643,6 +669,7 @@ function logArrival(
   const draft: Delivery = {
     id: input.id,
     company_id: actor.company_id,
+    receiving_company: input.receiving_company ?? defaultReceivingCompany,
     site_id: input.site_id,
     material_id: material.id,
     supplier_id: supplier?.id || null,

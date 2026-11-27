@@ -237,9 +237,6 @@ export function ItemSelector({
                   onClick={() => select(item)}
                 >
                   <span>{item.name}</span>
-                  {includePending && item.approval_status === "Pending" && (
-                    <small> · Pending classification</small>
-                  )}
                 </button>
               ))}
               {extraOption && (

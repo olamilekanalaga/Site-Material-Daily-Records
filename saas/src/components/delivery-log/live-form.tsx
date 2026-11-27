@@ -2,16 +2,26 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Check, Upload } from "lucide-react";
-import type { Bootstrap, Marshal, Site } from "@/lib/types";
+import {
+  defaultReceivingCompany,
+  receivingCompanies,
+  type Bootstrap,
+  type Marshal,
+  type ReceivingCompany,
+  type Site,
+} from "@/lib/types";
 import {
   CAPTURE_CATEGORIES,
   captureCategory,
   captureCategoryLabel,
   findExactCatalogueItem,
   normaliseItemName,
-  PENDING_CATEGORY,
-  PENDING_ENTRY_TYPE,
 } from "@/lib/catalogue";
+import {
+  matchesMovementView,
+  movementCategory,
+  recordedSuppliers,
+} from "@/lib/delivery-records";
 import {
   readCapture,
   removeCapture,
@@ -106,6 +116,9 @@ export function LiveForm({
   onSaved: () => Promise<void>;
 }) {
   const [direction, setDirection] = useState<"" | "IN" | "OUT">("");
+  const [receivingCompany, setReceivingCompany] = useState<
+    ReceivingCompany | ""
+  >("");
   const [material, setMaterial] = useState("");
   const [category, setCategory] = useState("");
   const [customMaterial, setCustomMaterial] = useState(false);
@@ -136,6 +149,9 @@ export function LiveForm({
         if (!active || !saved) return;
         setPending(saved);
         setDirection(saved.input.direction ?? "IN");
+        setReceivingCompany(
+          saved.input.receiving_company ?? defaultReceivingCompany,
+        );
         setMaterial(saved.input.material_id);
         setCategory(saved.input.selected_category || "");
         setCustomMaterial(Boolean(saved.input.custom_item_name));
@@ -188,21 +204,17 @@ export function LiveForm({
     return () => URL.revokeObjectURL(url);
   }, [photo]);
 
-  const { usage, hireMaterials } = useMemo(() => {
+  const usage = useMemo(() => {
     const counts: Record<string, number> = {};
-    const hireMaterials = new Set<string>();
     for (const delivery of data.deliveries) {
-      if (!delivery.submitted_at) continue;
+      if (delivery.site_id !== site.id || !delivery.submitted_at) continue;
       counts[delivery.material_id] = (counts[delivery.material_id] || 0) + 1;
-      if (delivery.site_id === site.id && delivery.selected_category === "Hire")
-        hireMaterials.add(delivery.material_id);
     }
-    return { usage: counts, hireMaterials };
+    return counts;
   }, [data.deliveries, site.id]);
   const selectedMaterial = customMaterial
     ? findExactCatalogueItem(data.materials, materialName)
     : data.materials.find((item) => item.id === material);
-  const selectedSupplier = data.suppliers.find((item) => item.id === supplier);
   const known = selectedMaterial?.approval_status === "Approved";
   const chosenCategory =
     pending?.input.selected_category ||
@@ -211,6 +223,40 @@ export function LiveForm({
       ? captureCategory(selectedMaterial.category, selectedMaterial.name)
       : "") ||
     "";
+  const categoryDeliveries = useMemo(() => {
+    if (!chosenCategory) return [];
+    const view = movementCategory({ selected_category: chosenCategory }, "");
+    const materials = new Map(data.materials.map((item) => [item.id, item]));
+    return data.deliveries.filter((record) => {
+      if (
+        record.site_id !== site.id ||
+        !record.submitted_at ||
+        record.status === "Draft"
+      )
+        return false;
+      const item = materials.get(record.material_id);
+      return matchesMovementView(
+        record,
+        view,
+        record.item_name || item?.name || "",
+        item?.category,
+      );
+    });
+  }, [chosenCategory, data.deliveries, data.materials, site.id]);
+  const availableSuppliers = useMemo(
+    () =>
+      recordedSuppliers(data.suppliers, categoryDeliveries).filter(
+        (item) => item.active,
+      ),
+    [data.suppliers, categoryDeliveries],
+  );
+  const rememberedItems = useMemo(
+    () => new Set(categoryDeliveries.map((record) => record.material_id)),
+    [categoryDeliveries],
+  );
+  const selectedSupplier = availableSuppliers.find(
+    (item) => item.id === supplier,
+  );
   const concrete = chosenCategory === "Concrete";
   const service = chosenCategory === "Services";
   const hire = chosenCategory === "Hire";
@@ -219,17 +265,17 @@ export function LiveForm({
   const availableMaterials = data.materials.filter(
     (item) =>
       item.active &&
-      (!item.capture_hidden || concrete || hire) &&
-      (hire
-        ? hireMaterials.has(item.id)
-        : !chosenCategory ||
-          captureCategory(item.category, item.name) === chosenCategory ||
-          item.approval_status === "Pending"),
+      (rememberedItems.has(item.id) ||
+        ((!item.capture_hidden || concrete) &&
+          item.approval_status === "Approved" &&
+          (!chosenCategory ||
+            captureCategory(item.category, item.name) === chosenCategory))),
   );
   const locked = busy || Boolean(pending) || restoring;
   const weight = Number(tonnage);
   const missing = [
     { valid: direction, field: "direction", message: "Choose IN or OUT." },
+    { valid: receivingCompany, field: "company", message: "Choose a company." },
     {
       valid: !manualDate || manualTime,
       field: "actual-time",
@@ -256,7 +302,9 @@ export function LiveForm({
       message: "Enter a positive tonnage with up to three decimal places.",
     },
     {
-      valid: customSupplier ? normaliseItemName(supplierName) : supplier,
+      valid: customSupplier
+        ? normaliseItemName(supplierName)
+        : selectedSupplier,
       field: customSupplier ? "supplier-name" : "supplier",
       message: service
         ? "Choose a service provider or enter their name."
@@ -350,12 +398,13 @@ export function LiveForm({
             : { device_arrival_at: deviceNow.toISOString() }),
           capture_kind: "arrival",
           direction: direction || undefined,
+          ...(receivingCompany ? { receiving_company: receivingCompany } : {}),
           ...(concrete ? { mix: mix.trim(), tonnage: weight } : {}),
           ...(customMaterial ? { custom_item_name: materialName } : {}),
           ...(customSupplier
             ? { custom_supplier_name: supplierName }
-            : supplier
-              ? { supplier_id: supplier }
+            : selectedSupplier
+              ? { supplier_id: selectedSupplier.id }
               : {}),
           ...(chosenCategory ? { selected_category: chosenCategory } : {}),
           intent: "draft",
@@ -376,6 +425,7 @@ export function LiveForm({
       await removeCapture(key);
       setPending(null);
       setDirection("");
+      setReceivingCompany("");
       // Keep the material ready for the next movement.
       setSupplier("");
       setCustomSupplier(false);
@@ -441,6 +491,27 @@ export function LiveForm({
               <option value="OUT">OUT</option>
             </select>
           </label>
+          <label>
+            <span>
+              Company
+              <span className="simple-required" aria-hidden="true" />
+            </span>
+            <select
+              data-capture-field="company"
+              required
+              value={receivingCompany}
+              onChange={(event) =>
+                setReceivingCompany(event.target.value as ReceivingCompany | "")
+              }
+            >
+              <option value="" disabled hidden>
+                Choose a company
+              </option>
+              {receivingCompanies.map((company) => (
+                <option key={company}>{company}</option>
+              ))}
+            </select>
+          </label>
           <details className={styles.captureTime}>
             <summary>Enter actual time (optional)</summary>
             <p className="simple-help">
@@ -485,6 +556,7 @@ export function LiveForm({
                 setMaterial("");
                 setCustomMaterial(false);
                 setMaterialName("");
+                setSupplier("");
                 setMix("");
                 setTonnage("");
                 setError("");
@@ -531,18 +603,19 @@ export function LiveForm({
             }}
             onCustomName={setMaterialName}
           />
-          {(material || (customMaterial && materialName.trim())) && (
-            <p
-              className={`${styles.classification} ${known ? "" : styles.pending}`}
-              aria-label="Automatic classification"
-            >
-              {hire
-                ? "Hire"
-                : known
-                  ? `${captureCategoryLabel(chosenCategory || PENDING_CATEGORY)} · ${selectedMaterial.entry_type || PENDING_ENTRY_TYPE}`
-                  : "Pending classification · Pending review. You can save this delivery now."}
-            </p>
-          )}
+          {chosenCategory &&
+            (material || (customMaterial && materialName.trim())) && (
+              <p
+                className={styles.classification}
+                aria-label="Automatic classification"
+              >
+                {captureCategoryLabel(chosenCategory)}
+                {!hire &&
+                  known &&
+                  selectedMaterial.entry_type &&
+                  ` · ${selectedMaterial.entry_type}`}
+              </p>
+            )}
           {concrete && (
             <>
               <label>
@@ -578,9 +651,11 @@ export function LiveForm({
             </>
           )}
           <SupplierSelector
+            key={chosenCategory}
             service={service}
-            suppliers={data.suppliers}
-            value={supplier}
+            suppliers={availableSuppliers}
+            value={selectedSupplier?.id ?? ""}
+            selectedLabel={pending?.input.supplier_name}
             custom={customSupplier}
             name={supplierName}
             disabled={locked}
