@@ -57,6 +57,8 @@ export function ItemSelector({
   const [active, setActive] = useState(0);
   const container = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const search = useRef<HTMLInputElement>(null);
+  const focusSearch = useRef(true);
   const selectedName =
     items.find((item) => item.id === value)?.name || selectedLabel || "";
   const searchKey = normaliseItemName(query);
@@ -82,14 +84,23 @@ export function ItemSelector({
 
   useEffect(() => {
     if (!expanded) return;
-    function closeOutside(event: PointerEvent) {
-      if (!container.current?.contains(event.target as Node)) setOpen(false);
+    if (focusSearch.current) search.current?.focus({ preventScroll: true });
+    function closeOutside(event: MouseEvent | FocusEvent) {
+      const target = event.target;
+      if (event.type === "focusin" && target === document.body) return;
+      if (target instanceof Node && !container.current?.contains(target))
+        setOpen(false);
     }
-    document.addEventListener("pointerdown", closeOutside);
-    return () => document.removeEventListener("pointerdown", closeOutside);
+    document.addEventListener("click", closeOutside);
+    document.addEventListener("focusin", closeOutside);
+    return () => {
+      document.removeEventListener("click", closeOutside);
+      document.removeEventListener("focusin", closeOutside);
+    };
   }, [expanded]);
 
-  function openDropdown() {
+  function openDropdown(focus = true) {
+    focusSearch.current = focus;
     setQuery("");
     setActive(0);
     setOpen(true);
@@ -105,7 +116,7 @@ export function ItemSelector({
       if (query) onCustomName?.(query);
     }
     setOpen(false);
-    trigger.current?.focus();
+    trigger.current?.focus({ preventScroll: true });
   }
 
   function keyboard(event: KeyboardEvent<HTMLElement>) {
@@ -113,7 +124,7 @@ export function ItemSelector({
     if (event.key === "Escape" && expanded) {
       event.preventDefault();
       setOpen(false);
-      trigger.current?.focus();
+      trigger.current?.focus({ preventScroll: true });
     } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       if (!expanded) openDropdown();
@@ -134,14 +145,7 @@ export function ItemSelector({
   }
 
   return (
-    <div
-      ref={container}
-      className={styles.selector}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-          setOpen(false);
-      }}
-    >
+    <div ref={container} className={styles.selector}>
       <label id={`${id}-label`} htmlFor={id}>
         <span>
           {label}
@@ -167,7 +171,20 @@ export function ItemSelector({
           }
           disabled={disabled}
           className={styles.dropdownTrigger}
-          onClick={() => (expanded ? setOpen(false) : openDropdown())}
+          onClick={(event) => {
+            if (expanded) {
+              setOpen(false);
+              return;
+            }
+            const pointer = event.nativeEvent;
+            const touch =
+              event.detail !== 0 &&
+              (("pointerType" in pointer && pointer.pointerType === "touch") ||
+                window.matchMedia("(pointer: coarse)").matches);
+            if (touch && document.activeElement instanceof HTMLInputElement)
+              document.activeElement.blur();
+            openDropdown(!touch);
+          }}
           onKeyDown={keyboard}
         >
           <span>{custom ? otherLabel : selectedName || placeholder}</span>
@@ -178,8 +195,8 @@ export function ItemSelector({
             <label className={styles.dropdownSearch}>
               {searchLabel}
               <input
+                ref={search}
                 type="search"
-                autoFocus
                 autoComplete="off"
                 placeholder={
                   searchLabel === "Search items"

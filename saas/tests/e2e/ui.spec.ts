@@ -102,6 +102,127 @@ async function noOverflow(page: Page) {
 const records = (page: Page) =>
   page.getByRole("table", { name: "Saved delivery records", exact: true });
 
+test("material and supplier choices stay open while scrolling or dismissing the keyboard", async ({
+  page,
+  context,
+  isMobile,
+}) => {
+  await page.route("**/api/bootstrap**", async (route) => {
+    const response = await route.fetch();
+    if (!response.ok()) {
+      await route.fulfill({ response });
+      return;
+    }
+    const data = (await response.json()) as Bootstrap;
+    const choices = (name: string) =>
+      Array.from({ length: 16 }, (_, index) => ({
+        id: randomUUID(),
+        company_id: data.actor.company_id,
+        name: `Picker ${name} ${String(index + 1).padStart(2, "0")}`,
+        active: true,
+        approval_status: "Approved" as const,
+        category: "Other Materials",
+        entry_type: "Delivery" as const,
+      }));
+    data.materials.push(...choices("material"));
+    data.suppliers.push(...choices("supplier"));
+    await route.fulfill({ response, json: data });
+  });
+  await login(page);
+  await expectOwnMarshalForm(page);
+  await page
+    .getByRole("combobox", { name: "Category", exact: true })
+    .selectOption("Other Materials");
+
+  const material = materialSelect(page);
+  const materialSearch = page.getByRole("searchbox", {
+    name: "Search materials",
+    exact: true,
+  });
+  if (!isMobile) {
+    await material.focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(materialSearch).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(material).toHaveAttribute("aria-expanded", "false");
+    await expect(material).toBeFocused();
+    return;
+  }
+
+  const cdp = await context.newCDPSession(page);
+  async function swipe(x: number, start: number, end: number) {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x, y: start }],
+    });
+    for (const step of [1, 2, 3, 4, 5]) {
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{ x, y: start + ((end - start) * step) / 5 }],
+      });
+    }
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  }
+
+  await material.tap();
+  await expect(materialSearch).toBeVisible();
+  await expect(materialSearch).not.toBeFocused();
+  await materialSearch.tap();
+  await materialSearch.fill("Picker material");
+  await materialSearch.evaluate((input) => input.blur());
+  await expect(material).toHaveAttribute("aria-expanded", "true");
+
+  const materialList = page.getByRole("listbox", {
+    name: "Material",
+    exact: true,
+  });
+  await materialList.scrollIntoViewIfNeeded();
+  const list = await materialList.boundingBox();
+  expect(list).toBeTruthy();
+  await swipe(list!.x + 40, list!.y + list!.height - 12, list!.y + 15);
+  await expect
+    .poll(() => materialList.evaluate((node) => node.scrollTop))
+    .toBeGreaterThan(0);
+  await materialList
+    .getByRole("option", { name: "Picker material 12", exact: true })
+    .tap();
+  await expect(material).toContainText("Picker material 12");
+
+  const supplier = supplierSelect(page);
+  await supplier.tap();
+  const supplierSearch = page.getByRole("searchbox", {
+    name: "Search suppliers",
+    exact: true,
+  });
+  await expect(supplierSearch).not.toBeFocused();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const heading = page.getByRole("heading", {
+    name: "New Delivery",
+    exact: true,
+  });
+  await heading.scrollIntoViewIfNeeded();
+  const outside = await heading.boundingBox();
+  expect(outside).toBeTruthy();
+  const start = outside!.y + outside!.height / 2;
+  const scrollBefore = await page.evaluate(() => window.scrollY);
+  await swipe(outside!.x + 14, start, start - 105);
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThan(scrollBefore);
+  await expect(supplier).toHaveAttribute("aria-expanded", "true");
+  const supplierList = page.getByRole("listbox", {
+    name: "Supplier / Company name",
+    exact: true,
+  });
+  await supplierList
+    .getByRole("option", { name: "Picker supplier 14", exact: true })
+    .tap();
+  await expect(supplier).toContainText("Picker supplier 14");
+});
+
 test("the dark opening follows workspace loading and the light screens keep scroll motion", async ({
   page,
   context,
