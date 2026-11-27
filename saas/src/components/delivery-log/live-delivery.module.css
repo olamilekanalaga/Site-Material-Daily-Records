@@ -477,6 +477,15 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  .workMasthead > a {
+    transform: translateY(var(--masthead-shift, 0px));
+  }
+
+  .workMasthead .accountPortrait,
+  .workMasthead > a {
+    animation: recordsEnter 480ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+
   .categoryNav,
   .recordsTitle,
   .filterPanel {
@@ -539,5 +548,14 @@
   .filterDisclosure[open] .filters,
   .tableHint[data-revealed="true"] {
     animation: recordsEnter 250ms var(--records-ease) backwards;
+  }
+
+  .tableHint[data-revealed="true"] + .tableReveal thead,
+  .tableHint[data-revealed="true"] + .tableReveal tbody tr:nth-child(-n + 3) {
+    animation: recordsEnter 420ms var(--records-ease) backwards;
+  }
+
+  .tableHint[data-revealed="true"] + .tableReveal tbody tr:nth-child(-n + 3) {
+    animation-delay: 75ms;
   }
 }

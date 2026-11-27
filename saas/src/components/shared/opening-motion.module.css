@@ -1,0 +1,118 @@
+.opening {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 44%, #322b21 0, transparent 60%), #111110;
+  animation: openingCurtain 860ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.opening::before,
+.opening::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+}
+
+.opening::before {
+  background: repeating-linear-gradient(
+    115deg,
+    transparent 0 36px,
+    rgb(224 181 117 / 13%) 36px 37px,
+    transparent 37px 74px
+  );
+  mask-image: linear-gradient(
+    110deg,
+    #000,
+    transparent 42%,
+    transparent 58%,
+    #000
+  );
+  animation: openingTrace 860ms ease-out both;
+}
+
+.opening::after {
+  background: linear-gradient(90deg, transparent, #cfaa70, transparent) center /
+    100% 1px no-repeat;
+  animation: openingTrace 670ms 50ms ease-out both;
+}
+
+.openingMark {
+  z-index: 1;
+  width: min(68vw, 270px);
+  border: 1px solid rgb(207 170 112 / 42%);
+  border-radius: 18px;
+  overflow: hidden;
+  background: #050505;
+  box-shadow: 0 22px 68px rgb(0 0 0 / 46%);
+  animation: openingMark 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.openingMark img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@keyframes openingCurtain {
+  0%,
+  46% {
+    opacity: 1;
+    clip-path: inset(0);
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(49% 0 49%);
+  }
+}
+
+@keyframes openingMark {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.86);
+  }
+  56% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes openingTrace {
+  from {
+    opacity: 0;
+    transform: translateX(-6%);
+  }
+  62% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.45;
+    transform: none;
+  }
+}
+
+.progress {
+  position: fixed;
+  z-index: 100;
+  top: 0;
+  inset-inline: 0;
+  height: 3px;
+  transform: scaleX(0);
+  transform-origin: left;
+  background: linear-gradient(90deg, #976335, #c38d49);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opening,
+  .progress {
+    display: none;
+  }
+}

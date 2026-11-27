@@ -242,7 +242,10 @@ export function SimpleApp({
 
   return (
     <div className="simple-app">
-      <header className="simple-header">
+      <header
+        className={`simple-header ${liveStyles.workMasthead}`}
+        data-scroll-masthead=""
+      >
         <a href={canRecord ? "/gate" : "/records"} aria-label="DJ Civils home">
           <Brand compact />
         </a>

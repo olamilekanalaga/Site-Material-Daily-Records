@@ -396,7 +396,7 @@ export function LiveRecords({
         Swipe sideways to see all columns.
       </p>
       <div
-        className="simple-table-scroll"
+        className={`simple-table-scroll ${styles.tableReveal}`}
         role="region"
         aria-label="Scrollable delivery records"
         tabIndex={0}

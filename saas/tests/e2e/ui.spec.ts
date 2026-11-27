@@ -99,6 +99,73 @@ async function noOverflow(page: Page) {
 const records = (page: Page) =>
   page.getByRole("table", { name: "Saved delivery records", exact: true });
 
+test("the DJ Civils opening plays once per tab and scrolling responds without locking the page", async ({
+  page,
+  context,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  const viewport = page.viewportSize();
+  if (viewport && viewport.width <= 420)
+    await page.setViewportSize({ width: 393, height: viewport.height });
+  await page.goto("/", { waitUntil: "commit" });
+  const opening = page.locator("[data-opening-reveal]");
+  await expect(opening).toBeAttached();
+  await expect(opening).toHaveCSS("pointer-events", "none");
+  await expect(opening.locator("img")).toHaveAttribute("src", "/djcu-logo.jpg");
+  await expect(opening).toHaveCount(0);
+  await expect(
+    page.getByRole("img", { name: "DJ Civils Ltd", exact: true }),
+  ).toBeVisible();
+  const email = page.getByRole("textbox", {
+    name: "Email address",
+    exact: true,
+  });
+  await expect(email).toBeEditable();
+  if (viewport && viewport.width <= 420) {
+    await page.setViewportSize({ width: 320, height: viewport.height });
+    await noOverflow(page);
+    await expect(email).toBeEditable();
+    await page.setViewportSize({ width: 393, height: viewport.height });
+  }
+  await page.reload();
+  await expect(email).toBeEditable();
+  await expect(opening).toHaveCount(0);
+
+  const reduced = await context.newPage();
+  try {
+    await reduced.emulateMedia({ reducedMotion: "reduce" });
+    await reduced.goto("/");
+    await expect(
+      reduced.getByRole("button", { name: "Sign in", exact: true }),
+    ).toBeEnabled();
+    await expect(reduced.locator("[data-opening-reveal]")).toHaveCount(0);
+    await expect(reduced.locator("[data-scroll-progress]")).toBeHidden();
+  } finally {
+    await reduced.close();
+  }
+
+  const current = page.viewportSize();
+  if (current)
+    await page.setViewportSize({ width: current.width, height: 640 });
+  await login(page);
+  await expectOwnMarshalForm(page);
+  const masthead = page.locator("[data-scroll-masthead]");
+  const progress = page.locator("[data-scroll-progress]");
+  await page.evaluate(() => window.scrollTo(0, 160));
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      masthead.evaluate((el) =>
+        parseFloat(el.style.getPropertyValue("--masthead-shift")),
+      ),
+    )
+    .toBeGreaterThan(0);
+  await expect(progress).not.toHaveCSS("transform", "matrix(0, 0, 0, 1, 0, 0)");
+  await noOverflow(page);
+});
+
 test("authorised gate accounts open the delivery form as their bound marshal", async ({
   page,
 }) => {
