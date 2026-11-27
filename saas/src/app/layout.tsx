@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { OpeningMotion } from "@/components/shared/opening-motion";
 import "./globals.css";
 export const metadata: Metadata = {
   title: "DJ Civils | Delivery Control",
@@ -25,7 +26,10 @@ export const viewport: Viewport = {
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <OpeningMotion />
+        {children}
+      </body>
     </html>
   );
 }
