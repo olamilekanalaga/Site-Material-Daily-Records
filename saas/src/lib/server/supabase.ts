@@ -198,6 +198,16 @@ export const remote = {
   log(client: SupabaseClient, input: SimpleDeliveryInput) {
     return rpc(client, "log_delivery", { p_input: input });
   },
+  async removeReplacedPhotos(client: SupabaseClient, paths: string[]) {
+    try {
+      const { error } = await client.storage
+        .from("delivery-evidence")
+        .remove(paths);
+      return !error;
+    } catch {
+      return false;
+    }
+  },
   review(client: SupabaseClient, id: string, input: ReviewInput) {
     return rpc(client, "review_delivery", { p_id: uuid(id), p_input: input });
   },
@@ -239,6 +249,24 @@ export const remote = {
         ...(replacesId ? { replaces_id: replacesId } : {}),
       },
     };
+    const register = async () => {
+      if (!replacesId)
+        return rpc<Evidence>(client, "register_evidence", registration);
+      const updated = await rpc<{ delivery: Delivery }>(
+        client,
+        "register_evidence",
+        registration,
+      );
+      const pending = updated.delivery.pending_photo_cleanup;
+      if (!pending?.includes(replacesId)) return updated;
+      const previousPath = `${delivery.company_id}/${delivery.site_id}/${deliveryId}/${replacesId}`;
+      const removed = await this.removeReplacedPhotos(client, [previousPath]);
+      if (removed)
+        updated.delivery.pending_photo_cleanup = pending.filter(
+          (id) => id !== replacesId,
+        );
+      return { ...updated, cleanupPending: !removed };
+    };
     if (existing) {
       assert(
         existing.delivery_id === deliveryId &&
@@ -248,12 +276,7 @@ export const remote = {
         "Evidence ID already used",
         409,
       );
-      if (replacesId)
-        return rpc<{ delivery: Delivery }>(
-          client,
-          "register_evidence",
-          registration,
-        );
+      if (replacesId) return register();
       return {
         id: existing.id,
         delivery_id: existing.delivery_id,
@@ -322,11 +345,7 @@ export const remote = {
         409,
       );
     }
-    return rpc<Evidence | { delivery: Delivery }>(
-      client,
-      "register_evidence",
-      registration,
-    );
+    return register();
   },
   async file(client: SupabaseClient, id: string) {
     const { data: e, error } = await client

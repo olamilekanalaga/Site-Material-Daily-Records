@@ -72,13 +72,20 @@ export function PhotoDialog({
       form.set("replaces_id", attempt.previous.id);
       form.set("kind", attempt.previous.kind);
       form.set("file", file);
-      const { delivery: updated } = await request<{ delivery: Delivery }>(
-        `/api/deliveries/${encodeURIComponent(delivery.id)}/evidence`,
-        { method: "POST", body: form },
-      );
+      const { delivery: updated, cleanupPending } = await request<{
+        delivery: Delivery;
+        cleanupPending?: boolean;
+      }>(`/api/deliveries/${encodeURIComponent(delivery.id)}/evidence`, {
+        method: "POST",
+        body: form,
+      });
       onReplaced(updated);
       setRetry(null);
-      setStatus("Photo replaced.");
+      setStatus(
+        cleanupPending
+          ? "Photo replaced. Removal of the old file will retry automatically."
+          : "Photo replaced.",
+      );
     } catch (problem) {
       setError(
         problem instanceof Error

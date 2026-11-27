@@ -153,6 +153,7 @@ before(async () => {
     "20261127131602_track_receiving_company_and_approve_items.sql",
   );
   await migration("20261127150155_replace_delivery_photo.sql");
+  await migration("20261127151213_remove_replaced_delivery_photos.sql");
   await as(gate);
   const boot = await rpc("app_bootstrap");
   ownMarshal = boot.marshals.find(
@@ -687,7 +688,7 @@ test("a marshal can submit a Hire movement with evidence and a supervisor can re
   await refused(rpc("log_delivery", fields({ selected_category: "Hire" })));
 });
 
-test("only the recorder can replace a submitted photo and each replacement retains its predecessor", async () => {
+test("only the recorder can replace a submitted photo and remove its prior file after it is saved", async () => {
   await as(gate);
   const { delivery, evidenceId } = await finish(fields());
   const replacement = {
@@ -704,6 +705,11 @@ test("only the recorder can replace a submitted photo and each replacement retai
     db.query(
       "insert into storage.objects(bucket_id,name,metadata) values('delivery-evidence',$1,$2::jsonb)",
       [path(id), JSON.stringify({ size })],
+    );
+  const remove = (id: string) =>
+    db.query(
+      "delete from storage.objects where bucket_id='delivery-evidence' and name=$1 returning name",
+      [path(id)],
     );
   async function register(input = replacement) {
     const result = await db.query<{
@@ -722,6 +728,7 @@ test("only the recorder can replace a submitted photo and each replacement retai
   }
   await as(gate);
   await refused(register());
+  assert.equal((await remove(evidenceId)).rows.length, 0);
   const oversized = { ...replacement, id: crypto.randomUUID(), size: 500001 };
   await upload(oversized.id, oversized.size);
   await refused(register(oversized));
@@ -732,6 +739,7 @@ test("only the recorder can replace a submitted photo and each replacement retai
     updated.evidence.map((photo: { id: string }) => photo.id),
     [replacement.id],
   );
+  assert.deepEqual(updated.pending_photo_cleanup, [evidenceId]);
   assert.equal((await register()).version, updated.version);
   await refused(register({ ...replacement, id: crypto.randomUUID() }));
 
@@ -743,6 +751,11 @@ test("only the recorder can replace a submitted photo and each replacement retai
       .evidence.map((photo: { id: string }) => photo.id),
     [replacement.id],
   );
+  assert.equal((await remove(evidenceId)).rows.length, 0);
+  await as(gate);
+  assert.equal((await remove(replacement.id)).rows.length, 0);
+  assert.equal((await remove(evidenceId)).rows.length, 1);
+  assert.deepEqual((await register()).pending_photo_cleanup, []);
   const originals = await db.query(
     "select id from delivery_evidence where id=$1",
     [evidenceId],
@@ -752,7 +765,7 @@ test("only the recorder can replace a submitted photo and each replacement retai
     "select name from storage.objects where name=$1",
     [path(evidenceId)],
   );
-  assert.equal(retained.rows.length, 1);
+  assert.equal(retained.rows.length, 0);
 });
 
 test("new arrivals require a supplier without inventing a supplier catalogue row", async () => {

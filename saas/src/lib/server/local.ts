@@ -1258,6 +1258,7 @@ export const local = {
       if (replacesId) {
         const delivery = { ...d, updated_at: now(), version: d.version + 1 };
         put("delivery", delivery);
+        db().prepare("DELETE FROM files WHERE id=?").run(replacesId);
         return { delivery: hydrate(delivery) };
       }
       const { company_id: _, site_id: __, sha256: ___, ...e } = evidence;
