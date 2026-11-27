@@ -517,7 +517,8 @@ export function LiveForm({
             }
             customLabel={`New ${itemName} name`}
             customPlaceholder={`Enter the ${itemName} name`}
-            includePending
+            plainNames={hire}
+            includePending={!hire}
             onSelect={setMaterial}
             onCustom={(next) => {
               setCustomMaterial(next);
