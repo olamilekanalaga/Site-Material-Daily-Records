@@ -15,6 +15,7 @@ export const CAPTURE_CATEGORIES = [
   "Concrete",
   CATEGORIES[1],
   CATEGORIES[2],
+  "Hire",
 ] as const;
 export const ENTRY_TYPES = ["Delivery", "Service visit"] as const;
 export const PENDING_CATEGORY = "Pending classification";
@@ -233,6 +234,7 @@ const concreteNames = new Set(
 );
 
 export function captureCategory(category: string | undefined, name: string) {
+  if (category === "Hire") return "Hire";
   if (
     category === "Concrete" ||
     category === "Concrete and cement" ||
@@ -243,7 +245,9 @@ export function captureCategory(category: string | undefined, name: string) {
 }
 
 export function captureCategoryLabel(category: string) {
-  return category === "Aggregates / Sands" ? "Aggregate" : category;
+  if (category === "Aggregates / Sands") return "Aggregate";
+  if (category === "Services") return "Service";
+  return category;
 }
 
 function hiddenByDefault(definition: Definition | undefined) {

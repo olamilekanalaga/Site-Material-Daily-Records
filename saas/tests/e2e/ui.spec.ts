@@ -376,6 +376,10 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
   });
   await expect(direction).toHaveValue("");
   await expect(direction).toHaveJSProperty("required", true);
+  await expect(direction.getByRole("option")).toHaveText(["IN", "OUT"]);
+  await expect(
+    page.getByText("A photograph supports the record", { exact: false }),
+  ).toHaveCount(0);
   await direction.selectOption("OUT");
   await chooseMaterial(page, "6F5");
   await expect(
@@ -450,6 +454,7 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
     "Concrete",
     "Material",
     "Service",
+    "Hire",
   ]);
   await expect(views.getByRole("button", { name: "Overview" })).toHaveAttribute(
     "aria-pressed",
@@ -470,6 +475,7 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
     "Concrete",
     "Material",
     "Service",
+    "Hire",
   ]);
   const total = summary.locator("dd").first();
   await expect(total).not.toHaveText("0");
@@ -492,6 +498,7 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
     "Concrete",
     "Material",
     "Service",
+    "Hire",
   ]);
   await expect(
     page.getByRole("combobox", { name: "Item", exact: true }),
@@ -523,6 +530,73 @@ test("authorised gate accounts open the delivery form as their bound marshal", a
   await expect(historical).toBeVisible();
   await expect(total).not.toHaveText("0");
   await noOverflow(page);
+});
+
+test("Hire movements stay separate from Service and appear in Hire exports", async ({
+  page,
+  browser,
+}) => {
+  await login(page);
+  await expectOwnMarshalForm(page);
+  const item = `Hired excavator ${randomUUID().slice(0, 8)}`;
+  await page
+    .getByRole("combobox", { name: "Category", exact: true })
+    .selectOption("Hire");
+  await page
+    .getByRole("combobox", { name: "Direction", exact: true })
+    .selectOption("OUT");
+  const hireItems = page.getByRole("combobox", {
+    name: "Hire item",
+    exact: true,
+  });
+  await hireItems.click();
+  await page
+    .getByRole("option", { name: "Enter a new hire item", exact: true })
+    .click();
+  await page.getByLabel("New hire item name", { exact: true }).fill(item);
+  await newSupplier(page, "Local plant hire");
+  await attach(page);
+  await save(page);
+  await page.reload();
+  await expectOwnMarshalForm(page);
+  await page
+    .getByRole("combobox", { name: "Category", exact: true })
+    .selectOption("Hire");
+  await hireItems.click();
+  await expect(
+    page.getByRole("option", { name: item, exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Records", exact: true }).click();
+  const views = page.getByRole("navigation", { name: "Movement views" });
+  const row = records(page).getByRole("row").filter({ hasText: item });
+  await page.locator("summary").getByText("Filters", { exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Category", exact: true })
+    .selectOption("Hire");
+  await expect(row).toContainText("OUT");
+  await views.getByRole("button", { name: "Service", exact: true }).click();
+  await expect(row).toHaveCount(0);
+  await views.getByRole("button", { name: "Hire", exact: true }).click();
+  await expect(row).toContainText("OUT");
+  await expect(
+    records(page).getByRole("columnheader", { name: "Hire item" }),
+  ).toBeVisible();
+
+  const context = await browser.newContext();
+  try {
+    const supervisor = await context.newPage();
+    await login(supervisor, "supervisor");
+    const exportResponse = await supervisor.request.get(
+      "/api/reports?view=arrivals&format=csv&movement_view=Hire",
+    );
+    expect(exportResponse.ok()).toBe(true);
+    const csv = await exportResponse.text();
+    expect(csv.split(/\r?\n/).find((line) => line.includes(item))).toContain(
+      ',"Hire",',
+    );
+  } finally {
+    await context.close();
+  }
 });
 
 test("a failed upload resumes one server record and a separate supervisor can read its private photo", async ({

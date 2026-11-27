@@ -148,6 +148,7 @@ before(async () => {
   await migration("202611260001_delivery_capture_time.sql");
   await migration("202611260002_require_delivery_supplier.sql");
   await migration("202611260003_concrete_delivery_fields.sql");
+  await migration("20261127124132_accept_hire_category.sql");
   await as(gate);
   const boot = await rpc("app_bootstrap");
   ownMarshal = boot.marshals.find(
@@ -647,6 +648,31 @@ test("concrete requires a mix and preserves ticket tonnage", async () => {
   assert.equal(delivery.ticket_quantity, 12.345);
   assert.equal(delivery.ticket_unit, "tonnes");
   await refused(rpc("log_delivery", fields({ mix: "C25/30", tonnage: 12 })));
+});
+
+test("a marshal can submit a Hire movement with evidence and a supervisor can read it", async () => {
+  await as(gate);
+  const { delivery, evidenceId } = await finish(
+    fields({
+      selected_category: "Hire",
+      material_id: "",
+      custom_item_name: "Mini excavator rental",
+      direction: "OUT",
+    }),
+  );
+  assert.equal(delivery.selected_category, "Hire");
+  assert.equal(delivery.direction, "OUT");
+  assert.equal(delivery.item_name, "Mini excavator rental");
+  assert.equal(delivery.status, "Submitted");
+  assert.equal(delivery.evidence[0].id, evidenceId);
+  await as(supervisor);
+  const boot = await rpc("app_bootstrap");
+  assert.equal(
+    boot.deliveries.find((record: { id: string }) => record.id === delivery.id)
+      .selected_category,
+    "Hire",
+  );
+  await refused(rpc("log_delivery", fields({ selected_category: "Hire" })));
 });
 
 test("new arrivals require a supplier without inventing a supplier catalogue row", async () => {
