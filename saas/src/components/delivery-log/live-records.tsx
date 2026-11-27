@@ -7,15 +7,24 @@ import type { Bootstrap, Delivery, Marshal } from "@/lib/types";
 import { normaliseItemName } from "@/lib/catalogue";
 import {
   matchesMovementView,
+  movementCategory,
+  movementViews,
   periodDeliveries,
   type DateRange,
-  type MovementView,
+  type RecordsView,
 } from "@/lib/delivery-records";
 import { siteClock } from "@/lib/site-time";
 import { downloadReport } from "@/lib/client/offline";
 import { Photo, PhotoDialog } from "./delivery-photo";
 import { ItemSelector } from "./item-selector";
 import styles from "./live-delivery.module.css";
+
+const dateFormat = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 export function marshalPhotoSource(marshal: Marshal, mode: Bootstrap["mode"]) {
   if (!marshal.photo_path && !(mode === "supabase" && marshal.user_id))
@@ -36,11 +45,11 @@ export function onMarshalPhotoError(event: SyntheticEvent<HTMLImageElement>) {
 export function LiveRecords({
   data,
   siteId,
-  view = "Aggregate",
+  view = "Overview",
 }: {
   data: Bootstrap;
   siteId: string;
-  view?: MovementView;
+  view?: RecordsView;
 }) {
   const timezone =
     data.sites.find((site) => site.id === siteId)?.timezone || "Europe/London";
@@ -49,7 +58,7 @@ export function LiveRecords({
   );
   const [customRange, setCustomRange] = useState<DateRange | null>(null);
   const [itemFilters, setItemFilters] = useState<
-    Partial<Record<MovementView, string>>
+    Partial<Record<RecordsView, string>>
   >({});
   const material = itemFilters[view] ?? "";
   const [direction, setDirection] = useState("");
@@ -73,9 +82,19 @@ export function LiveRecords({
       document.removeEventListener("visibilitychange", resume);
     };
   }, [timezone]);
-  const range = customRange || { from: today, to: today };
+  const overview = view === "Overview";
+  const service = view === "Service";
+  const itemLabel = overview ? "Item" : service ? "Service" : "Material";
+  const itemPlural = overview ? "items" : service ? "services" : "materials";
+  const supplierLabel = service ? "Provider" : "Supplier";
+  const defaultDate = overview ? "" : today;
+  const range = customRange ?? { from: defaultDate, to: defaultDate };
+  const hasDates = Boolean(range.from || range.to);
   const invalid = Boolean(range.from && range.to && range.from > range.to);
   const selectedSupplier = data.suppliers.find((item) => item.id === supplier);
+  const materialNames = new Map(
+    data.materials.map(({ id, name }) => [id, name]),
+  );
   const siteRecords = data.deliveries.filter(
     (record) =>
       record.site_id === siteId &&
@@ -111,20 +130,33 @@ export function LiveRecords({
   function itemName(record: Delivery) {
     return (
       record.item_name ||
-      data.materials.find((item) => item.id === record.material_id)?.name ||
+      materialNames.get(record.material_id) ||
       "Historical material"
     );
   }
 
-  const totals = new Map<string, { label: string; count: number }>();
-  for (const record of records) {
-    const existing = totals.get(record.material_id);
-    if (existing) existing.count++;
-    else totals.set(record.material_id, { label: itemName(record), count: 1 });
-  }
-  const metrics = [...totals].sort(([, a], [, b]) =>
-    a.label.localeCompare(b.label),
+  const totals = new Map<string, { label: string; count: number }>(
+    overview ? movementViews.map((label) => [label, { label, count: 0 }]) : [],
   );
+  for (const record of records) {
+    const name = itemName(record);
+    const key = overview ? movementCategory(record, name) : record.material_id;
+    const existing = totals.get(key);
+    if (existing) existing.count++;
+    else totals.set(key, { label: name, count: 1 });
+  }
+  const metrics = [...totals];
+  if (overview)
+    metrics.unshift([
+      "total",
+      { label: "Total records", count: records.length },
+    ]);
+  else metrics.sort(([, a], [, b]) => a.label.localeCompare(b.label));
+  const periodLabel = !hasDates
+    ? "All time"
+    : customRange
+      ? `${range.from || "Any date"} to ${range.to || "Any date"}`
+      : "Today · updates automatically";
 
   async function exportRows() {
     if (exporting || invalid) return;
@@ -166,7 +198,9 @@ export function LiveRecords({
           className={styles.analytics}
           aria-labelledby="movement-analytics"
         >
-          <h2 id="movement-analytics">{view} records</h2>
+          <h2 id="movement-analytics">
+            {overview ? "Overview" : `${view} records`}
+          </h2>
           {metrics.length > 0 ? (
             <div
               className={styles.cardScroll}
@@ -185,7 +219,7 @@ export function LiveRecords({
             </div>
           ) : (
             <p className={styles.classificationNote}>
-              No {view.toLowerCase()} match these filters.
+              No {view.toLowerCase()} records match these filters.
             </p>
           )}
         </section>
@@ -204,7 +238,7 @@ export function LiveRecords({
               aria-invalid={invalid}
               onChange={(event) =>
                 setCustomRange((previous) => ({
-                  ...(previous || { from: today, to: today }),
+                  ...(previous ?? { from: defaultDate, to: defaultDate }),
                   from: event.target.value,
                 }))
               }
@@ -219,7 +253,7 @@ export function LiveRecords({
               aria-invalid={invalid}
               onChange={(event) =>
                 setCustomRange((previous) => ({
-                  ...(previous || { from: today, to: today }),
+                  ...(previous ?? { from: defaultDate, to: defaultDate }),
                   to: event.target.value,
                 }))
               }
@@ -228,12 +262,10 @@ export function LiveRecords({
           <ItemSelector
             items={viewItems}
             value={material}
-            label={view === "Service" ? "Service" : "Material"}
-            searchLabel={
-              view === "Service" ? "Search services" : "Search materials"
-            }
-            placeholder={view === "Service" ? "All services" : "All materials"}
-            clearLabel={view === "Service" ? "All services" : "All materials"}
+            label={itemLabel}
+            searchLabel={`Search ${itemPlural}`}
+            placeholder={`All ${itemPlural}`}
+            clearLabel={`All ${itemPlural}`}
             plainNames
             onSelect={(id) =>
               setItemFilters((filters) => ({ ...filters, [view]: id }))
@@ -242,12 +274,10 @@ export function LiveRecords({
           <ItemSelector
             items={data.suppliers}
             value={supplier}
-            label={view === "Service" ? "Provider" : "Supplier"}
-            searchLabel={
-              view === "Service" ? "Search providers" : "Search suppliers"
-            }
-            placeholder={view === "Service" ? "All providers" : "All suppliers"}
-            clearLabel={view === "Service" ? "All providers" : "All suppliers"}
+            label={supplierLabel}
+            searchLabel={service ? "Search providers" : "Search suppliers"}
+            placeholder={service ? "All providers" : "All suppliers"}
+            clearLabel={service ? "All providers" : "All suppliers"}
             plainNames
             onSelect={setSupplier}
           />
@@ -266,10 +296,7 @@ export function LiveRecords({
       </details>
       <div className={styles.actions}>
         <span>
-          {customRange
-            ? `${range.from || "Any date"} to ${range.to || "Any date"}`
-            : "Today · updates automatically"}{" "}
-          · {timezone} · {records.length}{" "}
+          {periodLabel} · {timezone} · {records.length}{" "}
           {records.length === 1 ? "record" : "records"}
         </span>
         <div>
@@ -328,10 +355,10 @@ export function LiveRecords({
               {[
                 "Marshal",
                 "Direction",
-                view === "Service" ? "Service" : "Material",
+                itemLabel,
                 ...(view === "Concrete" ? ["Mix"] : []),
-                view === "Service" ? "Provider" : "Supplier",
-                "Time",
+                overview ? "Supplier / provider" : supplierLabel,
+                overview ? "Date & time" : "Time",
                 ...(view === "Concrete" ? ["Tonnage"] : []),
                 "Photo",
               ].map((label) => (
@@ -359,6 +386,7 @@ export function LiveRecords({
                           alt=""
                           width={28}
                           height={28}
+                          loading="lazy"
                         />
                       )}
                       <span>{record.marshal_name || record.creator_name}</span>
@@ -382,7 +410,11 @@ export function LiveRecords({
                       "Not recorded"}
                   </td>
                   <td className={styles.clockCell}>
-                    <time dateTime={record.arrival_at}>{clock.time}</time>
+                    <time dateTime={record.arrival_at}>
+                      {overview &&
+                        `${dateFormat.format(new Date(`${clock.date}T00:00:00Z`))} · `}
+                      {clock.time}
+                    </time>
                     {record.correction_reason && (
                       <small title={record.correction_reason}>
                         Corrected time

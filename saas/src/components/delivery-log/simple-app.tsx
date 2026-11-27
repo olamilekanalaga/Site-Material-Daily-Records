@@ -11,7 +11,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import type { Bootstrap, Delivery } from "@/lib/types";
-import { movementViews, type MovementView } from "@/lib/delivery-records";
+import { recordsViews, type RecordsView } from "@/lib/delivery-records";
 import { request } from "@/lib/client/offline";
 import { Brand } from "../shared/brand";
 import { Login } from "../auth/login";
@@ -53,7 +53,7 @@ export function SimpleApp({
   const refreshing = useRef(false);
   const signingOut = useRef(false);
   const [activity, setActivity] = useState<DeliveryActivity[]>([]);
-  const [movementView, setMovementView] = useState<MovementView>("Aggregate");
+  const [movementView, setMovementView] = useState<RecordsView>("Overview");
   const role = data?.actor.role;
   const canRecord =
     portal !== "supervisor" && (role === "gate" || role === "company_admin");
@@ -297,26 +297,23 @@ export function SimpleApp({
             </button>
           </nav>
         )}
-        {recordsPage &&
-          (role === "gate" ||
-            role === "supervisor" ||
-            role === "site_manager") && (
-            <nav
-              className={`${liveStyles.marshalNav} ${liveStyles.categoryNav}`}
-              aria-label="Movement views"
-            >
-              {movementViews.map((view) => (
-                <button
-                  key={view}
-                  type="button"
-                  aria-pressed={movementView === view}
-                  onClick={() => setMovementView(view)}
-                >
-                  {view}
-                </button>
-              ))}
-            </nav>
-          )}
+        {recordsPage && (
+          <nav
+            className={`${liveStyles.marshalNav} ${liveStyles.categoryNav}`}
+            aria-label="Movement views"
+          >
+            {recordsViews.map((view) => (
+              <button
+                key={view}
+                type="button"
+                aria-pressed={movementView === view}
+                onClick={() => setMovementView(view)}
+              >
+                {view}
+              </button>
+            ))}
+          </nav>
+        )}
         <main>
           {profilePage ? (
             <>

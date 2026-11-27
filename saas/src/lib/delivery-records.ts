@@ -10,9 +10,10 @@ export const movementViews = [
   "Service",
 ] as const;
 export type MovementView = (typeof movementViews)[number];
+export const recordsViews = ["Overview", ...movementViews] as const;
+export type RecordsView = (typeof recordsViews)[number];
 export const reportMovementViews = [
-  ...movementViews,
-  "Overview",
+  ...recordsViews,
   "Materials",
   "Services",
 ] as const;
