@@ -30,7 +30,7 @@
   color: var(--daily-muted);
 }
 .dropdownTrigger[aria-expanded="true"] {
-  border-color: #767676;
+  border-color: var(--daily-accent);
   box-shadow: 0 0 0 3px var(--daily-action);
 }
 .dropdownTrigger[aria-expanded="true"] svg {
@@ -46,7 +46,31 @@
   border: 1px solid var(--daily-border);
   border-radius: 14px;
   background: var(--daily-surface);
-  box-shadow: 0 8px 24px #00000014;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 38%);
+}
+
+@keyframes suggestionsEnter {
+  from {
+    opacity: 0.85;
+    translate: 0 -4px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dropdownTrigger,
+  .dropdownTrigger svg {
+    transition:
+      border-color 180ms ease-out,
+      transform 180ms var(--daily-ease);
+  }
+
+  .dropdownPanel {
+    animation: suggestionsEnter 220ms var(--daily-ease) backwards;
+  }
 }
 .dropdownSearch {
   padding: 12px;

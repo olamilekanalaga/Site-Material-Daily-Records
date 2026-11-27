@@ -583,7 +583,7 @@ export function LiveForm({
             <strong>Delivery time</strong>
             The date and time are saved automatically · {site.timezone}
           </div>
-          <div className="simple-upload">
+          <div className="simple-upload" data-scroll-reveal="">
             <label htmlFor="delivery-image">
               <span>
                 Delivery image

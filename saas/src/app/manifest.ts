@@ -6,8 +6,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "DJ Civils construction delivery capture and verification",
     start_url: "/",
     display: "standalone",
-    background_color: "#f8f8f8",
-    theme_color: "#f8f8f8",
+    background_color: "#111110",
+    theme_color: "#111110",
     icons: [
       {
         src: "/dj-civils-192.png",

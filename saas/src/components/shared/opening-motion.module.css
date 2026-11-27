@@ -7,8 +7,9 @@
   overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 44%, #322b21 0, transparent 60%), #111110;
-  animation: openingCurtain 860ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    radial-gradient(ellipse at 50% 44%, #322b21 0, transparent 60%),
+    var(--daily-canvas);
+  animation: openingFade 220ms 2s ease-out both;
 }
 
 .opening::before,
@@ -32,24 +33,22 @@
     transparent 58%,
     #000
   );
-  animation: openingTrace 860ms ease-out both;
 }
 
 .opening::after {
   background: linear-gradient(90deg, transparent, #cfaa70, transparent) center /
     100% 1px no-repeat;
-  animation: openingTrace 670ms 50ms ease-out both;
+  opacity: 0.75;
 }
 
 .openingMark {
   z-index: 1;
-  width: min(68vw, 270px);
+  width: min(63vw, 270px);
   border: 1px solid rgb(207 170 112 / 42%);
   border-radius: 18px;
   overflow: hidden;
   background: #050505;
   box-shadow: 0 22px 68px rgb(0 0 0 / 46%);
-  animation: openingMark 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .openingMark img {
@@ -58,43 +57,12 @@
   height: auto;
 }
 
-@keyframes openingCurtain {
-  0%,
-  46% {
-    opacity: 1;
-    clip-path: inset(0);
-  }
-  100% {
-    opacity: 0;
-    clip-path: inset(49% 0 49%);
-  }
-}
-
-@keyframes openingMark {
-  0% {
-    opacity: 0;
-    transform: translateY(18px) scale(0.86);
-  }
-  56% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes openingTrace {
+@keyframes openingFade {
   from {
-    opacity: 0;
-    transform: translateX(-6%);
-  }
-  62% {
     opacity: 1;
   }
   to {
-    opacity: 0.45;
-    transform: none;
+    opacity: 0;
   }
 }
 

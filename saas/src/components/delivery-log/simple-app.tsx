@@ -192,14 +192,7 @@ export function SimpleApp({
     }
   }
 
-  if (!loaded) {
-    return (
-      <main className="simple-loading">
-        <Brand />
-        <p role="status">Opening DJ Civils…</p>
-      </main>
-    );
-  }
+  if (!loaded) return null;
   if (!data) {
     return (
       <Login
@@ -346,13 +339,7 @@ export function SimpleApp({
             </>
           ) : (
             <>
-              <div
-                className={
-                  recordsPage
-                    ? `simple-page-title ${liveStyles.recordsTitle}`
-                    : "simple-page-title"
-                }
-              >
+              <div className={`simple-page-title ${liveStyles.workTitle}`}>
                 <div>
                   <h1>
                     {recordsPage ? "Delivery Records" : "Record Delivery"}
