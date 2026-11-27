@@ -82,6 +82,19 @@
   overscroll-behavior: contain;
   background: var(--daily-surface);
 }
+
+@media (max-width: 700px), (pointer: coarse) {
+  .dropdownPanel {
+    position: static;
+    margin-top: 6px;
+  }
+
+  .options {
+    max-height: min(280px, 45dvh);
+    overscroll-behavior-y: auto;
+  }
+}
+
 .options button {
   display: flex;
   align-items: center;
