@@ -1,5 +1,5 @@
-import type { Delivery, EntryType } from "./types";
-import { captureCategory } from "./catalogue";
+import type { CatalogueItem, Delivery, EntryType } from "./types";
+import { captureCategory, normaliseItemName } from "./catalogue";
 import { siteClock } from "./site-time";
 
 export type DateRange = { from: string; to: string };
@@ -26,12 +26,23 @@ type MovementItem = {
   selected_category?: string;
 };
 
+const captureViews = new Map<string, MovementView>([
+  ["Aggregates / Sands", "Aggregate"],
+  ["Concrete", "Concrete"],
+  ["Other Materials", "Material"],
+  ["Services", "Service"],
+  ["Hire", "Hire"],
+]);
+
 export function movementCategory(
   item: MovementItem,
   name: string,
+  catalogueCategory?: string,
 ): MovementView {
+  const selected = captureViews.get(item.selected_category || "");
+  if (selected) return selected;
   const category = captureCategory(
-    item.selected_category || item.category,
+    item.selected_category || item.category || catalogueCategory,
     name,
   );
   if (category === "Hire") return "Hire";
@@ -50,11 +61,29 @@ export function matchesMovementView(
   item: MovementItem,
   view: ReportMovementView,
   name: string,
+  catalogueCategory?: string,
 ) {
   if (view === "Overview") return true;
   if (view === "Materials") return item.entry_type === "Delivery";
   if (view === "Services") return item.entry_type === "Service visit";
-  return movementCategory(item, name) === view;
+  return movementCategory(item, name, catalogueCategory) === view;
+}
+
+export function recordedSuppliers(
+  suppliers: CatalogueItem[],
+  deliveries: Delivery[],
+) {
+  const ids = new Set<string>();
+  const names = new Set<string>();
+  for (const delivery of deliveries) {
+    if (!delivery.submitted_at || delivery.status === "Draft") continue;
+    if (delivery.supplier_id) ids.add(delivery.supplier_id);
+    else if (delivery.supplier_name)
+      names.add(normaliseItemName(delivery.supplier_name));
+  }
+  return suppliers.filter(
+    ({ id, name }) => ids.has(id) || names.has(normaliseItemName(name)),
+  );
 }
 
 function uniqueDeliveries(deliveries: Delivery[]) {

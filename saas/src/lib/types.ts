@@ -21,6 +21,9 @@ export type Role =
 export type Unit = "tonnes" | "m³" | "loads" | "kg";
 export type EntryType = "Delivery" | "Service visit" | "Pending review";
 export type ApprovalStatus = "Approved" | "Pending";
+export const receivingCompanies = ["DJ Civils Ltd.", "GTC"] as const;
+export type ReceivingCompany = (typeof receivingCompanies)[number];
+export const defaultReceivingCompany = receivingCompanies[0];
 export type Actor = {
   id: string;
   name: string;
@@ -82,6 +85,7 @@ export type Review = {
 export type MovementDirection = "IN" | "OUT";
 export type Delivery = {
   direction?: MovementDirection;
+  receiving_company?: ReceivingCompany;
   id: string;
   company_id: string;
   site_id: string;
@@ -121,6 +125,7 @@ export type Delivery = {
 };
 export type SimpleDeliveryInput = {
   direction?: MovementDirection;
+  receiving_company?: ReceivingCompany;
   id: string;
   site_id: string;
   material_id: string;

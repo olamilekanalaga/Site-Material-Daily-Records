@@ -3,7 +3,8 @@ import { assert, csvCell, dateAt } from "@/lib/server/core";
 import { local } from "@/lib/server/local";
 import { remote } from "@/lib/server/supabase";
 import { route } from "@/lib/server/http";
-import { normaliseItemName } from "@/lib/catalogue";
+import { captureCategoryLabel, normaliseItemName } from "@/lib/catalogue";
+import { defaultReceivingCompany, receivingCompanies } from "@/lib/types";
 import { siteClock } from "@/lib/site-time";
 import {
   matchesMovementView,
@@ -48,12 +49,16 @@ export async function GET(request: Request) {
       (supplier) => supplier.id === p.get("supplier_id"),
     );
     const direction = p.get("direction");
+    const receivingCompany = p.get("receiving_company");
+    assert(
+      !receivingCompany ||
+        receivingCompanies.some((company) => company === receivingCompany),
+      "Choose a valid company",
+    );
     const movementView = (p.get("movement_view") ??
       "Overview") as ReportMovementView;
     assert(reportMovementViews.includes(movementView), "Invalid movement view");
-    const materialNames = new Map(
-      boot.materials.map((item) => [item.id, item.name]),
-    );
+    const materials = new Map(boot.materials.map((item) => [item.id, item]));
     assert(
       !direction || direction === "IN" || direction === "OUT",
       "Choose IN or OUT",
@@ -64,9 +69,13 @@ export async function GET(request: Request) {
         matchesMovementView(
           d,
           movementView,
-          d.item_name || materialNames.get(d.material_id) || "",
+          d.item_name || materials.get(d.material_id)?.name || "",
+          materials.get(d.material_id)?.category,
         ) &&
         (!direction || (d.direction ?? "IN") === direction) &&
+        (!receivingCompany ||
+          (d.receiving_company ?? defaultReceivingCompany) ===
+            receivingCompany) &&
         (!siteId || d.site_id === siteId) &&
         (!p.get("supplier_id") ||
           d.supplier_id === p.get("supplier_id") ||
@@ -101,6 +110,7 @@ export async function GET(request: Request) {
       supplier_id: p.get("supplier_id"),
       view: p.get("view"),
       direction: direction || null,
+      receiving_company: receivingCompany || null,
       movement_view: movementView,
     };
     if (c.client) await remote.reportExport(c.client, exportInfo);
@@ -131,6 +141,7 @@ export async function GET(request: Request) {
         "Marshal ID",
         "Direction",
         ...(movementView === "Concrete" ? ["Mix", "Tonnage (t)"] : []),
+        "Company",
       ];
       const body = rows.map((delivery) => {
         const site = boot.sites.find((site) => site.id === delivery.site_id);
@@ -156,9 +167,9 @@ export async function GET(request: Request) {
           site?.name,
           delivery.recorded_at || "",
           delivery.arrival_at,
-          (delivery.selected_category === "Hire"
-            ? "Hire"
-            : delivery.category) || "",
+          captureCategoryLabel(
+            delivery.selected_category || delivery.category || "",
+          ),
           delivery.entry_type || "",
           delivery.correction_reason || "",
           delivery.created_by,
@@ -172,6 +183,7 @@ export async function GET(request: Request) {
                   : null,
               ]
             : []),
+          delivery.receiving_company ?? defaultReceivingCompany,
         ];
       });
       return new Response(
@@ -208,6 +220,7 @@ export async function GET(request: Request) {
       "Latest reviewer",
       "Latest decision",
       "Latest review reason",
+      "Company",
     ];
     const body = rows.map((d) => [
       d.id,
@@ -228,6 +241,7 @@ export async function GET(request: Request) {
       d.reviews.at(-1)?.reviewer_name,
       d.reviews.at(-1)?.decision,
       d.reviews.at(-1)?.reason,
+      d.receiving_company ?? defaultReceivingCompany,
     ]);
     return new Response(
       "\uFEFF" +

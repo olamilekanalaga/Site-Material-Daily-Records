@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { captureCategoryLabel } from "@/lib/catalogue";
 import {
   movementCategory,
   movementViews,
@@ -9,7 +10,13 @@ import {
   type MovementView,
 } from "@/lib/delivery-records";
 import { siteClock } from "@/lib/site-time";
-import type { Bootstrap, Delivery, Site } from "@/lib/types";
+import {
+  defaultReceivingCompany,
+  receivingCompanies,
+  type Bootstrap,
+  type Delivery,
+  type Site,
+} from "@/lib/types";
 import { PhotoDialog } from "./delivery-photo";
 import styles from "./live-delivery.module.css";
 
@@ -36,6 +43,7 @@ export function MarshalActivity({
     () => siteClock(new Date(), site.timezone).date,
   );
   const [period, setPeriod] = useState<Period>("Today");
+  const [company, setCompany] = useState("");
   const [custom, setCustom] = useState<DateRange>({ from: today, to: today });
   const [detail, setDetail] = useState<MovementView | "All" | null>(null);
   const [viewing, setViewing] = useState<Delivery | null>(null);
@@ -53,9 +61,7 @@ export function MarshalActivity({
 
   const range = period === "Custom dates" ? custom : { from: today, to: today };
   const valid = Boolean(range.from && range.to && range.from <= range.to);
-  const materialNames = new Map(
-    data.materials.map((item) => [item.id, item.name]),
-  );
+  const materials = new Map(data.materials.map((item) => [item.id, item]));
   const supplierNames = new Map(
     data.suppliers.map((item) => [item.id, item.name]),
   );
@@ -66,13 +72,22 @@ export function MarshalActivity({
         site.id,
         site.timezone,
         range,
-      ).map((row) => {
-        const name =
-          row.delivery.item_name ||
-          materialNames.get(row.delivery.material_id) ||
-          "Historical material";
-        return { ...row, name, category: movementCategory(row.delivery, name) };
-      })
+      )
+        .filter(
+          ({ delivery }) =>
+            !company ||
+            (delivery.receiving_company ?? defaultReceivingCompany) === company,
+        )
+        .map((row) => {
+          const material = materials.get(row.delivery.material_id);
+          const name =
+            row.delivery.item_name || material?.name || "Historical material";
+          return {
+            ...row,
+            name,
+            category: movementCategory(row.delivery, name, material?.category),
+          };
+        })
     : [];
   const incoming = rows.filter(
     ({ delivery }) => delivery.direction !== "OUT",
@@ -95,6 +110,18 @@ export function MarshalActivity({
           >
             {periods.map((choice) => (
               <option key={choice}>{choice}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Company
+          <select
+            value={company}
+            onChange={(event) => setCompany(event.target.value)}
+          >
+            <option value="">All companies</option>
+            {receivingCompanies.map((name) => (
+              <option key={name}>{name}</option>
             ))}
           </select>
         </label>
@@ -164,7 +191,7 @@ export function MarshalActivity({
                             setDetail(detail === category ? null : category)
                           }
                         >
-                          {category}
+                          {captureCategoryLabel(category)}
                         </button>
                       </th>
                       <td>{countIn}</td>
@@ -202,7 +229,9 @@ export function MarshalActivity({
                 id="marshal-activity-details"
                 className={styles.activityDetailHeading}
               >
-                {detail === "All" ? "My saved records" : `${detail} records`}
+                {detail === "All"
+                  ? "My saved records"
+                  : `${captureCategoryLabel(detail)} records`}
               </h3>
               {shown.length ? (
                 <div
@@ -220,6 +249,7 @@ export function MarshalActivity({
                         {[
                           "Saved at",
                           "Direction",
+                          "Company",
                           "Item",
                           "Supplier",
                           "Photo",
@@ -245,6 +275,10 @@ export function MarshalActivity({
                             >
                               {delivery.direction ?? "IN"}
                             </span>
+                          </td>
+                          <td>
+                            {delivery.receiving_company ??
+                              defaultReceivingCompany}
                           </td>
                           <td>{name}</td>
                           <td>

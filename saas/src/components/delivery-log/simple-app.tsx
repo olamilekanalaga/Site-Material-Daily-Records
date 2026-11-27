@@ -11,6 +11,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import type { Bootstrap, Delivery } from "@/lib/types";
+import { captureCategoryLabel } from "@/lib/catalogue";
 import { recordsViews, type RecordsView } from "@/lib/delivery-records";
 import { request } from "@/lib/client/offline";
 import { Brand } from "../shared/brand";
@@ -308,7 +309,7 @@ export function SimpleApp({
                 aria-pressed={movementView === view}
                 onClick={() => setMovementView(view)}
               >
-                {view}
+                {captureCategoryLabel(view)}
               </button>
             ))}
           </nav>

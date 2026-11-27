@@ -193,7 +193,7 @@ const aliases: Record<string, string[]> = {
 
 /** Legacy category labels are interpreted for display, without rewriting events. */
 function currentCategory(category: string | undefined, name = "") {
-  if ((CATEGORIES as readonly string[]).includes(category || ""))
+  if ((CAPTURE_CATEGORIES as readonly string[]).includes(category || ""))
     return category;
   if (category === "Aggregates" || category === "Concrete and cement")
     return "Aggregates / Sands";
@@ -247,6 +247,8 @@ export function captureCategory(category: string | undefined, name: string) {
 export function captureCategoryLabel(category: string) {
   if (category === "Aggregates / Sands") return "Aggregate";
   if (category === "Services") return "Service";
+  if (category === "Other Materials" || category === "Material")
+    return "Materials";
   return category;
 }
 
@@ -316,7 +318,7 @@ function metadata(item: CatalogueItem): CatalogueItem {
   const entryType = item.entry_type || definition?.entry_type;
   const approved =
     item.approval_status !== "Pending" &&
-    CATEGORIES.some((candidate) => candidate === category) &&
+    CAPTURE_CATEGORIES.some((candidate) => candidate === category) &&
     ENTRY_TYPES.some((candidate) => candidate === entryType);
   return {
     ...item,
